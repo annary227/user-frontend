@@ -1,0 +1,17 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent; /* 移除移动端点击高亮 */
+}
+
+body {
+  font-family: 'Noto Sans JP', 'Helvetica Neue', Arial, sans-serif;
+  background-color: #f2f5f8; /* 高级灰蓝底色 */
+  color: #1e293b;
+  /* 增加一点点微弱的噪点纹理，提升质感 */
+  background-image: radial-gradient(#cbd5e1 0.5px, transparent 0.5px);
+  background-size: 20px 20px;
+}
