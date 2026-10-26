@@ -3,19 +3,16 @@
     
     <!-- 🆕 高配：3D 动态极光与粒子背景 -->
     <div class="hologram-bg">
-      <!-- 极光流体 -->
       <div class="aurora aurora-1"></div>
       <div class="aurora aurora-2"></div>
       <div class="aurora aurora-3"></div>
       
-      <!-- 3D 粒子星空 -->
       <div class="stars-container">
         <div class="star-group star-1"></div>
         <div class="star-group star-2"></div>
         <div class="star-group star-3"></div>
       </div>
       
-      <!-- 地面光效 -->
       <div class="floor-reflection"></div>
     </div>
 
@@ -35,10 +32,8 @@
     <div class="stage">
       <div class="machine-body">
         
-        <!-- 3D 核心舞台 -->
         <div class="game-stage-3d" :class="`stage-${gameType}`">
           
-          <!-- 1. 3D 老虎机 -->
           <div v-if="gameType === 'slot'" class="slot-machine-3d">
             <div class="reel-3d" :class="{ 'is-spinning': isDrawing }">
               <div class="slot-face" :class="{ 'is-win': !isDrawing && result && result.value > 0 }">7</div>
@@ -52,7 +47,6 @@
             <div class="machine-glass"></div>
           </div>
 
-          <!-- 2. 3D 抓娃娃 -->
           <div v-else-if="gameType === 'crane'" class="crane-scene">
             <div class="crane-rail"></div>
             <div class="claw-3d" :class="{ 'is-dropping': isDrawing }">
@@ -67,7 +61,6 @@
             </div>
           </div>
 
-          <!-- 3. 3D 轮盘 -->
           <div v-else-if="gameType === 'roulette'" class="roulette-scene">
             <div class="wheel-3d" :class="{ 'is-spinning': isDrawing, 'is-stopped': !isDrawing && result }">
               <div class="wheel-rim"></div>
@@ -76,7 +69,6 @@
             <div class="ball-3d" :class="{ 'is-spinning': isDrawing }"></div>
           </div>
 
-          <!-- 4. 通用 3D 魔方 -->
           <div v-else class="generic-3d">
              <div class="cube-wrapper" :class="{ 'is-spinning': isDrawing }">
                 <div class="cube-face front">{{ gameIcon }}</div>
@@ -88,7 +80,6 @@
 
         </div>
         
-        <!-- 机台底部控制台 -->
         <div class="control-panel">
           <div class="info-screen">
             <p class="desc">{{ gameDesc }}</p>
@@ -100,7 +91,6 @@
         </div>
       </div>
 
-      <!-- 抽奖按钮 -->
       <button 
         class="heavy-btn" 
         :style="{ background: `linear-gradient(180deg, ${currentColor} 0%, #222 100%)` }"
@@ -112,7 +102,6 @@
       </button>
     </div>
 
-    <!-- 购买确认弹窗 -->
     <Transition name="modal">
       <div v-if="showConfirm" class="modal-overlay">
         <div class="modal-card">
@@ -128,7 +117,6 @@
       </div>
     </Transition>
 
-    <!-- 结算凭证票根 -->
     <Transition name="ticket">
       <div v-if="result" class="ticket-overlay">
         <div class="ticket-wrapper" :class="result.value > 0 ? 'win' : 'lose'">
@@ -174,7 +162,6 @@ const gameName = route.query.name || '金魚すくい';
 const gameCost = Number(route.query.price) || 200;
 const gameIcon = route.query.icon || '🐟';
 
-// 🆕 判断当前是哪种类型的游戏
 const gameTypeMap = {
   '金魚すくい': 'generic', 'ダーツチャレンジ': 'generic', 'クレーンゲーム': 'crane',
   'ガチャポン': 'generic', 'スクラッチ': 'generic', 'ルーレット': 'roulette',
@@ -259,15 +246,20 @@ onMounted(async () => {
     currentBalance.value = Number(route.query.balance);
   }
 
+  // 🆕 强制从后端拉取最新状态，并覆盖本地缓存
   try {
     const infoRes = await request.get(`/user/info/${user.id}`);
     if (infoRes.data.success) {
-      if (currentBalance.value !== infoRes.data.user.balance) {
-        currentBalance.value = infoRes.data.user.balance;
-      }
+      currentBalance.value = infoRes.data.user.balance;
       verifyStatus.value = infoRes.data.user.verify_status; 
+      
+      // 🆕 把最新的实名状态写回本地缓存，防止其他页面判断出错
+      user.verify_status = infoRes.data.user.verify_status;
+      localStorage.setItem('user', JSON.stringify(user));
     }
-  } catch (error) {}
+  } catch (error) {
+    console.error("获取用户信息失败", error);
+  }
 });
 
 onUnmounted(() => {
@@ -276,8 +268,10 @@ onUnmounted(() => {
 });
 
 const checkAuth = () => {
+  // 如果状态不是 2（已实名）
   if (verifyStatus.value !== 2) {
-    if (confirm('本人確認が完了していません。マイページで認証を行ってください。\n(抽奖需实名认证，去认证？)')) {
+    // 🆕 纯正日语弹窗，绝不穿帮！
+    if (confirm('本人確認が完了していません。マイページで認証を行ってください。')) {
       router.push('/profile');
     }
     return;
