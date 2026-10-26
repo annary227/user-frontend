@@ -76,9 +76,9 @@
       <!-- 播放时的呼吸外圈 -->
       <div v-if="isPlaying" class="pulse-ring"></div>
       
-      <!-- 🆕 直接使用稳定的外链 8-bit 游戏音乐 -->
+      <!-- 🆕 已替换为可播放的 8-bit 游戏音乐 -->
       <audio ref="audioPlayer" loop>
-        <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73467.mp3?filename=retro-arcade-game-music-297305.mp3" type="audio/mpeg" />
+        <source src="https://assets.mixkit.co/music/preview/mixkit-retro-game-console-1111.mp3" type="audio/mpeg" />
       </audio>
     </div>
   </div>
@@ -206,7 +206,7 @@ onMounted(async () => {
   right: 30px;
   width: 60px;
   height: 60px;
-  background: #1e293b; /* 深邃黑底 */
+  background: #1e293b;
   border: 1px solid #334155;
   border-radius: 50%;
   display: flex;
