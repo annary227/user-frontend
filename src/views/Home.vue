@@ -31,7 +31,15 @@
           :icon="game.icon"
           :color="game.color"
           :btnColor="game.color"
-          @play="$router.push({ path: '/gacha', query: { name: game.title, price: game.price, icon: game.icon } })"
+          @play="$router.push({ 
+            path: '/gacha', 
+            query: { 
+              name: game.title, 
+              price: game.price, 
+              icon: game.icon,
+              balance: userBalance // 🆕 把当前余额传给抽奖页，实现秒显
+            } 
+          })"
         />
       </div>
 
@@ -76,7 +84,7 @@
       <!-- 播放时的呼吸外圈 -->
       <div v-if="isPlaying" class="pulse-ring"></div>
       
-      <!-- 🆕 已替换为你本地下载的 Grunge Rave 音乐 -->
+      <!-- 🆕 播放本地音乐 -->
       <audio ref="audioPlayer" loop>
         <source src="/bgm.mp3" type="audio/mpeg" />
       </audio>
@@ -93,6 +101,7 @@ import AppHeader from '../components/AppHeader.vue';
 
 const router = useRouter();
 const records = ref([]);
+const userBalance = ref(0); // 🆕 用于承接首页余额并传给抽奖页
 
 // ==========================================
 // 🆕 游戏厅纯音乐系统
@@ -150,6 +159,16 @@ onMounted(async () => {
   
   const user = JSON.parse(storedUser);
   
+  // 🆕 核心：在首页就请求最新的余额，这样点击跳转时就能传给抽奖页
+  try {
+    const infoRes = await request.get(`/user/info/${user.id}`);
+    if (infoRes.data.success) {
+      userBalance.value = infoRes.data.user.balance;
+    }
+  } catch (error) {
+    console.error("获取余额失败", error);
+  }
+
   try {
     const recRes = await request.get(`/user/records/${user.id}`);
     if (recRes.data.success) {

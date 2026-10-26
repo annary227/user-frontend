@@ -268,10 +268,18 @@ onMounted(async () => {
   const user = JSON.parse(storedUser);
   userId.value = user.id;
   
+  // 🆕 核心优化：先读取首页传过来的余额，实现 0 延迟秒显
+  if (route.query.balance) {
+    currentBalance.value = Number(route.query.balance);
+  }
+
+  // 后台静默请求最新数据，如果变了再悄悄更新
   try {
     const infoRes = await request.get(`/user/info/${user.id}`);
     if (infoRes.data.success) {
-      currentBalance.value = infoRes.data.user.balance;
+      if (currentBalance.value !== infoRes.data.user.balance) {
+        currentBalance.value = infoRes.data.user.balance;
+      }
       verifyStatus.value = infoRes.data.user.verify_status; 
     }
   } catch (error) {
