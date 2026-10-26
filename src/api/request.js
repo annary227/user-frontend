@@ -1,11 +1,14 @@
 import axios from 'axios';
 
 const request = axios.create({
-    // 🆕 改回相对路径，由 Vercel 服务器自动帮你转发到公网地址
-    baseURL: '/api', 
+    // 🆕 直接写死最新的隧道地址，带上 /api 后缀，彻底绕过 Vercel 代理！
+    baseURL: 'https://merchandise-customize-instructions-isp.trycloudflare.com/api',
     timeout: 15000, 
     headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        // 绕过 Cloudflare 隧道的警告页
+        'bypass-tunnel-reminder': '1',
+        'cf-skip-browser-warning': 'true'
     }
 });
 
