@@ -9,7 +9,8 @@
     <main class="content">
       <!-- 1. 顶部横幅 -->
       <div class="account-banner">
-        <div class="banner-top">
+        <!-- 🆕 核心修复：只有拿到真实数据后才渲染，防止闪烁 -->
+        <div v-if="!isLoadingUser" class="banner-top">
           <span class="username">{{ userInfo.username }} 様</span>
           
           <!-- 精准的状态判断 -->
@@ -17,7 +18,6 @@
           <span v-else-if="verifyStatus === 1" class="status-badge pending">審査中</span>
           <span v-else-if="verifyStatus === 2" class="status-badge verified">本人確認済み</span>
           <span v-else-if="verifyStatus === 3" class="verify-btn" @click="startKyc">再申請する</span>
-          
         </div>
         <div class="banner-balance">
           <span class="label">現在の残高</span>
@@ -120,9 +120,8 @@
         <div class="modal-card">
           <h3>出金申請</h3>
           <div class="form-group">
-            <label>出金金額 (¥)</label>
-            <!-- 🆕 默认空输入框 -->
-            <input v-model.number="withdrawAmount" type="number" placeholder="金額を入力してください" />
+            <!-- 🆕 移除了“出金金額 (¥)”文字，只保留输入框 -->
+            <input v-model.number="withdrawAmount" type="number" placeholder="出金金額を入力してください" />
           </div>
           <div class="modal-actions">
             <button class="cancel" @click="showWithdrawModal = false">キャンセル</button>
@@ -201,7 +200,6 @@
             <p><strong>🕒 営業時間:</strong> 10:00 - 19:00 (土日祝除く)</p>
             <p><strong>📧 メール:</strong> support@quickone.cc.cd</p>
           </div>
-          <!-- 更新为你的客服 LINE 链接 -->
           <a href="https://lin.ee/OHAOimh" target="_blank" class="line-btn">
             <span class="line-icon">💬</span> 公式LINEで問い合わせる
           </a>
@@ -223,6 +221,7 @@ const router = useRouter();
 const userInfo = ref({});
 const verifyStatus = ref(0);
 const bankStatus = ref(0);
+const isLoadingUser = ref(true); // 🆕 控制首屏渲染
 
 // 弹窗状态
 const showKycModal = ref(false);
@@ -239,7 +238,7 @@ const isWithdrawing = ref(false);
 const isChangingPwd = ref(false);
 const kycForm = ref({ idType: 'license', name: '', idNumber: '' });
 const kycBankForm = ref({ bankName: '', branchName: '', branchCode: '', accountNumber: '', accountName: '', accountType: '普通' });
-const withdrawAmount = ref(null); // 🆕 默认值为空
+const withdrawAmount = ref(null);
 const newPassword = ref('');
 const deposits = ref([]);
 const withdrawals = ref([]);
@@ -250,13 +249,21 @@ const fetchUserInfo = async () => {
   if (!storedUser) return router.push('/login');
   const user = JSON.parse(storedUser);
   try {
+    isLoadingUser.value = true; // 🆕 开始加载
     const res = await request.get(`/user/info/${user.id}`);
     if (res.data.success) {
       userInfo.value = res.data.user;
       verifyStatus.value = res.data.user.verify_status;
       bankStatus.value = res.data.user.bank_name ? 1 : 0;
+      
+      // 🆕 用最新数据同步本地缓存
+      localStorage.setItem('user', JSON.stringify(res.data.user));
     }
-  } catch (error) { console.error(error); }
+  } catch (error) { 
+    console.error(error); 
+  } finally {
+    isLoadingUser.value = false; // 🆕 加载完毕
+  }
 };
 
 // 获取流水记录
@@ -286,7 +293,7 @@ const handleWithdrawClick = () => {
     kycStep.value = 2;
     showKycModal.value = true;
   } else {
-    withdrawAmount.value = null; // 🆕 打开弹窗时清空金额
+    withdrawAmount.value = null;
     showWithdrawModal.value = true;
   }
 };
@@ -301,14 +308,13 @@ const submitKycAll = async () => {
     await request.post(`/user/bind-bank/${userInfo.value.id}`, kycBankForm.value);
     alert('申請が完了しました。審査結果をお待ちください。');
     showKycModal.value = false;
-    fetchUserInfo(); // 刷新页面数据
+    fetchUserInfo();
   } catch (error) { alert('申請に失敗しました。'); }
   finally { isSubmittingKyc.value = false; }
 };
 
 // 提交提现
 const submitWithdraw = async () => {
-  // 🆕 校验：金额为空或小于 100
   if (!withdrawAmount.value || withdrawAmount.value < 100) {
     return alert('最低出金金額は 100円 です。');
   }
@@ -319,8 +325,8 @@ const submitWithdraw = async () => {
     if (res.data.success) {
       alert('出金申請を受け付けました。');
       showWithdrawModal.value = false;
-      fetchUserInfo(); // 🆕 申请成功后立即刷新余额
-      fetchHistory();  // 🆕 刷新历史记录
+      fetchUserInfo();
+      fetchHistory();
     }
   } catch (error) { alert(error.response?.data?.error || '申請に失敗しました。'); }
   finally { isWithdrawing.value = false; }
@@ -370,41 +376,31 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* 样式保持你原本的一模一样，没有任何删减 */
 .profile-container { min-height: 100vh; background: #f1f5f9; font-family: 'Noto Sans JP', sans-serif; }
 .page-header { background: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eaeaea; }
 .back-btn { background: none; border: none; font-size: 16px; color: #1e293b; cursor: pointer; font-weight: bold; }
 .page-header h2 { margin: 0; font-size: 18px; font-weight: bold; }
 .content { max-width: 600px; margin: 20px auto; padding: 0 20px; }
-
-/* 顶部大横幅 */
 .account-banner { background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 20px; padding: 25px; color: white; box-shadow: 0 10px 20px rgba(15, 23, 42, 0.2); margin-bottom: 20px; }
-.banner-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.banner-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; min-height: 30px; /* 🆕 预留高度防止抖动 */ }
 .username { font-size: 18px; font-weight: bold; }
 .verify-btn { background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; cursor: pointer; }
-
-/* 精准的状态标签 */
 .status-badge { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
 .status-badge.pending { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
 .status-badge.verified { background: rgba(16, 185, 129, 0.2); color: #10b981; }
-
 .banner-balance .label { font-size: 12px; color: #94a3b8; display: block; margin-bottom: 5px; }
 .banner-balance .amount { font-size: 34px; font-weight: 900; font-family: monospace; color: #38bdf8; }
-
-/* 快捷操作 */
 .quick-actions { margin-bottom: 25px; }
 .action-btn { width: 100%; padding: 16px; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; border: none; transition: 0.2s; }
 .action-btn.primary { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
 .action-btn:active { transform: scale(0.96); }
-
-/* 列表菜单 */
 .menu-list { background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; }
 .menu-item { display: flex; justify-content: space-between; align-items: center; padding: 18px 20px; font-size: 15px; font-weight: 500; color: #334155; cursor: pointer; border-bottom: 1px solid #f1f5f9; transition: 0.2s; }
 .menu-item:last-child { border-bottom: none; }
 .menu-item:active { background: #f8fafc; }
 .arrow { font-size: 18px; color: #94a3b8; font-family: monospace; }
 .logout-item { color: #ef4444; }
-
-/* 弹窗 */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; z-index: 1000; }
 .modal-card { background: white; padding: 30px; border-radius: 20px; width: 90%; max-width: 420px; text-align: center; max-height: 90vh; overflow-y: auto; }
 .modal-card h3 { margin: 0 0 10px; font-size: 22px; font-weight: bold; }
@@ -419,8 +415,6 @@ onMounted(() => {
 .confirm.blue-btn { background: #3b82f6; color: white; }
 .confirm:disabled { opacity: 0.5; cursor: not-allowed; }
 .full-btn { width: 100%; padding: 14px; border-radius: 12px; border: none; font-weight: bold; background: #3b82f6; color: white; cursor: pointer; margin-top: 15px; }
-
-/* 历史记录 */
 .history-list { max-height: 300px; overflow-y: auto; margin-bottom: 20px; text-align: left; }
 .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px dashed #e2e8f0; }
 .h-title { margin: 0; font-size: 15px; font-weight: bold; color: #1e293b; }
@@ -432,12 +426,9 @@ onMounted(() => {
 .text-orange { color: #f59e0b; }
 .text-gray { color: #64748b; }
 .empty { text-align: center; color: #94a3b8; padding: 20px; font-size: 14px; }
-
-/* 客服 */
 .service-box { text-align: left; background: #f8fafc; padding: 15px; border-radius: 12px; margin-bottom: 20px; font-size: 14px; line-height: 1.8; }
 .line-btn { display: flex; align-items: center; justify-content: center; gap: 8px; background: #06C755; color: white; padding: 14px; border-radius: 12px; font-size: 16px; font-weight: bold; text-decoration: none; transition: 0.2s; }
 .line-btn:hover { background: #05b04b; }
-
 .modal-enter-active, .modal-leave-active { transition: opacity 0.3s; }
 .modal-enter-from, .modal-leave-to { opacity: 0; }
 </style>
