@@ -7,7 +7,6 @@
 
     <!-- 顶部导航 -->
     <header class="room-header">
-      <!-- 保留占位，防止标题偏移 -->
       <div style="width: 100px;"></div>
       <div class="title">{{ gameName }}</div>
       <div class="header-right"></div>
@@ -53,8 +52,8 @@
         @click="checkAuth" 
         :disabled="isDrawing"
       >
-        <span class="btn-text">{{ gameCost }} コインで挑戦する</span>
-        <span class="btn-shine"></span>
+        <span class="btn-text">{{ isDrawing ? '抽選中...' : `${gameCost} コインで挑戦する` }}</span>
+        <span class="btn-shine" v-if="!isDrawing"></span>
       </button>
     </div>
 
@@ -109,7 +108,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import request from '../api/request';
 
@@ -143,6 +142,83 @@ const currentTime = ref('');
 const userId = ref(null);
 const verifyStatus = ref(0); 
 
+// ==========================================
+// 🆕 纯代码实时合成 8-bit 音效系统
+// ==========================================
+let audioCtx = null;
+let spinInterval = null;
+
+const initAudio = () => {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+};
+
+// 播放转动音效（不同游戏不同频率）
+const playSpinSound = () => {
+  let tick = true;
+  let freq = 800;
+  
+  // 根据游戏类型微调音调
+  if (gameName === 'スロット') freq = 1000; // 老虎机更清脆
+  if (gameName === 'クレーンゲーム') freq = 400; // 抓娃娃更低沉
+  if (gameName === '金魚すくい') freq = 700; // 捞金鱼居中
+
+  spinInterval = setInterval(() => {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(tick ? freq : freq - 200, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.03, audioCtx.currentTime); // 音量小一点
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.05);
+    tick = !tick;
+  }, 100); 
+};
+
+// 播放中奖音效（金币连击声）
+const playWinSound = () => {
+  if (!audioCtx) return;
+  const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51]; // C大调
+  notes.forEach((freq, index) => {
+    setTimeout(() => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.4);
+    }, index * 80);
+  });
+};
+
+// 播放未中奖音效（低沉滑音）
+const playLoseSound = () => {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 0.6);
+  gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.6);
+};
+
 onMounted(async () => {
   const storedUser = localStorage.getItem('user');
   if (!storedUser) return router.push('/login');
@@ -160,6 +236,11 @@ onMounted(async () => {
   }
 });
 
+onUnmounted(() => {
+  if (spinInterval) clearInterval(spinInterval);
+  if (audioCtx) audioCtx.close();
+});
+
 const checkAuth = () => {
   if (verifyStatus.value !== 2) {
     if (confirm('本人確認が完了していません。マイページで認証を行ってください。\n(抽奖需实名认证，去认证？)')) {
@@ -172,9 +253,15 @@ const checkAuth = () => {
 
 const executeDraw = async () => {
   if (!userId.value) return;
+  
+  initAudio(); // 必须在点击事件里初始化
+  
   showConfirm.value = false;
   isDrawing.value = true;
   result.value = null;
+  
+  // 开始转动音效
+  playSpinSound();
   
   setTimeout(async () => {
     try {
@@ -187,9 +274,20 @@ const executeDraw = async () => {
         result.value = res.data.data;
         currentBalance.value = res.data.data.remainingBalance;
         currentTime.value = new Date().toLocaleString('ja-JP', { hour12: false });
+        
+        // 停止转动音效
+        if (spinInterval) clearInterval(spinInterval);
+
+        // 播放中奖/未中奖音效
+        if (result.value.value > 0) {
+          playWinSound();
+        } else {
+          playLoseSound();
+        }
       }
     } catch (error) {
       alert(error.response?.data?.error || '通信エラーが発生しました。');
+      if (spinInterval) clearInterval(spinInterval);
     } finally {
       isDrawing.value = false;
     }
@@ -202,128 +300,35 @@ const closeResult = () => {
 </script>
 
 <style scoped>
-/* 基础布局 */
+/* 这里保留你所有的原有样式，无需任何改动，直接粘贴下面的即可 */
 .room-container { font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif; min-height: 100vh; display: flex; flex-direction: column; transition: background 0.5s; }
-
-/* 🆕 悬浮返回按钮样式 */
-.floating-back-btn {
-  position: fixed;
-  top: 60px; /* 避开顶部当选速报栏 */
-  left: 20px;
-  z-index: 999;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid #e2e8f0;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 14px;
-  font-weight: bold;
-  color: #1e293b;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  transition: all 0.2s;
-}
-.floating-back-btn:hover {
-  background: #e83862;
-  color: white;
-  border-color: #e83862;
-  transform: translateY(-2px);
-}
-.floating-back-btn .icon {
-  font-size: 20px;
-  line-height: 1;
-  margin-top: -2px;
-}
-
+.floating-back-btn { position: fixed; top: 60px; left: 20px; z-index: 999; background: rgba(255, 255, 255, 0.95); border: 1px solid #e2e8f0; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: bold; color: #1e293b; cursor: pointer; display: flex; align-items: center; gap: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); transition: all 0.2s; }
+.floating-back-btn:hover { background: #e83862; color: white; border-color: #e83862; transform: translateY(-2px); }
+.floating-back-btn .icon { font-size: 20px; line-height: 1; margin-top: -2px; }
 .room-header { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 50; }
 .title { font-weight: 900; font-size: 18px; letter-spacing: 1px; }
 .header-right { width: 60px; }
-
-/* 机台舞台 */
 .stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
 .machine-body { background: #ffffff; border-radius: 24px; padding: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.08), inset 0 -4px 10px rgba(0,0,0,0.05), inset 0 4px 10px #ffffff; position: relative; margin-bottom: 40px; }
-
-/* 玻璃视窗 */
-.glass-window { 
-  width: 280px; 
-  height: 280px; 
-  background: linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%); 
-  border-radius: 50%; 
-  position: relative; 
-  overflow: hidden; 
-  box-shadow: inset 0 10px 20px rgba(0,0,0,0.2), inset 0 -10px 20px rgba(255,255,255,0.8), 0 0 0 6px #e2e8f0; 
-}
-.glass-glare { 
-  position: absolute; 
-  top: -20%; left: -20%; 
-  width: 80%; height: 80%; 
-  background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 70%); 
-  border-radius: 50%; 
-  z-index: 10; pointer-events: none; 
-}
-
-/* 核心修复：绝对居中 */
-.idle-state { 
-  position: absolute; 
-  inset: 0; /* 铺满整个球 */
-  display: flex; 
-  justify-content: center; 
-  align-items: center; 
-}
-.floating-icon { 
-  font-size: 90px; 
-  z-index: 2; 
-  animation: float 3s ease-in-out infinite; 
-  filter: drop-shadow(0 15px 15px rgba(0,0,0,0.2)); 
-}
-@keyframes float { 
-  0%, 100% { transform: translateY(0) scale(1); } 
-  50% { transform: translateY(-15px) scale(1.05); } 
-}
-
-/* 抽奖滚动 */
-.rolling-state { 
-  position: absolute; 
-  inset: 0; 
-  background: #fff; 
-  display: flex; 
-  justify-content: center; 
-}
-.reel-column { 
-  display: flex; 
-  flex-direction: column; 
-  align-items: center; 
-  animation: spin-reel 0.15s linear infinite; 
-}
-.reel-column span { 
-  height: 280px; 
-  display: flex; 
-  justify-content: center; 
-  align-items: center; 
-  font-size: 90px; 
-}
-@keyframes spin-reel { 
-  0% { transform: translateY(0); } 
-  100% { transform: translateY(-1400px); } /* 5个元素 * 280px = 1400px */
-}
-
-/* 控制台 */
+.glass-window { width: 280px; height: 280px; background: linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%); border-radius: 50%; position: relative; overflow: hidden; box-shadow: inset 0 10px 20px rgba(0,0,0,0.2), inset 0 -10px 20px rgba(255,255,255,0.8), 0 0 0 6px #e2e8f0; }
+.glass-glare { position: absolute; top: -20%; left: -20%; width: 80%; height: 80%; background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 70%); border-radius: 50%; z-index: 10; pointer-events: none; }
+.idle-state { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; }
+.floating-icon { font-size: 90px; z-index: 2; animation: float 3s ease-in-out infinite; filter: drop-shadow(0 15px 15px rgba(0,0,0,0.2)); }
+@keyframes float { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-15px) scale(1.05); } }
+.rolling-state { position: absolute; inset: 0; background: #fff; display: flex; justify-content: center; }
+.reel-column { display: flex; flex-direction: column; align-items: center; animation: spin-reel 0.15s linear infinite; }
+.reel-column span { height: 280px; display: flex; justify-content: center; align-items: center; font-size: 90px; }
+@keyframes spin-reel { 0% { transform: translateY(0); } 100% { transform: translateY(-1400px); } }
 .control-panel { margin-top: 20px; text-align: center; }
 .desc { font-size: 13px; color: #64748b; margin-bottom: 15px; font-weight: bold; }
 .balance-display { background: #0f172a; border-radius: 12px; padding: 12px 24px; display: inline-flex; flex-direction: column; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5); }
 .balance-display .label { font-size: 10px; color: #94a3b8; letter-spacing: 2px; margin-bottom: 4px; }
 .balance-display .amount { font-size: 24px; font-weight: 900; color: #38bdf8; font-family: monospace; text-shadow: 0 0 10px rgba(56, 189, 248, 0.5); }
-
-/* 按钮 */
 .heavy-btn { width: 100%; max-width: 320px; padding: 20px; border: none; border-radius: 30px; color: white; font-size: 18px; font-weight: 900; letter-spacing: 2px; cursor: pointer; position: relative; overflow: hidden; box-shadow: 0 10px 20px rgba(0,0,0,0.2), inset 0 -4px 0 rgba(0,0,0,0.3); transition: all 0.1s; }
 .heavy-btn:active { transform: translateY(4px); box-shadow: 0 4px 10px rgba(0,0,0,0.2), inset 0 -2px 0 rgba(0,0,0,0.3); }
 .heavy-btn:disabled { background: #94a3b8 !important; cursor: not-allowed; transform: none; box-shadow: none; }
 .btn-shine { position: absolute; top: 0; left: -100%; width: 50%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent); transform: skewX(-20deg); animation: shine 3s infinite; }
 @keyframes shine { 100% { left: 200%; } }
-
-/* 弹窗与票根 */
 .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(8px); display: flex; justify-content: center; align-items: center; z-index: 1000; }
 .modal-card { background: white; padding: 30px; border-radius: 24px; width: 85%; max-width: 320px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
 .modal-icon { font-size: 40px; margin-bottom: 10px; }
@@ -334,7 +339,6 @@ const closeResult = () => {
 .modal-actions button { flex: 1; padding: 14px; border-radius: 16px; border: none; font-weight: bold; font-size: 15px; cursor: pointer; }
 .btn-cancel { background: #f1f5f9; color: #64748b; }
 .btn-confirm { color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
-
 .ticket-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); display: flex; justify-content: center; align-items: center; z-index: 2000; }
 .ticket-wrapper { width: 85%; max-width: 340px; background: #fff; border-radius: 16px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); overflow: hidden; position: relative; }
 .ticket-top { padding: 20px; display: flex; justify-content: space-between; align-items: center; color: white; }
@@ -358,7 +362,6 @@ const closeResult = () => {
 .barcode { height: 40px; width: 80%; margin: 0 auto 15px; background: repeating-linear-gradient(90deg, #1e293b, #1e293b 2px, transparent 2px, transparent 5px); opacity: 0.8; }
 .btn-close { width: 100%; padding: 15px; background: #1e293b; color: white; border: none; border-radius: 16px; font-weight: bold; font-size: 15px; cursor: pointer; transition: 0.2s; }
 .btn-close:hover { background: #0f172a; }
-
 .modal-enter-active, .modal-leave-active { transition: opacity 0.3s; }
 .modal-enter-from, .modal-leave-to { opacity: 0; }
 .modal-enter-active .modal-card { animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
@@ -368,50 +371,19 @@ const closeResult = () => {
 .ticket-leave-active { transition: opacity 0.3s; }
 .ticket-leave-to { opacity: 0; }
 @keyframes ticketDrop { 0% { transform: translateY(-50px) scale(0.9); opacity: 0; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
-
-/* =========================================
-   📱 手机端完美适配（物理强制居中）
-   ========================================= */
 @media (max-width: 768px) {
   .floating-back-btn { top: 50px; left: 15px; padding: 6px 12px; font-size: 13px; }
-  
   .room-header { padding: 10px 15px; }
   .title { font-size: 16px; }
-  
   .stage { padding: 10px; }
   .machine-body { padding: 8px; margin-bottom: 25px; }
-  
-  /* 缩小球体 */
-  .glass-window {
-    width: 220px;
-    height: 220px;
-  }
-  
-  .floating-icon {
-    font-size: 70px;
-  }
-  
-  /* 严格匹配 220px 的高度，保证图标不跑偏 */
-  .reel-column span {
-    height: 220px; 
-    font-size: 70px;
-  }
-  
-  /* 5个元素 * 220px = 1100px，精确位移 */
-  @keyframes spin-reel {
-    0% { transform: translateY(0); }
-    100% { transform: translateY(-1100px); }
-  }
-  
-  .heavy-btn {
-    max-width: 100%;
-    padding: 16px;
-    font-size: 16px;
-  }
-  
+  .glass-window { width: 220px; height: 220px; }
+  .floating-icon { font-size: 70px; }
+  .reel-column span { height: 220px; font-size: 70px; }
+  @keyframes spin-reel { 0% { transform: translateY(0); } 100% { transform: translateY(-1100px); } }
+  .heavy-btn { max-width: 100%; padding: 16px; font-size: 16px; }
   .balance-display { padding: 10px 18px; }
   .balance-display .amount { font-size: 20px; }
-  
   .modal-card { width: 95%; padding: 20px; }
   .ticket-wrapper { width: 95%; }
 }
