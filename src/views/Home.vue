@@ -7,6 +7,7 @@
       <!-- 渐变横幅 -->
       <div class="banner">
         <div class="banner-left">
+          <!-- 横幅文案依然保留全站最高 500万 的宣传，但各游戏卡片内已按比例调整 -->
           <span class="highlight-badge">最高当せん金 500万円！</span>
           <h2>待ち時間なし！購入した瞬間に結果がわかる！</h2>
           <p>選んで・買って・すぐ挑戦！スキップ機能で一括抽選も対応。</p>
@@ -80,15 +81,15 @@ import AppHeader from '../components/AppHeader.vue';
 const router = useRouter();
 const records = ref([]);
 
-// 8个核心游戏列表（最高奖金已全部同步为最高 500万）
+// 🆕 8个核心游戏列表（根据价格动态设定最高奖金：价格 * 10000）
 const games = ref([
-  { title: '金魚すくい', desc: 'ポイを破らずに金魚を救え！', price: 200, maxPrize: '¥5,000,000', icon: '🐟', color: '#2ed573' },
-  { title: 'ダーツチャレンジ', desc: 'ブルの真ん中を狙い撃て！', price: 100, maxPrize: '¥5,000,000', icon: '🎯', color: '#ff4757' },
-  { title: 'クレーンゲーム', desc: '超豪華プライズをゲットせよ！', price: 300, maxPrize: '¥5,000,000', icon: '🏗️', color: '#0abde3' },
+  { title: '金魚すくい', desc: 'ポイを破らずに金魚を救え！', price: 200, maxPrize: '¥2,000,000', icon: '🐟', color: '#2ed573' },
+  { title: 'ダーツチャレンジ', desc: 'ブルの真ん中を狙い撃て！', price: 100, maxPrize: '¥1,000,000', icon: '🎯', color: '#ff4757' },
+  { title: 'クレーンゲーム', desc: '超豪華プライズをゲットせよ！', price: 300, maxPrize: '¥3,000,000', icon: '🏗️', color: '#0abde3' },
   { title: 'ガチャポン', desc: '金のカプセルを引き当てろ！', price: 500, maxPrize: '¥5,000,000', icon: '🎰', color: '#a55eea' },
-  { title: 'スクラッチ', desc: '削って当てる！お手軽スクラッチ', price: 50, maxPrize: '¥5,000,000', icon: '🪙', color: '#ffa502' },
-  { title: 'ルーレット', desc: '大富豪専用！超高額ルーレット', price: 1000, maxPrize: '¥5,000,000', icon: '🎡', color: '#e84118' },
-  { title: '宝探し', desc: '古代の財宝を見つけ出せ！', price: 300, maxPrize: '¥5,000,000', icon: '💎', color: '#009432' },
+  { title: 'スクラッチ', desc: '削って当てる！お手軽スクラッチ', price: 50, maxPrize: '¥500,000', icon: '🪙', color: '#ffa502' },
+  { title: 'ルーレット', desc: '大富豪専用！超高額ルーレット', price: 1000, maxPrize: '¥10,000,000', icon: '🎡', color: '#e84118' },
+  { title: '宝探し', desc: '古代の財宝を見つけ出せ！', price: 300, maxPrize: '¥3,000,000', icon: '💎', color: '#009432' },
   { title: 'スロット', desc: '7を揃えて大当たりを狙え！', price: 500, maxPrize: '¥5,000,000', icon: '🍒', color: '#f39c12' }
 ]);
 

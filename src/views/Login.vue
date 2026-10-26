@@ -92,18 +92,27 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue'; // 🆕 引入了 onMounted
 import { useRouter } from 'vue-router';
 import request from '../api/request';
 import { User, Lock } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 
-const username = ref('test_user');
-const password = ref('123456');
+// 🆕 默认置空，不显示任何账号
+const username = ref('');
+const password = ref('');
 const rememberMe = ref(true);
 const isLoading = ref(false);
 const showLineModal = ref(false);
 const router = useRouter();
+
+// 🆕 仅在本地开发环境自动填充测试账号，线上环境静默
+onMounted(() => {
+  if (import.meta.env.DEV) {
+    username.value = 'test_user';
+    password.value = '123456';
+  }
+});
 
 const handleLogin = async () => {
   if (!username.value || !password.value) return ElMessage.warning('请输入账号密码');
