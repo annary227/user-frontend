@@ -1,10 +1,14 @@
 <template>
   <div class="room-container" :style="{ background: currentBg }">
+    <!-- 🆕 悬浮返回按钮 (固定在左上角) -->
+    <button class="floating-back-btn" @click="$router.push('/')">
+      <span class="icon">‹</span> ロビーに戻る
+    </button>
+
     <!-- 顶部导航 -->
     <header class="room-header">
-      <button class="back-btn" @click="$router.push('/')">
-        <span class="icon">‹</span> ロビーに戻る
-      </button>
+      <!-- 保留占位，防止标题偏移 -->
+      <div style="width: 100px;"></div>
       <div class="title">{{ gameName }}</div>
       <div class="header-right"></div>
     </header>
@@ -200,9 +204,40 @@ const closeResult = () => {
 <style scoped>
 /* 基础布局 */
 .room-container { font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif; min-height: 100vh; display: flex; flex-direction: column; transition: background 0.5s; }
+
+/* 🆕 悬浮返回按钮样式 */
+.floating-back-btn {
+  position: fixed;
+  top: 60px; /* 避开顶部当选速报栏 */
+  left: 20px;
+  z-index: 999;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #e2e8f0;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: bold;
+  color: #1e293b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  transition: all 0.2s;
+}
+.floating-back-btn:hover {
+  background: #e83862;
+  color: white;
+  border-color: #e83862;
+  transform: translateY(-2px);
+}
+.floating-back-btn .icon {
+  font-size: 20px;
+  line-height: 1;
+  margin-top: -2px;
+}
+
 .room-header { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 50; }
-.back-btn { background: none; border: none; font-size: 15px; font-weight: bold; color: #1e293b; cursor: pointer; display: flex; align-items: center; gap: 5px; }
-.back-btn .icon { font-size: 20px; font-weight: normal; }
 .title { font-weight: 900; font-size: 18px; letter-spacing: 1px; }
 .header-right { width: 60px; }
 
@@ -229,7 +264,7 @@ const closeResult = () => {
   z-index: 10; pointer-events: none; 
 }
 
-/* ================= 核心修复：绝对居中 ================= */
+/* 核心修复：绝对居中 */
 .idle-state { 
   position: absolute; 
   inset: 0; /* 铺满整个球 */
@@ -338,6 +373,8 @@ const closeResult = () => {
    📱 手机端完美适配（物理强制居中）
    ========================================= */
 @media (max-width: 768px) {
+  .floating-back-btn { top: 50px; left: 15px; padding: 6px 12px; font-size: 13px; }
+  
   .room-header { padding: 10px 15px; }
   .title { font-size: 16px; }
   
