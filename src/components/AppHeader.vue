@@ -50,7 +50,7 @@
       </div>
     </div>
 
-    <!-- 🆕 纯原生出金弹窗 (绝对生效) -->
+    <!-- 🆕 纯原生出金弹窗 -->
     <div v-if="withdrawVisible" class="custom-modal-overlay" @click.self="withdrawVisible = false">
       <div class="custom-modal">
         <h3>出金申請</h3>
@@ -173,7 +173,7 @@ const submitWithdraw = async () => {
 };
 
 // ==========================================
-// 获取用户信息
+// 获取用户信息（含实名状态同步）
 // ==========================================
 onMounted(async () => {
   generateNews();
@@ -189,6 +189,12 @@ onMounted(async () => {
     const infoRes = await request.get(`/user/info/${user.id}`);
     if (infoRes.data.success) {
       userBalance.value = infoRes.data.user.balance;
+      
+      // 🆕 核心修复：强制同步最新实名状态，覆盖旧缓存
+      if (user.verify_status !== infoRes.data.user.verify_status) {
+        user.verify_status = infoRes.data.user.verify_status;
+        localStorage.setItem('user', JSON.stringify(user));
+      }
     }
   } catch (error) {
     console.error("获取余额失败", error);
