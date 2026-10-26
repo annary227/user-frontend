@@ -63,7 +63,7 @@
           size="large"
           placeholder="金額を入力してください"
         />
-        <div style="font-size: 12px; color: #94a3b8;">※ 最低出金額は 100 円です。</div>
+        <!-- 🆕 这里移除了最低出金提示 -->
       </div>
       <template #footer>
         <div style="display: flex; gap: 10px; justify-content: center;">
@@ -79,7 +79,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import request from '../api/request'; 
-import { ElMessage } from 'element-plus'; // 🆕 引入了弹窗提示
+import { ElMessage } from 'element-plus';
 
 const router = useRouter();
 const userBalance = ref(0);
@@ -91,22 +91,19 @@ const username = ref('ゲスト');
 const currentNews = ref({ id: 0, time: '14:03', name: 'ゲスト', game: 'ゲーム', prize: '10円' });
 let timer = null;
 
-// 日文随机昵称
 const randomNames = ['タカシ', 'ユウキ', 'ミキ', 'サクラ', 'リョウ', 'アヤ', 'ケンタ', 'ユナ', 'ソウタ', 'ハルカ', 'ケビン', 'マイケル', 'ジョン', 'エミリ'];
-// 你的游戏列表
 const gameNames = ['金魚すくい', 'ダーツチャレンジ', 'クレーンゲーム', 'ガチャポン', 'スクラッチ', 'ルーレット', '宝探し', 'スロット'];
 
-// 🎯 真实奖池分布（根据你提供的奖池，极小奖最容易出）
 const prizeWeights = [
-  { name: '10円', weight: 40 },     // 40% 概率
-  { name: '50円', weight: 25 },     // 25% 概率
-  { name: '100円', weight: 15 },    // 15% 概率
+  { name: '10円', weight: 40 },     
+  { name: '50円', weight: 25 },     
+  { name: '100円', weight: 15 },    
   { name: '200円', weight: 8 },     
   { name: '500円', weight: 5 },     
   { name: '1,000円', weight: 3 },   
   { name: '10,000円', weight: 1.5 }, 
   { name: '100,000円', weight: 0.5 },
-  { name: '200万円', weight: 0.01 }, // 极小概率出大奖
+  { name: '200万円', weight: 0.01 }, 
   { name: '500万円', weight: 0.005 }
 ];
 
@@ -139,7 +136,7 @@ const generateNews = () => {
 // 🆕 出金弹窗逻辑
 // ==========================================
 const withdrawVisible = ref(false);
-const withdrawAmount = ref(null); // 🆕 默认值为空
+const withdrawAmount = ref(null); // 默认值为空
 const submittingWithdraw = ref(false);
 
 const openWithdrawModal = () => {
@@ -165,7 +162,7 @@ const submitWithdraw = async () => {
     if (res.data.success) {
       ElMessage.success(res.data.message || '出金申請を受け付けました');
       withdrawVisible.value = false;
-      // 如果提现成功后余额减少，这里可以顺便刷新一下余额
+      // 刷新余额
       const infoRes = await request.get(`/user/info/${user.id}`);
       if (infoRes.data.success) userBalance.value = infoRes.data.user.balance;
     }
@@ -205,9 +202,9 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* 🆕 滚动播报条整体样式 */
+/* 🆕 关键修改：移除了 sticky，让头部随页面滚动 */
 .top-header-wrapper {
-  position: sticky; top: 0; z-index: 100;
+  /* 不再固定，防止遮挡下方内容 */
 }
 
 .ticker-banner {
