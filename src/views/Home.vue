@@ -7,7 +7,6 @@
       <!-- 渐变横幅 -->
       <div class="banner">
         <div class="banner-left">
-          <!-- 横幅文案依然保留全站最高 1000万 の宣传，但各游戏卡片内已按比例调整 -->
           <span class="highlight-badge">最高当せん金 1000万円！</span>
           <h2>待ち時間なし！購入した瞬間に結果がわかる！</h2>
           <p>選んで・買って・すぐ挑戦！スキップ機能で一括抽選も対応。</p>
@@ -68,11 +67,25 @@
         </div>
       </div>
     </main>
+
+    <!-- 🆕 悬浮音乐开关 -->
+    <div class="music-toggle" @click="toggleMusic">
+      <div class="music-inner" :class="{ 'is-playing': isPlaying }">
+        {{ isPlaying ? '🔊' : '🔇' }}
+      </div>
+      <!-- 播放时的呼吸外圈 -->
+      <div v-if="isPlaying" class="pulse-ring"></div>
+      
+      <!-- 🆕 直接使用稳定的外链 8-bit 游戏音乐 -->
+      <audio ref="audioPlayer" loop>
+        <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73467.mp3?filename=retro-arcade-game-music-297305.mp3" type="audio/mpeg" />
+      </audio>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import request from '../api/request';
 import GameCard from '../components/GameCard.vue';
@@ -81,7 +94,36 @@ import AppHeader from '../components/AppHeader.vue';
 const router = useRouter();
 const records = ref([]);
 
-// 🆕 8个核心游戏列表（根据价格动态设定最高奖金：价格 * 10000）
+// ==========================================
+// 🆕 游戏厅纯音乐系统
+// ==========================================
+const audioPlayer = ref(null);
+const isPlaying = ref(false);
+
+const toggleMusic = () => {
+  if (!audioPlayer.value) return;
+  if (isPlaying.value) {
+    audioPlayer.value.pause();
+    isPlaying.value = false;
+  } else {
+    audioPlayer.value.play().then(() => {
+      isPlaying.value = true;
+    }).catch((e) => {
+      console.log("音频播放被浏览器拦截", e);
+    });
+  }
+};
+
+// 离开页面时自动暂停音乐
+onUnmounted(() => {
+  if (audioPlayer.value) {
+    audioPlayer.value.pause();
+  }
+});
+
+// ==========================================
+// 数据逻辑
+// ==========================================
 const games = ref([
   { title: '金魚すくい', desc: 'ポイを破らずに金魚を救え！', price: 200, maxPrize: '¥2,000,000', icon: '🐟', color: '#2ed573' },
   { title: 'ダーツチャレンジ', desc: 'ブルの真ん中を狙い撃て！', price: 100, maxPrize: '¥1,000,000', icon: '🎯', color: '#ff4757' },
@@ -93,14 +135,12 @@ const games = ref([
   { title: 'スロット', desc: '7を揃えて大当たりを狙え！', price: 500, maxPrize: '¥5,000,000', icon: '🍒', color: '#f39c12' }
 ]);
 
-// 格式化时间 (适配日语格式)
 const formatTime = (timeStr) => {
   if (!timeStr) return '';
   const date = new Date(timeStr);
   return date.toLocaleString('ja-JP', { hour12: false });
 };
 
-// 页面挂载时获取真实数据
 onMounted(async () => {
   const storedUser = localStorage.getItem('user');
   if (!storedUser) {
@@ -158,66 +198,77 @@ onMounted(async () => {
 .history-empty { text-align: center; padding: 40px; color: #aaa; font-size: 14px; }
 
 /* =========================================
-   手机端极致适配
+   🆕 悬浮游戏厅音乐系统
    ========================================= */
+.music-toggle {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 60px;
+  height: 60px;
+  background: #1e293b; /* 深邃黑底 */
+  border: 1px solid #334155;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  z-index: 999;
+  transition: all 0.3s;
+}
+
+.music-toggle:hover {
+  transform: scale(1.1) translateY(-5px);
+  box-shadow: 0 15px 30px rgba(232, 56, 98, 0.3);
+  border-color: #e83862;
+}
+
+.music-inner {
+  font-size: 26px;
+  transition: all 0.3s;
+}
+
+/* 播放时图标上下跳动 */
+.music-inner.is-playing {
+  animation: bounce 0.8s infinite alternate;
+}
+
+@keyframes bounce {
+  from { transform: translateY(0); }
+  to { transform: translateY(-6px); }
+}
+
+/* 播放时的红色呼吸灯外圈 */
+.pulse-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid #e83862;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+/* 手机端适配 */
 @media (max-width: 768px) {
   .main-content { padding: 12px; }
-
-  .banner { 
-    flex-direction: column; 
-    text-align: center; 
-    gap: 15px; 
-    padding: 20px 15px; 
-  }
+  .banner { flex-direction: column; text-align: center; gap: 15px; padding: 20px 15px; }
   .banner h2 { font-size: 18px; }
   .banner-btn { width: 100%; padding: 14px; font-size: 15px; }
-
-  .game-grid { 
-    grid-template-columns: 1fr; 
-    gap: 15px; 
-  }
-
-  .history-section { 
-    padding: 15px; 
-    border-radius: 12px;
-  }
-  .history-table-header { 
-    display: none; 
-  }
-  
-  .history-row {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-    padding: 15px;
-    margin-bottom: 12px;
-    background: #f8fafc;
-    border-radius: 12px;
-    border: 1px solid #e2e8f0;
-    text-align: left;
-  }
+  .game-grid { grid-template-columns: 1fr; gap: 15px; }
+  .history-section { padding: 15px; border-radius: 12px; }
+  .history-table-header { display: none; }
+  .history-row { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 15px; margin-bottom: 12px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; text-align: left; }
   .history-row:last-child { margin-bottom: 0; }
-
-  .history-row span {
-    display: flex;
-    justify-content: space-between;
-    width: 100%;
-    font-size: 14px;
-  }
-  .history-row span::before {
-    content: attr(data-label);
-    color: #94a3b8;
-    font-size: 13px;
-    margin-right: 15px;
-  }
-
-  .history-row span[data-label="当せん結果"] {
-    font-weight: bold;
-    font-size: 15px;
-    border-top: 1px dashed #e2e8f0;
-    padding-top: 10px;
-    margin-top: 5px;
-  }
+  .history-row span { display: flex; justify-content: space-between; width: 100%; font-size: 14px; }
+  .history-row span::before { content: attr(data-label); color: #94a3b8; font-size: 13px; margin-right: 15px; }
+  .history-row span[data-label="当せん結果"] { font-weight: bold; font-size: 15px; border-top: 1px dashed #e2e8f0; padding-top: 10px; margin-top: 5px; }
+  
+  .music-toggle { bottom: 20px; right: 20px; width: 50px; height: 50px; }
+  .music-inner { font-size: 22px; }
 }
 </style>
