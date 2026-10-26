@@ -40,6 +40,11 @@
         <a href="https://lin.ee/OHAOimh" target="_blank" class="charge-btn deposit-btn" style="text-decoration: none;">入金</a>
         <button class="charge-btn withdraw-btn" @click="openWithdrawModal">出金</button>
 
+        <!-- 🆕 签到按钮 -->
+        <button class="checkin-btn" @click="handleCheckIn" :disabled="isCheckedIn">
+          {{ isCheckedIn ? '签到済み' : '签到 +50円' }}
+        </button>
+
         <!-- 个人中心 -->
         <div class="user-profile">
           <span class="username" @click="$router.push('/profile')">
@@ -84,6 +89,42 @@ import { ElMessage } from 'element-plus';
 const router = useRouter();
 const userBalance = ref(0);
 const username = ref('ゲスト');
+const userId = ref(null);
+
+// ==========================================
+// 🆕 签到逻辑 (对接后端数据库)
+// ==========================================
+const isCheckedIn = ref(false);
+
+// 去后端查询今天是否已经签到
+const checkCheckInStatus = async () => {
+  if (!userId.value) return;
+  try {
+    const res = await request.get(`/user/checkin-status/${userId.value}`);
+    if (res.data.success) {
+      isCheckedIn.value = res.data.hasCheckedIn;
+    }
+  } catch (error) {
+    console.error("查询签到状态失败", error);
+  }
+};
+
+// 点击签到，请求后端加钱
+const handleCheckIn = async () => {
+  if (isCheckedIn.value || !userId.value) return;
+
+  try {
+    const res = await request.post(`/user/checkin/${userId.value}`);
+    
+    if (res.data.success) {
+      ElMessage.success(res.data.message || '签到成功！获得 50 円');
+      isCheckedIn.value = true;
+      userBalance.value += 50; // 前端余额立刻增加
+    }
+  } catch (error) {
+    ElMessage.error(error.response?.data?.error || '签到失败，请稍后再试');
+  }
+};
 
 // ==========================================
 // 🆕 播报系统逻辑
@@ -173,7 +214,7 @@ const submitWithdraw = async () => {
 };
 
 // ==========================================
-// 获取用户信息（含实名状态同步）
+// 获取用户信息（含实名状态同步 & 签到查询）
 // ==========================================
 onMounted(async () => {
   generateNews();
@@ -184,13 +225,16 @@ onMounted(async () => {
   
   const user = JSON.parse(storedUser);
   username.value = user.username;
+  userId.value = user.id;
   
+  // 🆕 查询签到状态
+  await checkCheckInStatus();
+
   try {
     const infoRes = await request.get(`/user/info/${user.id}`);
     if (infoRes.data.success) {
       userBalance.value = infoRes.data.user.balance;
       
-      // 🆕 核心修复：强制同步最新实名状态，覆盖旧缓存
       if (user.verify_status !== infoRes.data.user.verify_status) {
         user.verify_status = infoRes.data.user.verify_status;
         localStorage.setItem('user', JSON.stringify(user));
@@ -208,9 +252,7 @@ onUnmounted(() => {
 
 <style scoped>
 /* 滚动播报条 */
-.top-header-wrapper {
-  /* 取消 sticky，随页面滚动 */
-}
+.top-header-wrapper {}
 
 .ticker-banner {
   background: #0f172a; 
@@ -294,7 +336,7 @@ onUnmounted(() => {
 .logo-text p { margin: 3px 0 0; font-size: 12px; color: #888; }
 
 /* 右侧区域 */
-.user-area { display: flex; align-items: center; gap: 12px; }
+.user-area { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .sound-icon { background: #f0f0f0; width: 35px; height: 35px; border-radius: 50%; display: flex; justify-content: center; align-items: center; color: #666; cursor: pointer; flex-shrink: 0; }
 
 .balance-box { background: #0f172a; color: #fff; padding: 8px 15px; border-radius: 25px; display: flex; align-items: center; gap: 10px; font-size: 14px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.2); flex-shrink: 0; }
@@ -306,6 +348,16 @@ onUnmounted(() => {
 .deposit-btn { background: linear-gradient(180deg, #10b981, #059669); color: white; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3); }
 .withdraw-btn { background: linear-gradient(180deg, #ffcc00, #ffb300); color: #333; box-shadow: 0 4px 10px rgba(255, 204, 0, 0.3); }
 .charge-btn:hover { transform: translateY(-2px); }
+
+/* 🆕 签到按钮 */
+.checkin-btn {
+  background: linear-gradient(180deg, #f43f5e, #e83862);
+  color: white; border: none; padding: 8px 16px; border-radius: 20px;
+  font-weight: 900; cursor: pointer; transition: 0.2s; white-space: nowrap; font-size: 14px;
+  box-shadow: 0 4px 10px rgba(232, 56, 98, 0.3);
+}
+.checkin-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(232, 56, 98, 0.5); }
+.checkin-btn:disabled { background: #94a3b8; cursor: not-allowed; box-shadow: none; }
 
 /* 个人中心入口 */
 .user-profile { display: flex; align-items: center; gap: 12px; margin-left: 10px; padding-left: 15px; border-left: 1px solid #eaeaea; flex-shrink: 0; }
@@ -355,6 +407,7 @@ onUnmounted(() => {
   .balance-box { padding: 6px 12px; flex: 1; justify-content: center; }
   .balance-amount { font-size: 15px; }
   .charge-btn { padding: 6px 12px; font-size: 13px; }
+  .checkin-btn { padding: 6px 12px; font-size: 13px; }
   .user-profile { margin-left: 0; padding-left: 10px; border-left: none; gap: 8px; }
   .username { display: none; }
   .profile-btn { padding: 6px 10px; font-size: 12px; }
