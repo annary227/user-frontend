@@ -15,22 +15,58 @@
     <!-- 核心机台 -->
     <div class="stage">
       <div class="machine-body">
-        <!-- 玻璃视窗 -->
-        <div class="glass-window" :class="{ 'is-drawing': isDrawing }">
-          <div class="glass-glare"></div>
+        
+        <!-- 🆕 3D 核心舞台 -->
+        <div class="game-stage-3d" :class="`stage-${gameType}`">
           
-          <div class="inner-reel" :style="{ '--theme-color': currentColor }">
-            <!-- 待机状态 -->
-            <div v-if="!isDrawing" class="idle-state">
-              <div class="floating-icon">{{ gameIcon }}</div>
+          <!-- 1. 3D 老虎机 (スロット) -->
+          <div v-if="gameType === 'slot'" class="slot-machine-3d">
+            <div class="reel-3d" :class="{ 'is-spinning': isDrawing }">
+              <div class="slot-face" :class="{ 'is-win': !isDrawing && result && result.value > 0 }">7</div>
             </div>
-            <!-- 抽奖状态 -->
-            <div v-else class="rolling-state">
-              <div class="reel-column">
-                <span>{{ gameIcon }}</span><span>💎</span><span>{{ gameIcon }}</span><span>⭐</span><span>{{ gameIcon }}</span>
+            <div class="reel-3d" :class="{ 'is-spinning': isDrawing }" style="animation-delay: 0.1s;">
+              <div class="slot-face" :class="{ 'is-win': !isDrawing && result && result.value > 0 }">7</div>
+            </div>
+            <div class="reel-3d" :class="{ 'is-spinning': isDrawing }" style="animation-delay: 0.2s;">
+              <div class="slot-face" :class="{ 'is-win': !isDrawing && result && result.value > 0 }">7</div>
+            </div>
+            <div class="machine-glass"></div>
+          </div>
+
+          <!-- 2. 3D 抓娃娃 (クレーンゲーム) -->
+          <div v-else-if="gameType === 'crane'" class="crane-scene">
+            <div class="crane-rail"></div>
+            <div class="claw-3d" :class="{ 'is-dropping': isDrawing }">
+              <div class="claw-wire"></div>
+              <div class="claw-body">
+                <div class="claw-pincer left"></div>
+                <div class="claw-pincer right"></div>
               </div>
             </div>
+            <div class="prize-bed">
+              <span class="prize-3d">{{ gameIcon }}</span>
+            </div>
           </div>
+
+          <!-- 3. 3D 轮盘 (ルーレット) -->
+          <div v-else-if="gameType === 'roulette'" class="roulette-scene">
+            <div class="wheel-3d" :class="{ 'is-spinning': isDrawing, 'is-stopped': !isDrawing && result }">
+              <div class="wheel-rim"></div>
+              <div class="wheel-inner"></div>
+            </div>
+            <div class="ball-3d" :class="{ 'is-spinning': isDrawing }"></div>
+          </div>
+
+          <!-- 4. 通用 3D 魔方 (其他游戏) -->
+          <div v-else class="generic-3d">
+             <div class="cube-wrapper" :class="{ 'is-spinning': isDrawing }">
+                <div class="cube-face front">{{ gameIcon }}</div>
+                <div class="cube-face right">💎</div>
+                <div class="cube-face back">⭐</div>
+                <div class="cube-face left">🎁</div>
+             </div>
+          </div>
+
         </div>
         
         <!-- 机台底部控制台 -->
@@ -48,7 +84,7 @@
       <!-- 抽奖按钮 -->
       <button 
         class="heavy-btn" 
-        :style="{ background: `linear-gradient(180deg, ${currentColor} 0%, #333 200%)` }"
+        :style="{ background: `linear-gradient(180deg, ${currentColor} 0%, #222 100%)` }"
         @click="checkAuth" 
         :disabled="isDrawing"
       >
@@ -119,6 +155,14 @@ const gameName = route.query.name || '金魚すくい';
 const gameCost = Number(route.query.price) || 200;
 const gameIcon = route.query.icon || '🐟';
 
+// 🆕 判断当前是哪种类型的游戏，用于渲染不同 3D 动画
+const gameTypeMap = {
+  '金魚すくい': 'generic', 'ダーツチャレンジ': 'generic', 'クレーンゲーム': 'crane',
+  'ガチャポン': 'generic', 'スクラッチ': 'generic', 'ルーレット': 'roulette',
+  '宝探し': 'generic', 'スロット': 'slot'
+};
+const gameType = computed(() => gameTypeMap[gameName] || 'generic');
+
 const gameSettings = {
   '金魚すくい': { color: '#0ea5e9', bg: '#e0f2fe', desc: 'ポイを破らずに金魚を救え！' },
   'ダーツチャレンジ': { color: '#ef4444', bg: '#fee2e2', desc: 'ブルの真ん中を狙い撃て！' },
@@ -162,10 +206,9 @@ const playSpinSound = () => {
   let tick = true;
   let freq = 800;
   
-  // 根据游戏类型微调音调
-  if (gameName === 'スロット') freq = 1000; // 老虎机更清脆
-  if (gameName === 'クレーンゲーム') freq = 400; // 抓娃娃更低沉
-  if (gameName === '金魚すくい') freq = 700; // 捞金鱼居中
+  if (gameName === 'スロット') freq = 1000;
+  if (gameName === 'クレーンゲーム') freq = 400;
+  if (gameName === '金魚すくい') freq = 700;
 
   spinInterval = setInterval(() => {
     if (!audioCtx) return;
@@ -173,7 +216,7 @@ const playSpinSound = () => {
     const gain = audioCtx.createGain();
     osc.type = 'square';
     osc.frequency.setValueAtTime(tick ? freq : freq - 200, audioCtx.currentTime);
-    gain.gain.setValueAtTime(0.03, audioCtx.currentTime); // 音量小一点
+    gain.gain.setValueAtTime(0.03, audioCtx.currentTime); 
     gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
     osc.connect(gain);
     gain.connect(audioCtx.destination);
@@ -183,10 +226,10 @@ const playSpinSound = () => {
   }, 100); 
 };
 
-// 播放中奖音效（金币连击声）
+// 播放中奖音效
 const playWinSound = () => {
   if (!audioCtx) return;
-  const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51]; // C大调
+  const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
   notes.forEach((freq, index) => {
     setTimeout(() => {
       const osc = audioCtx.createOscillator();
@@ -203,7 +246,7 @@ const playWinSound = () => {
   });
 };
 
-// 播放未中奖音效（低沉滑音）
+// 播放未中奖音效
 const playLoseSound = () => {
   if (!audioCtx) return;
   const osc = audioCtx.createOscillator();
@@ -253,16 +296,15 @@ const checkAuth = () => {
 
 const executeDraw = async () => {
   if (!userId.value) return;
-  
-  initAudio(); // 必须在点击事件里初始化
+  initAudio(); 
   
   showConfirm.value = false;
   isDrawing.value = true;
   result.value = null;
   
-  // 开始转动音效
   playSpinSound();
   
+  // 🆕 强制 3 秒动画，配合 3D 减速物理效果
   setTimeout(async () => {
     try {
       const res = await request.post('/user/draw', {
@@ -275,10 +317,8 @@ const executeDraw = async () => {
         currentBalance.value = res.data.data.remainingBalance;
         currentTime.value = new Date().toLocaleString('ja-JP', { hour12: false });
         
-        // 停止转动音效
         if (spinInterval) clearInterval(spinInterval);
 
-        // 播放中奖/未中奖音效
         if (result.value.value > 0) {
           playWinSound();
         } else {
@@ -291,7 +331,7 @@ const executeDraw = async () => {
     } finally {
       isDrawing.value = false;
     }
-  }, 2500);
+  }, 3000);
 };
 
 const closeResult = () => {
@@ -300,7 +340,7 @@ const closeResult = () => {
 </script>
 
 <style scoped>
-/* 这里保留你所有的原有样式，无需任何改动，直接粘贴下面的即可 */
+/* 基础框架 */
 .room-container { font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif; min-height: 100vh; display: flex; flex-direction: column; transition: background 0.5s; }
 .floating-back-btn { position: fixed; top: 60px; left: 20px; z-index: 999; background: rgba(255, 255, 255, 0.95); border: 1px solid #e2e8f0; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: bold; color: #1e293b; cursor: pointer; display: flex; align-items: center; gap: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); transition: all 0.2s; }
 .floating-back-btn:hover { background: #e83862; color: white; border-color: #e83862; transform: translateY(-2px); }
@@ -309,16 +349,63 @@ const closeResult = () => {
 .title { font-weight: 900; font-size: 18px; letter-spacing: 1px; }
 .header-right { width: 60px; }
 .stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
-.machine-body { background: #ffffff; border-radius: 24px; padding: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.08), inset 0 -4px 10px rgba(0,0,0,0.05), inset 0 4px 10px #ffffff; position: relative; margin-bottom: 40px; }
-.glass-window { width: 280px; height: 280px; background: linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%); border-radius: 50%; position: relative; overflow: hidden; box-shadow: inset 0 10px 20px rgba(0,0,0,0.2), inset 0 -10px 20px rgba(255,255,255,0.8), 0 0 0 6px #e2e8f0; }
-.glass-glare { position: absolute; top: -20%; left: -20%; width: 80%; height: 80%; background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 70%); border-radius: 50%; z-index: 10; pointer-events: none; }
-.idle-state { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; }
-.floating-icon { font-size: 90px; z-index: 2; animation: float 3s ease-in-out infinite; filter: drop-shadow(0 15px 15px rgba(0,0,0,0.2)); }
-@keyframes float { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-15px) scale(1.05); } }
-.rolling-state { position: absolute; inset: 0; background: #fff; display: flex; justify-content: center; }
-.reel-column { display: flex; flex-direction: column; align-items: center; animation: spin-reel 0.15s linear infinite; }
-.reel-column span { height: 280px; display: flex; justify-content: center; align-items: center; font-size: 90px; }
-@keyframes spin-reel { 0% { transform: translateY(0); } 100% { transform: translateY(-1400px); } }
+
+/* 机器外壳 */
+.machine-body { background: #ffffff; border-radius: 30px; padding: 20px; box-shadow: 0 30px 60px rgba(0,0,0,0.1), inset 0 -5px 15px rgba(0,0,0,0.05); margin-bottom: 40px; }
+
+/* 🆕 核心 3D 舞台 */
+.game-stage-3d { width: 320px; height: 320px; background: radial-gradient(circle at center, #ffffff 0%, #e2e8f0 100%); border-radius: 20px; position: relative; overflow: hidden; box-shadow: inset 0 15px 30px rgba(0,0,0,0.1); display: flex; justify-content: center; align-items: center; perspective: 1000px; }
+
+/* ================= 1. 3D 老虎机 ================= */
+.slot-machine-3d { display: flex; gap: 15px; transform: rotateY(-15deg) rotateX(10deg); transform-style: preserve-3d; }
+.reel-3d { width: 70px; height: 180px; background: #1e293b; border-radius: 10px; position: relative; transform-style: preserve-3d; box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.3); display: flex; justify-content: center; align-items: center; }
+.slot-face { width: 100%; height: 100%; background: linear-gradient(180deg, #fff, #e2e8f0); border-radius: 8px; display: flex; justify-content: center; align-items: center; font-size: 50px; font-weight: 900; color: #ef4444; transition: 0.3s; }
+.slot-face.is-win { color: #10b981; text-shadow: 0 0 20px #10b981; }
+.reel-3d.is-spinning { animation: roll-3d 0.15s linear infinite; }
+@keyframes roll-3d { 0% { transform: rotateX(0); } 100% { transform: rotateX(360deg); } }
+.machine-glass { position: absolute; inset: -10px; background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(255,255,255,0)); border-radius: 15px; transform: translateZ(50px); pointer-events: none; }
+
+/* ================= 2. 3D 抓娃娃 ================= */
+.crane-scene { width: 100%; height: 100%; position: relative; }
+.crane-rail { position: absolute; top: 10%; width: 100%; height: 15px; background: linear-gradient(180deg, #94a3b8, #64748b); transform: rotateX(60deg); }
+.claw-3d { position: absolute; top: 10%; left: 50%; transform: translateX(-50%) translateZ(50px); transition: top 1.5s ease-in-out, transform 0.5s; transform-style: preserve-3d; }
+.claw-3d.is-dropping { top: 60%; }
+.claw-wire { width: 4px; height: 80px; background: #cbd5e1; margin: 0 auto; }
+.claw-body { width: 40px; height: 30px; background: #334155; border-radius: 5px; position: relative; margin: 0 auto; }
+.claw-pincer { width: 10px; height: 50px; background: #475569; position: absolute; top: 20px; border-radius: 5px; transition: transform 0.3s; }
+.claw-pincer.left { left: -5px; transform: rotate(15deg); }
+.claw-pincer.right { right: -5px; transform: rotate(-15deg); }
+.is-dropping .claw-pincer.left { transform: rotate(30deg); }
+.is-dropping .claw-pincer.right { transform: rotate(-30deg); }
+.prize-bed { position: absolute; bottom: 10%; width: 100%; text-align: center; transform: translateZ(-20px); }
+.prize-3d { font-size: 80px; filter: drop-shadow(0 20px 10px rgba(0,0,0,0.4)); transition: transform 0.5s; }
+.is-dropping + .prize-bed .prize-3d { transform: translateY(-30px) scale(1.1); }
+
+/* ================= 3. 3D 轮盘 ================= */
+.roulette-scene { position: relative; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
+.wheel-3d { width: 220px; height: 220px; border-radius: 50%; position: relative; transform: rotateX(60deg); transform-style: preserve-3d; box-shadow: 0 30px 40px rgba(0,0,0,0.4); }
+.wheel-rim { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(#ef4444 0deg 30deg, #1e293b 30deg 60deg, #ef4444 60deg 90deg, #1e293b 90deg 120deg, #ef4444 120deg 150deg, #1e293b 150deg 180deg, #ef4444 180deg 210deg, #1e293b 210deg 240deg, #ef4444 240deg 270deg, #1e293b 270deg 300deg, #ef4444 300deg 330deg, #1e293b 330deg 360deg); border: 10px solid #0f172a; }
+.wheel-inner { position: absolute; inset: 20%; background: radial-gradient(circle, #f8fafc 0%, #cbd5e1 100%); border-radius: 50%; transform: translateZ(10px); box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
+.is-spinning { animation: spin-3d 0.3s linear infinite; }
+.is-stopped { animation: stop-3d 3s cubic-bezier(0.17, 0.67, 0.12, 1) forwards; }
+@keyframes spin-3d { 100% { transform: rotateX(60deg) rotateZ(360deg); } }
+@keyframes stop-3d { 100% { transform: rotateX(60deg) rotateZ(720deg); } }
+.ball-3d { position: absolute; top: 20%; left: 50%; width: 15px; height: 15px; background: #fff; border-radius: 50%; box-shadow: 0 0 10px #fff; transform: translateZ(30px); opacity: 0; }
+.ball-3d.is-spinning { opacity: 1; animation: ball-bounce 0.5s infinite alternate; }
+@keyframes ball-bounce { 0% { transform: translateX(-60px) translateZ(30px); } 100% { transform: translateX(60px) translateZ(30px); } }
+
+/* ================= 4. 通用 3D 翻转 ================= */
+.generic-3d { display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; }
+.cube-wrapper { width: 120px; height: 120px; position: relative; transform-style: preserve-3d; transition: transform 0.5s; }
+.cube-wrapper.is-spinning { animation: cube-spin 0.6s linear infinite; }
+.cube-face { position: absolute; width: 120px; height: 120px; background: rgba(255,255,255,0.95); border: 2px solid #e2e8f0; border-radius: 15px; display: flex; justify-content: center; align-items: center; font-size: 60px; backface-visibility: hidden; box-shadow: inset 0 0 20px rgba(0,0,0,0.05); }
+.front { transform: translateZ(60px); }
+.back { transform: rotateY(180deg) translateZ(60px); }
+.left { transform: rotateY(-90deg) translateZ(60px); }
+.right { transform: rotateY(90deg) translateZ(60px); }
+@keyframes cube-spin { 0% { transform: rotateX(0) rotateY(0); } 100% { transform: rotateX(360deg) rotateY(360deg); } }
+
+/* 控制台 & 按钮 */
 .control-panel { margin-top: 20px; text-align: center; }
 .desc { font-size: 13px; color: #64748b; margin-bottom: 15px; font-weight: bold; }
 .balance-display { background: #0f172a; border-radius: 12px; padding: 12px 24px; display: inline-flex; flex-direction: column; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5); }
@@ -329,6 +416,8 @@ const closeResult = () => {
 .heavy-btn:disabled { background: #94a3b8 !important; cursor: not-allowed; transform: none; box-shadow: none; }
 .btn-shine { position: absolute; top: 0; left: -100%; width: 50%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent); transform: skewX(-20deg); animation: shine 3s infinite; }
 @keyframes shine { 100% { left: 200%; } }
+
+/* 弹窗与票根 */
 .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(8px); display: flex; justify-content: center; align-items: center; z-index: 1000; }
 .modal-card { background: white; padding: 30px; border-radius: 24px; width: 85%; max-width: 320px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
 .modal-icon { font-size: 40px; margin-bottom: 10px; }
@@ -339,6 +428,7 @@ const closeResult = () => {
 .modal-actions button { flex: 1; padding: 14px; border-radius: 16px; border: none; font-weight: bold; font-size: 15px; cursor: pointer; }
 .btn-cancel { background: #f1f5f9; color: #64748b; }
 .btn-confirm { color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+
 .ticket-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); display: flex; justify-content: center; align-items: center; z-index: 2000; }
 .ticket-wrapper { width: 85%; max-width: 340px; background: #fff; border-radius: 16px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); overflow: hidden; position: relative; }
 .ticket-top { padding: 20px; display: flex; justify-content: space-between; align-items: center; color: white; }
@@ -362,6 +452,7 @@ const closeResult = () => {
 .barcode { height: 40px; width: 80%; margin: 0 auto 15px; background: repeating-linear-gradient(90deg, #1e293b, #1e293b 2px, transparent 2px, transparent 5px); opacity: 0.8; }
 .btn-close { width: 100%; padding: 15px; background: #1e293b; color: white; border: none; border-radius: 16px; font-weight: bold; font-size: 15px; cursor: pointer; transition: 0.2s; }
 .btn-close:hover { background: #0f172a; }
+
 .modal-enter-active, .modal-leave-active { transition: opacity 0.3s; }
 .modal-enter-from, .modal-leave-to { opacity: 0; }
 .modal-enter-active .modal-card { animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
@@ -371,16 +462,19 @@ const closeResult = () => {
 .ticket-leave-active { transition: opacity 0.3s; }
 .ticket-leave-to { opacity: 0; }
 @keyframes ticketDrop { 0% { transform: translateY(-50px) scale(0.9); opacity: 0; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
+
 @media (max-width: 768px) {
   .floating-back-btn { top: 50px; left: 15px; padding: 6px 12px; font-size: 13px; }
   .room-header { padding: 10px 15px; }
   .title { font-size: 16px; }
   .stage { padding: 10px; }
-  .machine-body { padding: 8px; margin-bottom: 25px; }
-  .glass-window { width: 220px; height: 220px; }
-  .floating-icon { font-size: 70px; }
-  .reel-column span { height: 220px; font-size: 70px; }
-  @keyframes spin-reel { 0% { transform: translateY(0); } 100% { transform: translateY(-1100px); } }
+  .machine-body { padding: 10px; margin-bottom: 25px; }
+  .game-stage-3d { width: 260px; height: 260px; }
+  .cube-wrapper, .cube-face { width: 90px; height: 90px; }
+  .front { transform: translateZ(45px); }
+  .back { transform: rotateY(180deg) translateZ(45px); }
+  .left { transform: rotateY(-90deg) translateZ(45px); }
+  .right { transform: rotateY(90deg) translateZ(45px); }
   .heavy-btn { max-width: 100%; padding: 16px; font-size: 16px; }
   .balance-display { padding: 10px 18px; }
   .balance-display .amount { font-size: 20px; }
