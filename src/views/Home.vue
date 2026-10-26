@@ -76,9 +76,9 @@
       <!-- 播放时的呼吸外圈 -->
       <div v-if="isPlaying" class="pulse-ring"></div>
       
-      <!-- 🆕 已替换为可播放的 8-bit 游戏音乐 -->
+      <!-- 🆕 8-bit 稳定外链音乐 -->
       <audio ref="audioPlayer" loop>
-        <source src="https://assets.mixkit.co/music/preview/mixkit-retro-game-console-1111.mp3" type="audio/mpeg" />
+        <source src="https://cdn.freesound.org/previews/415/415209_5121236-lq.mp3" type="audio/mpeg" />
       </audio>
     </div>
   </div>
