@@ -1,6 +1,6 @@
 <template>
   <header class="top-header-wrapper">
-    <!-- 🆕 顶部滚动播报条 -->
+    <!-- 顶部滚动播报条 -->
     <div class="ticker-banner">
       <div class="ticker-label">
         <span class="dot"></span> 当せん速報
@@ -50,27 +50,28 @@
       </div>
     </div>
 
-    <!-- 🆕 出金申请弹窗 -->
-    <el-dialog v-model="withdrawVisible" title="出金申請" width="400px" center>
-      <div style="display: flex; flex-direction: column; gap: 15px; padding: 10px;">
-        <!-- 🆕 移除“出金金額 (¥)”这行文字，直接显示输入框 -->
-        <el-input-number 
-          v-model="withdrawAmount" 
-          :min="100" 
-          :step="1000" 
-          :controls="false" 
-          style="width: 100%;" 
-          size="large"
-          placeholder="出金金額を入力してください"
-        />
-      </div>
-      <template #footer>
-        <div style="display: flex; gap: 10px; justify-content: center;">
-          <el-button @click="withdrawVisible = false" size="large" style="width: 120px; border-radius: 8px;">キャンセル</el-button>
-          <el-button type="primary" color="#3b82f6" @click="submitWithdraw" size="large" style="width: 120px; border-radius: 8px;" :loading="submittingWithdraw">申請する</el-button>
+    <!-- 🆕 纯原生出金弹窗 (绝对生效) -->
+    <div v-if="withdrawVisible" class="custom-modal-overlay" @click.self="withdrawVisible = false">
+      <div class="custom-modal">
+        <h3>出金申請</h3>
+        
+        <div class="input-group">
+          <input 
+            type="number" 
+            v-model="withdrawAmount" 
+            placeholder="出金金額を入力してください" 
+            class="custom-input"
+          />
         </div>
-      </template>
-    </el-dialog>
+
+        <div class="modal-btns">
+          <button class="btn-cancel" @click="withdrawVisible = false">キャンセル</button>
+          <button class="btn-confirm" @click="submitWithdraw" :disabled="submittingWithdraw">
+            {{ submittingWithdraw ? '処理中...' : '申請する' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </header>
 </template>
 
@@ -85,7 +86,7 @@ const userBalance = ref(0);
 const username = ref('ゲスト');
 
 // ==========================================
-// 播报系统逻辑
+// 🆕 播报系统逻辑
 // ==========================================
 const currentNews = ref({ id: 0, time: '14:03', name: 'ゲスト', game: 'ゲーム', prize: '10円' });
 let timer = null;
@@ -132,7 +133,7 @@ const generateNews = () => {
 };
 
 // ==========================================
-// 出金弹窗逻辑
+// 🆕 出金弹窗逻辑
 // ==========================================
 const withdrawVisible = ref(false);
 const withdrawAmount = ref(null);
@@ -310,6 +311,27 @@ onUnmounted(() => {
   background: #1e293b; color: #ffffff; border: none; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; box-shadow: 0 4px 10px rgba(30, 41, 59, 0.2);
 }
 .profile-btn:hover { background: #0f172a; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(30, 41, 59, 0.3); }
+
+/* 🆕 纯原生弹窗样式 */
+.custom-modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+  display: flex; justify-content: center; align-items: center; z-index: 9999;
+}
+.custom-modal {
+  background: #fff; width: 90%; max-width: 400px; border-radius: 16px; padding: 24px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.2); text-align: center;
+}
+.custom-modal h3 { margin: 0 0 20px; font-size: 20px; font-weight: 900; color: #1e293b; }
+.custom-input {
+  width: 100%; padding: 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 16px;
+  outline: none; box-sizing: border-box; margin-bottom: 20px;
+}
+.custom-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+.modal-btns { display: flex; gap: 12px; }
+.modal-btns button { flex: 1; padding: 14px; border-radius: 10px; font-size: 15px; font-weight: bold; cursor: pointer; border: none; }
+.btn-cancel { background: #f1f5f9; color: #64748b; }
+.btn-confirm { background: #3b82f6; color: #fff; }
+.btn-confirm:disabled { background: #94a3b8; cursor: not-allowed; }
 
 /* 手机端 */
 @media (max-width: 768px) {
