@@ -12,7 +12,7 @@
         <div class="banner-top">
           <span class="username">{{ userInfo.username }} 様</span>
           
-          <!-- 🆕 精准的状态判断 -->
+          <!-- 精准的状态判断 -->
           <span v-if="verifyStatus === 0" class="verify-btn" @click="startKyc">本人確認へ</span>
           <span v-else-if="verifyStatus === 1" class="status-badge pending">審査中</span>
           <span v-else-if="verifyStatus === 2" class="status-badge verified">本人確認済み</span>
@@ -121,7 +121,8 @@
           <h3>出金申請</h3>
           <div class="form-group">
             <label>出金金額 (¥)</label>
-            <input v-model.number="withdrawAmount" type="number" />
+            <!-- 🆕 默认空输入框 -->
+            <input v-model.number="withdrawAmount" type="number" placeholder="金額を入力してください" />
           </div>
           <div class="modal-actions">
             <button class="cancel" @click="showWithdrawModal = false">キャンセル</button>
@@ -200,7 +201,8 @@
             <p><strong>🕒 営業時間:</strong> 10:00 - 19:00 (土日祝除く)</p>
             <p><strong>📧 メール:</strong> support@quickone.cc.cd</p>
           </div>
-          <a href="https://lin.ee/sV2XGu5" target="_blank" class="line-btn">
+          <!-- 更新为你的客服 LINE 链接 -->
+          <a href="https://lin.ee/OHAOimh" target="_blank" class="line-btn">
             <span class="line-icon">💬</span> 公式LINEで問い合わせる
           </a>
           <div class="modal-actions" style="margin-top: 15px;">
@@ -237,7 +239,7 @@ const isWithdrawing = ref(false);
 const isChangingPwd = ref(false);
 const kycForm = ref({ idType: 'license', name: '', idNumber: '' });
 const kycBankForm = ref({ bankName: '', branchName: '', branchCode: '', accountNumber: '', accountName: '', accountType: '普通' });
-const withdrawAmount = ref(1000);
+const withdrawAmount = ref(null); // 🆕 默认值为空
 const newPassword = ref('');
 const deposits = ref([]);
 const withdrawals = ref([]);
@@ -284,6 +286,7 @@ const handleWithdrawClick = () => {
     kycStep.value = 2;
     showKycModal.value = true;
   } else {
+    withdrawAmount.value = null; // 🆕 打开弹窗时清空金额
     showWithdrawModal.value = true;
   }
 };
@@ -298,21 +301,26 @@ const submitKycAll = async () => {
     await request.post(`/user/bind-bank/${userInfo.value.id}`, kycBankForm.value);
     alert('申請が完了しました。審査結果をお待ちください。');
     showKycModal.value = false;
-    fetchUserInfo();
+    fetchUserInfo(); // 刷新页面数据
   } catch (error) { alert('申請に失敗しました。'); }
   finally { isSubmittingKyc.value = false; }
 };
 
 // 提交提现
 const submitWithdraw = async () => {
-  if (withdrawAmount.value < 100) return alert('最低出金金額は 100円 です。');
+  // 🆕 校验：金额为空或小于 100
+  if (!withdrawAmount.value || withdrawAmount.value < 100) {
+    return alert('最低出金金額は 100円 です。');
+  }
+  
   isWithdrawing.value = true;
   try {
     const res = await request.post(`/user/withdraw/${userInfo.value.id}`, { amount: withdrawAmount.value });
     if (res.data.success) {
       alert('出金申請を受け付けました。');
       showWithdrawModal.value = false;
-      fetchHistory();
+      fetchUserInfo(); // 🆕 申请成功后立即刷新余额
+      fetchHistory();  // 🆕 刷新历史记录
     }
   } catch (error) { alert(error.response?.data?.error || '申請に失敗しました。'); }
   finally { isWithdrawing.value = false; }
@@ -374,7 +382,7 @@ onMounted(() => {
 .username { font-size: 18px; font-weight: bold; }
 .verify-btn { background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; cursor: pointer; }
 
-/* 🆕 精准的状态标签 */
+/* 精准的状态标签 */
 .status-badge { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
 .status-badge.pending { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
 .status-badge.verified { background: rgba(16, 185, 129, 0.2); color: #10b981; }
@@ -404,7 +412,7 @@ onMounted(() => {
 .form-group { text-align: left; margin-bottom: 15px; flex: 1; }
 .form-row { display: flex; gap: 15px; }
 .form-group label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 5px; color: #334155; }
-.form-group input, .form-select { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; outline: none; }
+.form-group input, .form-select { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; outline: none; box-sizing: border-box; }
 .modal-actions { display: flex; gap: 10px; margin-top: 25px; }
 .modal-actions button { flex: 1; padding: 14px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; font-size: 15px; }
 .cancel { background: #f1f5f9; color: #64748b; }

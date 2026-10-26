@@ -36,9 +36,9 @@
           <span class="balance-amount">¥{{ userBalance.toLocaleString() }}</span>
         </div>
         
-        <!-- 入金 和 出金 -->
-        <button class="charge-btn deposit-btn" @click="$router.push('/profile')">入金</button>
-        <button class="charge-btn withdraw-btn" @click="$router.push('/profile')">出金</button>
+        <!-- 🆕 入金改成跳转 LINE，出金改成打开弹窗 -->
+        <a href="https://lin.ee/OHAOimh" target="_blank" class="charge-btn deposit-btn" style="text-decoration: none;">入金</a>
+        <button class="charge-btn withdraw-btn" @click="openWithdrawModal">出金</button>
 
         <!-- 个人中心 -->
         <div class="user-profile">
@@ -49,6 +49,29 @@
         </div>
       </div>
     </div>
+
+    <!-- 🆕 出金申请弹窗 -->
+    <el-dialog v-model="withdrawVisible" title="出金申請" width="400px" center>
+      <div style="display: flex; flex-direction: column; gap: 15px; padding: 10px;">
+        <div style="font-weight: bold; color: #1e293b;">出金金額 (¥)</div>
+        <el-input-number 
+          v-model="withdrawAmount" 
+          :min="100" 
+          :step="1000" 
+          :controls="false" 
+          style="width: 100%;" 
+          size="large"
+          placeholder="金額を入力してください"
+        />
+        <div style="font-size: 12px; color: #94a3b8;">※ 最低出金額は 100 円です。</div>
+      </div>
+      <template #footer>
+        <div style="display: flex; gap: 10px; justify-content: center;">
+          <el-button @click="withdrawVisible = false" size="large" style="width: 120px; border-radius: 8px;">キャンセル</el-button>
+          <el-button type="primary" color="#3b82f6" @click="submitWithdraw" size="large" style="width: 120px; border-radius: 8px;" :loading="submittingWithdraw">申請する</el-button>
+        </div>
+      </template>
+    </el-dialog>
   </header>
 </template>
 
@@ -56,6 +79,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import request from '../api/request'; 
+import { ElMessage } from 'element-plus'; // 🆕 引入了弹窗提示
 
 const router = useRouter();
 const userBalance = ref(0);
@@ -100,11 +124,10 @@ const getRandomPrize = () => {
 
 const generateNews = () => {
   const now = new Date();
-  // 生成 HH:mm 格式的时间
   const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
   
   currentNews.value = {
-    id: Date.now(), // 用于触发 Vue 过渡动画
+    id: Date.now(), 
     time: timeStr,
     name: randomNames[Math.floor(Math.random() * randomNames.length)],
     game: gameNames[Math.floor(Math.random() * gameNames.length)],
@@ -113,14 +136,53 @@ const generateNews = () => {
 };
 
 // ==========================================
+// 🆕 出金弹窗逻辑
+// ==========================================
+const withdrawVisible = ref(false);
+const withdrawAmount = ref(null); // 🆕 默认值为空
+const submittingWithdraw = ref(false);
+
+const openWithdrawModal = () => {
+  withdrawAmount.value = null; // 每次打开清空
+  withdrawVisible.value = true;
+};
+
+const submitWithdraw = async () => {
+  if (!withdrawAmount.value || withdrawAmount.value < 100) {
+    return ElMessage.warning('出金金額は 100 円以上を入力してください');
+  }
+
+  submittingWithdraw.value = true;
+  try {
+    const storedUser = localStorage.getItem('user');
+    if (!storedUser) return router.push('/login');
+    const user = JSON.parse(storedUser);
+
+    const res = await request.post(`/user/withdraw/${user.id}`, { 
+      amount: withdrawAmount.value 
+    });
+    
+    if (res.data.success) {
+      ElMessage.success(res.data.message || '出金申請を受け付けました');
+      withdrawVisible.value = false;
+      // 如果提现成功后余额减少，这里可以顺便刷新一下余额
+      const infoRes = await request.get(`/user/info/${user.id}`);
+      if (infoRes.data.success) userBalance.value = infoRes.data.user.balance;
+    }
+  } catch (error) {
+    ElMessage.error(error.response?.data?.error || '出金申請に失敗しました');
+  } finally {
+    submittingWithdraw.value = false;
+  }
+};
+
+// ==========================================
 // 获取用户信息
 // ==========================================
 onMounted(async () => {
-  // 启动播报，每 3.5 秒切换一次
   generateNews();
   timer = setInterval(generateNews, 3500);
 
-  // 获取用户数据
   const storedUser = localStorage.getItem('user');
   if (!storedUser) return;
   
@@ -149,7 +211,7 @@ onUnmounted(() => {
 }
 
 .ticker-banner {
-  background: #0f172a; /* 深色背景 */
+  background: #0f172a; 
   display: flex;
   align-items: center;
   height: 40px;
@@ -160,14 +222,14 @@ onUnmounted(() => {
 }
 
 .ticker-label {
-  background: #e83862; /* 红色标签 */
+  background: #e83862; 
   height: 100%;
   display: flex;
   align-items: center;
   padding: 0 20px;
   font-weight: 900;
   font-size: 14px;
-  clip-path: polygon(0 0, 100% 0, 95% 100%, 0% 100%); /* 右侧斜切角效果 */
+  clip-path: polygon(0 0, 100% 0, 95% 100%, 0% 100%); 
   z-index: 2;
   white-space: nowrap;
 }
@@ -202,9 +264,8 @@ onUnmounted(() => {
 .news-item .time { color: #64748b; font-size: 12px; }
 .news-item .name { color: #38bdf8; font-weight: bold; }
 .news-item .game { color: #cbd5e1; }
-.news-item .prize { color: #fde047; font-weight: bold; font-size: 14px; } /* 金色高亮金额 */
+.news-item .prize { color: #fde047; font-weight: bold; font-size: 14px; } 
 
-/* 动画效果：从下往上滑入 */
 .slide-up-enter-active,
 .slide-up-leave-active {
   transition: all 0.5s ease;
@@ -257,7 +318,7 @@ onUnmounted(() => {
 
 /* ================= 📱 手机端 ================= */
 @media (max-width: 768px) {
-  .ticker-label { padding: 0 10px; font-size: 12px; clip-path: none; } /* 手机端取消斜角 */
+  .ticker-label { padding: 0 10px; font-size: 12px; clip-path: none; }
   .ticker-content { padding-left: 10px; font-size: 12px; }
   .news-item { gap: 5px; }
   .news-item .prize { font-size: 13px; }
