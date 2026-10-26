@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const request = axios.create({
     // 🆕 直接写死最新的隧道地址，带上 /api 后缀，彻底绕过 Vercel 代理！
-    baseURL: 'https://merchandise-customize-instructions-isp.trycloudflare.com/api',
+    baseURL: 'https://qualified-contacting-rom-dover.trycloudflare.com ',
     timeout: 15000, 
     headers: {
         'Content-Type': 'application/json',
