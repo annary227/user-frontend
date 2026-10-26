@@ -37,18 +37,15 @@
           <!-- 1. 金魚すくい -->
           <div v-if="gameType === 'fish'" class="fish-bowl">
             <div class="water" :class="{ 'is-rippling': isDrawing }"></div>
-            <!-- 🆕 如果没中，纸网破洞 -->
             <div class="poi" :class="{ 'is-scooping': isDrawing }">
                {{ (!isDrawing && result && result.value === 0) ? '🕸️' : '🥅' }}
             </div>
-            <!-- 🆕 如果中奖，水面跳出金鱼 -->
             <div class="jump-fish" v-if="!isDrawing && result && result.value > 0">🐟</div>
           </div>
 
           <!-- 2. 飞镖 -->
           <div v-else-if="gameType === 'dart'" class="dart-board">
             <div class="board-rings"></div>
-            <!-- 🆕 如果中奖，扎中靶心；如果没中，扎在边缘 -->
             <div class="dart" :class="{ 'is-thrown': isDrawing, 'is-bullseye': !isDrawing && result && result.value > 0 }">🎯</div>
           </div>
 
@@ -62,7 +59,6 @@
                 <div class="claw-pincer right"></div>
               </div>
             </div>
-            <!-- 🆕 如果中奖，娃娃被抓走；如果没中，娃娃掉落 -->
             <div class="prize-bed" :class="{ 'is-caught': !isDrawing && result && result.value > 0 }">
               <span class="prize-3d">{{ gameIcon }}</span>
             </div>
@@ -76,7 +72,6 @@
               <div class="capsule cap-3"></div>
             </div>
             <div class="gacha-knob" :class="{ 'is-turning': isDrawing }">⚙️</div>
-            <!-- 🆕 如果中奖，掉出金色大扭蛋 -->
             <div class="golden-capsule" v-if="!isDrawing && result && result.value > 0">🥚</div>
           </div>
 
@@ -84,7 +79,6 @@
           <div v-else-if="gameType === 'scratch'" class="scratch-scene">
              <div class="scratch-card" :class="{ 'is-scratched': !isDrawing && result }">
                 <div class="scratch-cover" :class="{ 'is-scratching': isDrawing }"></div>
-                <!-- 🆕 中奖显示大奖杯，没中显示哭脸 -->
                 <div class="scratch-content">
                   {{ (!isDrawing && result) ? (result.value > 0 ? '🏆' : '💧') : '🎁' }}
                 </div>
@@ -104,13 +98,11 @@
           <div v-else-if="gameType === 'treasure'" class="treasure-chest">
             <div class="chest-lid" :class="{ 'is-opening': !isDrawing && result, 'is-shaking': isDrawing }"></div>
             <div class="chest-base" :class="{ 'is-shaking': isDrawing }"></div>
-            <!-- 🆕 只有中奖才爆金光，没中箱子里是空的 -->
             <div class="sparkle" v-if="!isDrawing && result && result.value > 0">✨</div>
           </div>
 
           <!-- 8. 老虎机 -->
           <div v-else-if="gameType === 'slot'" class="slot-machine-3d">
-            <!-- 🆕 中奖显示 777，没中奖随机显示不同图标 -->
             <div class="reel-3d" :class="{ 'is-spinning': isDrawing }">
               <div class="slot-face" :class="{ 'is-win': !isDrawing && result && result.value > 0 }">
                 {{ (!isDrawing && result) ? (result.value > 0 ? '7' : '🍒') : '7' }}
@@ -183,7 +175,12 @@
           <div class="ticket-content">
             <div class="result-icon">{{ result.value > 0 ? '🏆' : '💧' }}</div>
             <h2>{{ result.value > 0 ? 'おめでとうございます！' : '残念でした' }}</h2>
-            <div class="prize-name">{{ result.prize }}</div>
+            
+            <!-- 🆕 核心防穿帮：如果后端传了“不中奖”，在这里强制翻译成日语 -->
+            <div class="prize-name">
+              {{ result.prize === '不中奖' ? 'ハズレ' : result.prize }}
+            </div>
+            
             <div class="prize-value" v-if="result.value > 0">+ ¥{{ result.value.toLocaleString() }}</div>
             
             <div class="ticket-divider"></div>
@@ -224,13 +221,14 @@ const gameTypeMap = {
 };
 const gameType = computed(() => gameTypeMap[gameName] || 'fish');
 
+// 🆕 已修复：将“大富豪専用”改成了纯正日语描述
 const gameSettings = {
   '金魚すくい': { color: '#0ea5e9', bg: '#e0f2fe', desc: 'ポイを破らずに金魚を救え！' },
   'ダーツチャレンジ': { color: '#ef4444', bg: '#fee2e2', desc: 'ブルの真ん中を狙い撃て！' },
   'クレーンゲーム': { color: '#10b981', bg: '#d1fae5', desc: '超豪華プライズをゲットせよ！' },
   'ガチャポン': { color: '#8b5cf6', bg: '#ede9fe', desc: '金のカプセルを引き当てろ！' },
   'スクラッチ': { color: '#ffa502', bg: '#fff7ed', desc: '削って当てる！お手軽スクラッチ' },
-  'ルーレット': { color: '#e84118', bg: '#fef2f2', desc: '大富豪専用！超高額ルーレット' },
+  'ルーレット': { color: '#e84118', bg: '#fef2f2', desc: '超高額ルーレットに挑戦せよ！' }, 
   '宝探し': { color: '#009432', bg: '#f0fdf4', desc: '古代の財宝を見つけ出せ！' },
   'スロット': { color: '#f39c12', bg: '#fffbeb', desc: '7を揃えて大当たりを狙え！' }
 };
@@ -347,7 +345,6 @@ const executeDraw = async () => {
         if (spinInterval) clearInterval(spinInterval);
         if (result.value.value > 0) playWinSound(); else playLoseSound();
         
-        // 🆕 动画展示完毕后弹出票根
         setTimeout(() => {
           showTicket.value = true;
         }, 1200);
@@ -441,7 +438,6 @@ const closeResult = () => {
 .title { font-weight: 900; font-size: 18px; letter-spacing: 1px; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
 
 .stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
-/* 🆕 机台中奖泛光 */
 .machine-body { background: #ffffff; border-radius: 30px; padding: 20px; box-shadow: 0 30px 60px rgba(0,0,0,0.5), 0 0 40px rgba(255,255,255,0.1); margin-bottom: 40px; transition: all 0.5s; }
 .machine-body.is-win-glow { box-shadow: 0 30px 60px rgba(0,0,0,0.5), 0 0 80px rgba(255, 215, 0, 0.6); transform: scale(1.02); }
 
@@ -479,7 +475,6 @@ const closeResult = () => {
 .is-dropping .claw-pincer.left { transform: rotate(30deg); }
 .is-dropping .claw-pincer.right { transform: rotate(-30deg); }
 .prize-bed { position: absolute; bottom: 10%; width: 100%; text-align: center; transform: translateZ(-20px); transition: 0.5s; }
-/* 🆕 中奖时娃娃消失（被抓住） */
 .prize-bed.is-caught .prize-3d { opacity: 0; }
 .prize-3d { font-size: 80px; filter: drop-shadow(0 20px 10px rgba(0,0,0,0.4)); transition: transform 0.5s; }
 .is-dropping + .prize-bed .prize-3d { transform: translateY(-30px) scale(1.1); }
@@ -496,7 +491,6 @@ const closeResult = () => {
 .gacha-knob { font-size: 40px; margin-top: 20px; }
 .gacha-knob.is-turning { animation: turn-knob 0.5s infinite linear; }
 @keyframes turn-knob { 100% { transform: rotate(360deg); } }
-/* 🆕 掉出金扭蛋 */
 .golden-capsule { position: absolute; bottom: 10px; font-size: 40px; animation: drop-capsule 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
 @keyframes drop-capsule { 0% { transform: translateY(-50px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
 
@@ -536,7 +530,6 @@ const closeResult = () => {
 .slot-machine-3d { display: flex; gap: 15px; transform: rotateY(-15deg) rotateX(10deg); transform-style: preserve-3d; }
 .reel-3d { width: 70px; height: 180px; background: #1e293b; border-radius: 10px; position: relative; transform-style: preserve-3d; box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.3); display: flex; justify-content: center; align-items: center; }
 .slot-face { width: 100%; height: 100%; background: linear-gradient(180deg, #fff, #e2e8f0); border-radius: 8px; display: flex; justify-content: center; align-items: center; font-size: 50px; font-weight: 900; color: #ef4444; transition: 0.3s; }
-/* 🆕 中奖时数字发光绿色，未中奖是灰色 */
 .slot-face.is-win { color: #10b981; text-shadow: 0 0 20px #10b981; }
 .reel-3d.is-spinning { animation: roll-3d 0.15s linear infinite; }
 @keyframes roll-3d { 0% { transform: rotateX(0); } 100% { transform: rotateX(360deg); } }
