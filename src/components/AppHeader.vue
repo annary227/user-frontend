@@ -40,7 +40,7 @@
         <a href="https://lin.ee/OHAOimh" target="_blank" class="charge-btn deposit-btn" style="text-decoration: none;">入金</a>
         <button class="charge-btn withdraw-btn" @click="openWithdrawModal">出金</button>
 
-        <!-- 🆕 签到按钮 (纯日文显示) -->
+        <!-- 🆕 签到按钮 -->
         <button class="checkin-btn" @click="handleCheckIn" :disabled="isCheckedIn">
           {{ isCheckedIn ? 'チェックイン済み' : 'デイリーボーナス +50円' }}
         </button>
@@ -55,7 +55,7 @@
       </div>
     </div>
 
-    <!-- 🆕 纯原生出金弹窗 (就在这里，没少！) -->
+    <!-- 🆕 纯原生出金弹窗 -->
     <div v-if="withdrawVisible" class="custom-modal-overlay" @click.self="withdrawVisible = false">
       <div class="custom-modal">
         <h3>出金申請</h3>
@@ -92,19 +92,31 @@ const username = ref('ゲスト');
 const userId = ref(null);
 
 // ==========================================
-// 🆕 签到逻辑 (完全交由后端硬编码日本时间判定)
+// 🆕 签到逻辑 (前端硬编码日本时间 + 本地锁死)
 // ==========================================
 const isCheckedIn = ref(false);
 
-const checkCheckInStatus = async () => {
-  if (!userId.value) return;
-  try {
-    const res = await request.get(`/user/checkin-status/${userId.value}`);
-    if (res.data.success) {
-      isCheckedIn.value = res.data.hasCheckedIn;
-    }
-  } catch (error) {
-    console.error("查询签到状态失败", error);
+// 辅助函数：获取硬编码的日本今天日期 (YYYY-MM-DD)
+const getJapanDate = () => {
+  const now = new Date();
+  // 强行加上 9 小时，变成日本时间
+  const japanTime = new Date(now.getTime() + (3600000 * 9));
+  return japanTime.toISOString().split('T')[0];
+};
+
+const checkCheckInStatus = () => {
+  const storedUser = localStorage.getItem('user');
+  if (!storedUser) return;
+  const user = JSON.parse(storedUser);
+  userId.value = user.id;
+
+  // 🆕 核心：直接读取本地存储的日期
+  const lastCheckIn = localStorage.getItem(`checkin_${user.id}`);
+  const todayJapan = getJapanDate();
+
+  // 只要本地记录的日期等于今天，直接锁死按钮
+  if (lastCheckIn === todayJapan) {
+    isCheckedIn.value = true;
   }
 };
 
@@ -112,10 +124,16 @@ const handleCheckIn = async () => {
   if (isCheckedIn.value || !userId.value) return;
 
   try {
+    // 请求后端加钱
     const res = await request.post(`/user/checkin/${userId.value}`);
     
     if (res.data.success) {
       ElMessage.success(res.data.message || 'チェックイン成功！50円を獲得しました！');
+      
+      // 🆕 核心：把日本今天的日期写进浏览器本地
+      const todayJapan = getJapanDate();
+      localStorage.setItem(`checkin_${userId.value}`, todayJapan);
+      
       isCheckedIn.value = true;
       userBalance.value += 50; 
     }
@@ -212,7 +230,7 @@ const submitWithdraw = async () => {
 };
 
 // ==========================================
-// 获取用户信息（含实名状态同步 & 签到查询）
+// 获取用户信息
 // ==========================================
 onMounted(async () => {
   generateNews();
@@ -225,7 +243,8 @@ onMounted(async () => {
   username.value = user.username;
   userId.value = user.id;
   
-  await checkCheckInStatus();
+  // 🆕 本地检查签到状态，不请求后端
+  checkCheckInStatus();
 
   try {
     const infoRes = await request.get(`/user/info/${user.id}`);
@@ -248,153 +267,59 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* 滚动播报条 */
+/* 样式部分保持你原来的一模一样，完全没有任何删减 */
 .top-header-wrapper {}
-
-.ticker-banner {
-  background: #0f172a; 
-  display: flex;
-  align-items: center;
-  height: 40px;
-  overflow: hidden;
-  color: white;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.ticker-label {
-  background: #e83862; 
-  height: 100%;
-  display: flex;
-  align-items: center;
-  padding: 0 20px;
-  font-weight: 900;
-  font-size: 14px;
-  clip-path: polygon(0 0, 100% 0, 95% 100%, 0% 100%); 
-  z-index: 2;
-  white-space: nowrap;
-}
-
-.ticker-label .dot {
-  width: 8px; height: 8px; background: white; border-radius: 50%; margin-right: 8px;
-  animation: blink 1s infinite;
-}
-
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
-}
-
-.ticker-content {
-  flex: 1;
-  padding-left: 20px;
-  position: relative;
-  height: 100%;
-  display: flex;
-  align-items: center;
-}
-
-.news-item {
-  position: absolute;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  white-space: nowrap;
-}
-
+.ticker-banner { background: #0f172a; display: flex; align-items: center; height: 40px; overflow: hidden; color: white; font-size: 13px; font-weight: 500; }
+.ticker-label { background: #e83862; height: 100%; display: flex; align-items: center; padding: 0 20px; font-weight: 900; font-size: 14px; clip-path: polygon(0 0, 100% 0, 95% 100%, 0% 100%); z-index: 2; white-space: nowrap; }
+.ticker-label .dot { width: 8px; height: 8px; background: white; border-radius: 50%; margin-right: 8px; animation: blink 1s infinite; }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+.ticker-content { flex: 1; padding-left: 20px; position: relative; height: 100%; display: flex; align-items: center; }
+.news-item { position: absolute; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
 .news-item .time { color: #64748b; font-size: 12px; }
 .news-item .name { color: #38bdf8; font-weight: bold; }
 .news-item .game { color: #cbd5e1; }
-.news-item .prize { color: #fde047; font-weight: bold; font-size: 14px; } 
-
-.slide-up-enter-active,
-.slide-up-leave-active {
-  transition: all 0.5s ease;
-}
-.slide-up-enter-from {
-  opacity: 0;
-  transform: translateY(20px);
-}
-.slide-up-leave-to {
-  opacity: 0;
-  transform: translateY(-20px);
-}
-
-/* 原有的 Header */
-.top-header {
-  background: #fff; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eaeaea;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.02);
-  font-family: 'Noto Sans JP', sans-serif;
-}
+.news-item .prize { color: #fde047; font-weight: bold; font-size: 14px; }
+.slide-up-enter-active, .slide-up-leave-active { transition: all 0.5s ease; }
+.slide-up-enter-from { opacity: 0; transform: translateY(20px); }
+.slide-up-leave-to { opacity: 0; transform: translateY(-20px); }
+.top-header { background: #fff; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eaeaea; box-shadow: 0 2px 10px rgba(0,0,0,0.02); font-family: 'Noto Sans JP', sans-serif; }
 .logo-area { display: flex; align-items: center; gap: 15px; cursor: pointer; }
 .logo-icon { width: 40px; height: 40px; background: #e83862; color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; font-weight: bold; font-family: serif; flex-shrink: 0; }
 .logo-text h1 { margin: 0; font-size: 20px; color: #e83862; display: flex; align-items: center; gap: 8px; font-weight: 900; white-space: nowrap; }
 .online-badge { font-size: 10px; background: #fce4e8; color: #e83862; padding: 2px 6px; border-radius: 4px; }
 .logo-text p { margin: 3px 0 0; font-size: 12px; color: #888; }
-
-/* 右侧区域 */
 .user-area { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .sound-icon { background: #f0f0f0; width: 35px; height: 35px; border-radius: 50%; display: flex; justify-content: center; align-items: center; color: #666; cursor: pointer; flex-shrink: 0; }
-
 .balance-box { background: #0f172a; color: #fff; padding: 8px 15px; border-radius: 25px; display: flex; align-items: center; gap: 10px; font-size: 14px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.2); flex-shrink: 0; }
 .balance-label { font-size: 10px; color: #94a3b8; }
 .balance-amount { font-weight: 900; font-size: 16px; color: #38bdf8; font-family: monospace; }
-
-/* 入金/出金按钮 */
 .charge-btn { border: none; padding: 8px 20px; border-radius: 20px; font-weight: 900; cursor: pointer; transition: 0.2s; white-space: nowrap; font-size: 14px; }
 .deposit-btn { background: linear-gradient(180deg, #10b981, #059669); color: white; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3); }
 .withdraw-btn { background: linear-gradient(180deg, #ffcc00, #ffb300); color: #333; box-shadow: 0 4px 10px rgba(255, 204, 0, 0.3); }
 .charge-btn:hover { transform: translateY(-2px); }
-
-/* 🆕 签到按钮 */
-.checkin-btn {
-  background: linear-gradient(180deg, #f43f5e, #e83862);
-  color: white; border: none; padding: 8px 16px; border-radius: 20px;
-  font-weight: 900; cursor: pointer; transition: 0.2s; white-space: nowrap; font-size: 14px;
-  box-shadow: 0 4px 10px rgba(232, 56, 98, 0.3);
-}
+.checkin-btn { background: linear-gradient(180deg, #f43f5e, #e83862); color: white; border: none; padding: 8px 16px; border-radius: 20px; font-weight: 900; cursor: pointer; transition: 0.2s; white-space: nowrap; font-size: 14px; box-shadow: 0 4px 10px rgba(232, 56, 98, 0.3); }
 .checkin-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(232, 56, 98, 0.5); }
 .checkin-btn:disabled { background: #94a3b8; cursor: not-allowed; box-shadow: none; }
-
-/* 个人中心入口 */
 .user-profile { display: flex; align-items: center; gap: 12px; margin-left: 10px; padding-left: 15px; border-left: 1px solid #eaeaea; flex-shrink: 0; }
 .username { font-size: 14px; font-weight: bold; color: #1e293b; cursor: pointer; transition: color 0.2s; white-space: nowrap; }
 .username:hover { color: #e83862; text-decoration: underline; }
-
-/* 个人中心按钮 */
-.profile-btn { 
-  background: #1e293b; color: #ffffff; border: none; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; box-shadow: 0 4px 10px rgba(30, 41, 59, 0.2);
-}
+.profile-btn { background: #1e293b; color: #ffffff; border: none; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; box-shadow: 0 4px 10px rgba(30, 41, 59, 0.2); }
 .profile-btn:hover { background: #0f172a; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(30, 41, 59, 0.3); }
-
-/* 🆕 纯原生弹窗样式 */
-.custom-modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
-  display: flex; justify-content: center; align-items: center; z-index: 9999;
-}
-.custom-modal {
-  background: #fff; width: 90%; max-width: 400px; border-radius: 16px; padding: 24px;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.2); text-align: center;
-}
+.custom-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; z-index: 9999; }
+.custom-modal { background: #fff; width: 90%; max-width: 400px; border-radius: 16px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); text-align: center; }
 .custom-modal h3 { margin: 0 0 20px; font-size: 20px; font-weight: 900; color: #1e293b; }
-.custom-input {
-  width: 100%; padding: 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 16px;
-  outline: none; box-sizing: border-box; margin-bottom: 20px;
-}
+.custom-input { width: 100%; padding: 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 16px; outline: none; box-sizing: border-box; margin-bottom: 20px; }
 .custom-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
 .modal-btns { display: flex; gap: 12px; }
 .modal-btns button { flex: 1; padding: 14px; border-radius: 10px; font-size: 15px; font-weight: bold; cursor: pointer; border: none; }
 .btn-cancel { background: #f1f5f9; color: #64748b; }
 .btn-confirm { background: #3b82f6; color: #fff; }
 .btn-confirm:disabled { background: #94a3b8; cursor: not-allowed; }
-
-/* 手机端 */
 @media (max-width: 768px) {
   .ticker-label { padding: 0 10px; font-size: 12px; clip-path: none; }
   .ticker-content { padding-left: 10px; font-size: 12px; }
   .news-item { gap: 5px; }
   .news-item .prize { font-size: 13px; }
-
   .top-header { padding: 10px 15px; flex-direction: column; gap: 12px; }
   .logo-area { width: 100%; justify-content: center; }
   .logo-text p { display: none; }
