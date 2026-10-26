@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 const request = axios.create({
-    // 🆕 直接写死最新的隧道地址，带上 /api 后缀，彻底绕过 Vercel 代理！
-    baseURL: 'https://qualified-contacting-rom-dover.trycloudflare.com ',
+    // 🆕 去掉了末尾的空格，并正确加上了 /api 后缀
+    baseURL: 'https://qualified-contacting-rom-dover.trycloudflare.com/api',
     timeout: 15000, 
     headers: {
         'Content-Type': 'application/json',
