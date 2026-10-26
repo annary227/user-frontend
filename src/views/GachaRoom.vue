@@ -28,7 +28,8 @@
 
     <!-- 核心机台 -->
     <div class="stage">
-      <div class="machine-body">
+      <!-- 🆕 机台增加中奖发光特效 -->
+      <div class="machine-body" :class="{ 'is-win-glow': !isDrawing && result && result.value > 0 }">
         
         <!-- 3D 核心舞台 -->
         <div class="game-stage-3d" :class="`stage-${gameType}`">
@@ -36,13 +37,19 @@
           <!-- 1. 金魚すくい -->
           <div v-if="gameType === 'fish'" class="fish-bowl">
             <div class="water" :class="{ 'is-rippling': isDrawing }"></div>
-            <div class="poi" :class="{ 'is-scooping': isDrawing }">🥅</div>
+            <!-- 🆕 如果没中，纸网破洞 -->
+            <div class="poi" :class="{ 'is-scooping': isDrawing }">
+               {{ (!isDrawing && result && result.value === 0) ? '🕸️' : '🥅' }}
+            </div>
+            <!-- 🆕 如果中奖，水面跳出金鱼 -->
+            <div class="jump-fish" v-if="!isDrawing && result && result.value > 0">🐟</div>
           </div>
 
           <!-- 2. 飞镖 -->
           <div v-else-if="gameType === 'dart'" class="dart-board">
             <div class="board-rings"></div>
-            <div class="dart" :class="{ 'is-thrown': isDrawing }">🎯</div>
+            <!-- 🆕 如果中奖，扎中靶心；如果没中，扎在边缘 -->
+            <div class="dart" :class="{ 'is-thrown': isDrawing, 'is-bullseye': !isDrawing && result && result.value > 0 }">🎯</div>
           </div>
 
           <!-- 3. 抓娃娃 -->
@@ -55,7 +62,8 @@
                 <div class="claw-pincer right"></div>
               </div>
             </div>
-            <div class="prize-bed">
+            <!-- 🆕 如果中奖，娃娃被抓走；如果没中，娃娃掉落 -->
+            <div class="prize-bed" :class="{ 'is-caught': !isDrawing && result && result.value > 0 }">
               <span class="prize-3d">{{ gameIcon }}</span>
             </div>
           </div>
@@ -68,13 +76,18 @@
               <div class="capsule cap-3"></div>
             </div>
             <div class="gacha-knob" :class="{ 'is-turning': isDrawing }">⚙️</div>
+            <!-- 🆕 如果中奖，掉出金色大扭蛋 -->
+            <div class="golden-capsule" v-if="!isDrawing && result && result.value > 0">🥚</div>
           </div>
 
           <!-- 5. 刮刮乐 -->
           <div v-else-if="gameType === 'scratch'" class="scratch-scene">
              <div class="scratch-card" :class="{ 'is-scratched': !isDrawing && result }">
                 <div class="scratch-cover" :class="{ 'is-scratching': isDrawing }"></div>
-                <div class="scratch-content">{{ gameIcon }}</div>
+                <!-- 🆕 中奖显示大奖杯，没中显示哭脸 -->
+                <div class="scratch-content">
+                  {{ (!isDrawing && result) ? (result.value > 0 ? '🏆' : '💧') : '🎁' }}
+                </div>
              </div>
           </div>
 
@@ -91,19 +104,27 @@
           <div v-else-if="gameType === 'treasure'" class="treasure-chest">
             <div class="chest-lid" :class="{ 'is-opening': !isDrawing && result, 'is-shaking': isDrawing }"></div>
             <div class="chest-base" :class="{ 'is-shaking': isDrawing }"></div>
-            <div class="sparkle" v-if="!isDrawing && result">✨</div>
+            <!-- 🆕 只有中奖才爆金光，没中箱子里是空的 -->
+            <div class="sparkle" v-if="!isDrawing && result && result.value > 0">✨</div>
           </div>
 
           <!-- 8. 老虎机 -->
           <div v-else-if="gameType === 'slot'" class="slot-machine-3d">
+            <!-- 🆕 中奖显示 777，没中奖随机显示不同图标 -->
             <div class="reel-3d" :class="{ 'is-spinning': isDrawing }">
-              <div class="slot-face" :class="{ 'is-win': !isDrawing && result && result.value > 0 }">7</div>
+              <div class="slot-face" :class="{ 'is-win': !isDrawing && result && result.value > 0 }">
+                {{ (!isDrawing && result) ? (result.value > 0 ? '7' : '🍒') : '7' }}
+              </div>
             </div>
             <div class="reel-3d" :class="{ 'is-spinning': isDrawing }" style="animation-delay: 0.1s;">
-              <div class="slot-face" :class="{ 'is-win': !isDrawing && result && result.value > 0 }">7</div>
+              <div class="slot-face" :class="{ 'is-win': !isDrawing && result && result.value > 0 }">
+                {{ (!isDrawing && result) ? (result.value > 0 ? '7' : '🔔') : '7' }}
+              </div>
             </div>
             <div class="reel-3d" :class="{ 'is-spinning': isDrawing }" style="animation-delay: 0.2s;">
-              <div class="slot-face" :class="{ 'is-win': !isDrawing && result && result.value > 0 }">7</div>
+              <div class="slot-face" :class="{ 'is-win': !isDrawing && result && result.value > 0 }">
+                {{ (!isDrawing && result) ? (result.value > 0 ? '7' : '💎') : '7' }}
+              </div>
             </div>
             <div class="machine-glass"></div>
           </div>
@@ -150,7 +171,7 @@
       </div>
     </Transition>
 
-    <!-- 🆕 结算凭证票根 (增加了 v-if="showTicket" 配合延迟开奖) -->
+    <!-- 结算凭证票根 -->
     <Transition name="ticket">
       <div v-if="result && showTicket" class="ticket-overlay">
         <div class="ticket-wrapper" :class="result.value > 0 ? 'win' : 'lose'">
@@ -196,7 +217,6 @@ const gameName = route.query.name || '金魚すくい';
 const gameCost = Number(route.query.price) || 200;
 const gameIcon = route.query.icon || '🐟';
 
-// 🆕 8个游戏全部适配专属动画
 const gameTypeMap = {
   '金魚すくい': 'fish', 'ダーツチャレンジ': 'dart', 'クレーンゲーム': 'crane',
   'ガチャポン': 'gacha', 'スクラッチ': 'scratch', 'ルーレット': 'roulette',
@@ -222,7 +242,7 @@ const gameDesc = computed(() => gameSettings[gameName]?.desc || 'ポイを破ら
 const showConfirm = ref(false);
 const isDrawing = ref(false);
 const result = ref(null);
-const showTicket = ref(false); // 🆕 新增：控制票根弹出
+const showTicket = ref(false);
 const currentBalance = ref(0);
 const currentTime = ref('');
 const userId = ref(null);
@@ -314,7 +334,7 @@ const executeDraw = async () => {
   showConfirm.value = false;
   isDrawing.value = true;
   result.value = null;
-  showTicket.value = false; // 🆕 重置票根状态
+  showTicket.value = false;
   playSpinSound();
   
   setTimeout(async () => {
@@ -327,10 +347,10 @@ const executeDraw = async () => {
         if (spinInterval) clearInterval(spinInterval);
         if (result.value.value > 0) playWinSound(); else playLoseSound();
         
-        // 🆕 核心修复：给动画留出 1 秒展示时间，再弹出票根
+        // 🆕 动画展示完毕后弹出票根
         setTimeout(() => {
           showTicket.value = true;
-        }, 1000);
+        }, 1200);
       }
     } catch (error) {
       alert(error.response?.data?.error || '通信エラーが発生しました。');
@@ -421,7 +441,9 @@ const closeResult = () => {
 .title { font-weight: 900; font-size: 18px; letter-spacing: 1px; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
 
 .stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
-.machine-body { background: #ffffff; border-radius: 30px; padding: 20px; box-shadow: 0 30px 60px rgba(0,0,0,0.5), 0 0 40px rgba(255,255,255,0.1); margin-bottom: 40px; }
+/* 🆕 机台中奖泛光 */
+.machine-body { background: #ffffff; border-radius: 30px; padding: 20px; box-shadow: 0 30px 60px rgba(0,0,0,0.5), 0 0 40px rgba(255,255,255,0.1); margin-bottom: 40px; transition: all 0.5s; }
+.machine-body.is-win-glow { box-shadow: 0 30px 60px rgba(0,0,0,0.5), 0 0 80px rgba(255, 215, 0, 0.6); transform: scale(1.02); }
 
 .game-stage-3d { width: 320px; height: 320px; background: radial-gradient(circle at center, #ffffff 0%, #e2e8f0 100%); border-radius: 20px; position: relative; overflow: hidden; box-shadow: inset 0 15px 30px rgba(0,0,0,0.1); display: flex; justify-content: center; align-items: center; perspective: 1000px; }
 
@@ -433,12 +455,15 @@ const closeResult = () => {
 .poi { position: absolute; top: 20%; left: 50%; transform: translateX(-50%); font-size: 60px; transition: 0.5s; }
 .poi.is-scooping { animation: scoop 1.5s infinite alternate ease-in-out; }
 @keyframes scoop { 0% { top: 20%; left: 50%; transform: translateX(-50%) rotate(0); } 100% { top: 60%; left: 20%; transform: translateX(-50%) rotate(-30deg); } }
+.jump-fish { position: absolute; top: 10%; left: 50%; transform: translateX(-50%); font-size: 50px; animation: jump 1s infinite alternate; }
+@keyframes jump { 0% { top: 10%; } 100% { top: 0%; } }
 
 /* ================= 2. 飞镖 ================= */
 .dart-board { width: 220px; height: 220px; border-radius: 50%; background: conic-gradient(#ef4444 0deg 20deg, #f1f5f9 20deg 40deg, #3b82f6 40deg 60deg, #f1f5f9 60deg 80deg, #ef4444 80deg 100deg, #f1f5f9 100deg 120deg, #3b82f6 120deg 140deg, #f1f5f9 140deg 160deg, #ef4444 160deg 180deg, #f1f5f9 180deg 200deg, #3b82f6 200deg 220deg, #f1f5f9 220deg 240deg, #ef4444 240deg 260deg, #f1f5f9 260deg 280deg, #3b82f6 280deg 300deg, #f1f5f9 300deg 320deg, #ef4444 320deg 340deg, #f1f5f9 340deg 360deg); position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.2); border: 8px solid #334155; }
 .board-rings { position: absolute; inset: 20%; border-radius: 50%; border: 4px solid #334155; background: #fff; }
 .dart { position: absolute; top: -20%; left: 50%; font-size: 40px; transform: translateX(-50%); transition: 0.3s; }
 .dart.is-thrown { animation: throw-dart 1.5s infinite alternate ease-in; }
+.dart.is-bullseye { top: 45%; animation: none; transform: translateX(-50%) scale(0.7); }
 @keyframes throw-dart { 0% { top: -20%; transform: translateX(-50%) scale(1); } 100% { top: 40%; transform: translateX(-50%) scale(0.8); } }
 
 /* ================= 3. 抓娃娃 ================= */
@@ -453,7 +478,9 @@ const closeResult = () => {
 .claw-pincer.right { right: -5px; transform: rotate(-15deg); }
 .is-dropping .claw-pincer.left { transform: rotate(30deg); }
 .is-dropping .claw-pincer.right { transform: rotate(-30deg); }
-.prize-bed { position: absolute; bottom: 10%; width: 100%; text-align: center; transform: translateZ(-20px); }
+.prize-bed { position: absolute; bottom: 10%; width: 100%; text-align: center; transform: translateZ(-20px); transition: 0.5s; }
+/* 🆕 中奖时娃娃消失（被抓住） */
+.prize-bed.is-caught .prize-3d { opacity: 0; }
 .prize-3d { font-size: 80px; filter: drop-shadow(0 20px 10px rgba(0,0,0,0.4)); transition: transform 0.5s; }
 .is-dropping + .prize-bed .prize-3d { transform: translateY(-30px) scale(1.1); }
 
@@ -469,6 +496,9 @@ const closeResult = () => {
 .gacha-knob { font-size: 40px; margin-top: 20px; }
 .gacha-knob.is-turning { animation: turn-knob 0.5s infinite linear; }
 @keyframes turn-knob { 100% { transform: rotate(360deg); } }
+/* 🆕 掉出金扭蛋 */
+.golden-capsule { position: absolute; bottom: 10px; font-size: 40px; animation: drop-capsule 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+@keyframes drop-capsule { 0% { transform: translateY(-50px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
 
 /* ================= 5. 刮刮乐 ================= */
 .scratch-scene { display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; }
@@ -506,6 +536,7 @@ const closeResult = () => {
 .slot-machine-3d { display: flex; gap: 15px; transform: rotateY(-15deg) rotateX(10deg); transform-style: preserve-3d; }
 .reel-3d { width: 70px; height: 180px; background: #1e293b; border-radius: 10px; position: relative; transform-style: preserve-3d; box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.3); display: flex; justify-content: center; align-items: center; }
 .slot-face { width: 100%; height: 100%; background: linear-gradient(180deg, #fff, #e2e8f0); border-radius: 8px; display: flex; justify-content: center; align-items: center; font-size: 50px; font-weight: 900; color: #ef4444; transition: 0.3s; }
+/* 🆕 中奖时数字发光绿色，未中奖是灰色 */
 .slot-face.is-win { color: #10b981; text-shadow: 0 0 20px #10b981; }
 .reel-3d.is-spinning { animation: roll-3d 0.15s linear infinite; }
 @keyframes roll-3d { 0% { transform: rotateX(0); } 100% { transform: rotateX(360deg); } }
