@@ -40,9 +40,9 @@
         <a href="https://lin.ee/OHAOimh" target="_blank" class="charge-btn deposit-btn" style="text-decoration: none;">入金</a>
         <button class="charge-btn withdraw-btn" @click="openWithdrawModal">出金</button>
 
-        <!-- 🆕 签到按钮 -->
+        <!-- 🆕 签到按钮 (纯日文显示) -->
         <button class="checkin-btn" @click="handleCheckIn" :disabled="isCheckedIn">
-          {{ isCheckedIn ? '签到済み' : '签到 +50円' }}
+          {{ isCheckedIn ? 'チェックイン済み' : 'デイリーボーナス +50円' }}
         </button>
 
         <!-- 个人中心 -->
@@ -55,7 +55,7 @@
       </div>
     </div>
 
-    <!-- 🆕 纯原生出金弹窗 -->
+    <!-- 🆕 纯原生出金弹窗 (就在这里，没少！) -->
     <div v-if="withdrawVisible" class="custom-modal-overlay" @click.self="withdrawVisible = false">
       <div class="custom-modal">
         <h3>出金申請</h3>
@@ -92,11 +92,10 @@ const username = ref('ゲスト');
 const userId = ref(null);
 
 // ==========================================
-// 🆕 签到逻辑 (对接后端数据库)
+// 🆕 签到逻辑 (完全交由后端硬编码日本时间判定)
 // ==========================================
 const isCheckedIn = ref(false);
 
-// 去后端查询今天是否已经签到
 const checkCheckInStatus = async () => {
   if (!userId.value) return;
   try {
@@ -109,7 +108,6 @@ const checkCheckInStatus = async () => {
   }
 };
 
-// 点击签到，请求后端加钱
 const handleCheckIn = async () => {
   if (isCheckedIn.value || !userId.value) return;
 
@@ -117,12 +115,12 @@ const handleCheckIn = async () => {
     const res = await request.post(`/user/checkin/${userId.value}`);
     
     if (res.data.success) {
-      ElMessage.success(res.data.message || '签到成功！获得 50 円');
+      ElMessage.success(res.data.message || 'チェックイン成功！50円を獲得しました！');
       isCheckedIn.value = true;
-      userBalance.value += 50; // 前端余额立刻增加
+      userBalance.value += 50; 
     }
   } catch (error) {
-    ElMessage.error(error.response?.data?.error || '签到失败，请稍后再试');
+    ElMessage.error(error.response?.data?.error || 'チェックインに失敗しました。後でもう一度お試しください。');
   }
 };
 
@@ -227,7 +225,6 @@ onMounted(async () => {
   username.value = user.username;
   userId.value = user.id;
   
-  // 🆕 查询签到状态
   await checkCheckInStatus();
 
   try {
