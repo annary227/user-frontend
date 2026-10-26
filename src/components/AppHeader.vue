@@ -36,7 +36,7 @@
           <span class="balance-amount">¥{{ userBalance.toLocaleString() }}</span>
         </div>
         
-        <!-- 🆕 入金改成跳转 LINE，出金改成打开弹窗 -->
+        <!-- 入金 和 出金 -->
         <a href="https://lin.ee/OHAOimh" target="_blank" class="charge-btn deposit-btn" style="text-decoration: none;">入金</a>
         <button class="charge-btn withdraw-btn" @click="openWithdrawModal">出金</button>
 
@@ -53,7 +53,7 @@
     <!-- 🆕 出金申请弹窗 -->
     <el-dialog v-model="withdrawVisible" title="出金申請" width="400px" center>
       <div style="display: flex; flex-direction: column; gap: 15px; padding: 10px;">
-        <div style="font-weight: bold; color: #1e293b;">出金金額 (¥)</div>
+        <!-- 🆕 移除“出金金額 (¥)”这行文字，直接显示输入框 -->
         <el-input-number 
           v-model="withdrawAmount" 
           :min="100" 
@@ -61,9 +61,8 @@
           :controls="false" 
           style="width: 100%;" 
           size="large"
-          placeholder="金額を入力してください"
+          placeholder="出金金額を入力してください"
         />
-        <!-- 🆕 这里移除了最低出金提示 -->
       </div>
       <template #footer>
         <div style="display: flex; gap: 10px; justify-content: center;">
@@ -86,7 +85,7 @@ const userBalance = ref(0);
 const username = ref('ゲスト');
 
 // ==========================================
-// 🆕 播报系统逻辑
+// 播报系统逻辑
 // ==========================================
 const currentNews = ref({ id: 0, time: '14:03', name: 'ゲスト', game: 'ゲーム', prize: '10円' });
 let timer = null;
@@ -133,14 +132,14 @@ const generateNews = () => {
 };
 
 // ==========================================
-// 🆕 出金弹窗逻辑
+// 出金弹窗逻辑
 // ==========================================
 const withdrawVisible = ref(false);
-const withdrawAmount = ref(null); // 默认值为空
+const withdrawAmount = ref(null);
 const submittingWithdraw = ref(false);
 
 const openWithdrawModal = () => {
-  withdrawAmount.value = null; // 每次打开清空
+  withdrawAmount.value = null;
   withdrawVisible.value = true;
 };
 
@@ -162,7 +161,6 @@ const submitWithdraw = async () => {
     if (res.data.success) {
       ElMessage.success(res.data.message || '出金申請を受け付けました');
       withdrawVisible.value = false;
-      // 刷新余额
       const infoRes = await request.get(`/user/info/${user.id}`);
       if (infoRes.data.success) userBalance.value = infoRes.data.user.balance;
     }
@@ -202,9 +200,9 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* 🆕 关键修改：移除了 sticky，让头部随页面滚动 */
+/* 滚动播报条 */
 .top-header-wrapper {
-  /* 不再固定，防止遮挡下方内容 */
+  /* 取消 sticky，随页面滚动 */
 }
 
 .ticker-banner {
@@ -276,7 +274,7 @@ onUnmounted(() => {
   transform: translateY(-20px);
 }
 
-/* ================= 原有的 Header ================= */
+/* 原有的 Header */
 .top-header {
   background: #fff; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eaeaea;
   box-shadow: 0 2px 10px rgba(0,0,0,0.02);
@@ -313,7 +311,7 @@ onUnmounted(() => {
 }
 .profile-btn:hover { background: #0f172a; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(30, 41, 59, 0.3); }
 
-/* ================= 📱 手机端 ================= */
+/* 手机端 */
 @media (max-width: 768px) {
   .ticker-label { padding: 0 10px; font-size: 12px; clip-path: none; }
   .ticker-content { padding-left: 10px; font-size: 12px; }
