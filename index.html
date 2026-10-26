@@ -2,9 +2,26 @@
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎰</text></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    
     <title>クイックワン | ネット専用オンライン宝くじ</title>
+
+    <!-- 🆕 1. 浏览器标签页的小图标（Favicon） -->
+    <!-- 把 logo.png 换成你刚放进 public 文件夹里的图片名字 -->
+    <link rel="icon" type="image/png" href="/logo.png" />
+
+    <!-- 🆕 2. LINE/Twitter 分享卡片预览协议（OG） -->
+    <meta property="og:title" content="クイックワン | ネット専用オンライン宝くじ" />
+    <meta property="og:description" content="待ち時間なし！購入した瞬間に結果がわかる！最高1000万円が当たるオンラインくじ。" />
+    <meta property="og:type" content="website" />
+    
+    <!-- 这里必须写完整的网址，把图片名字换成你的 -->
+    <!-- 注意：先把你 Vercel 的正式域名填进去，后面跟着 /图片名 -->
+    <meta property="og:image" content="https://user-frontend-nine-wine.vercel.app/logo.png" />
+    
+    <!-- Twitter 卡片专用 -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://user-frontend-nine-wine.vercel.app/logo.png" />
   </head>
   <body>
     <div id="app"></div>
