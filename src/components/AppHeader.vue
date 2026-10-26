@@ -96,10 +96,8 @@ const userId = ref(null);
 // ==========================================
 const isCheckedIn = ref(false);
 
-// 辅助函数：获取硬编码的日本今天日期 (YYYY-MM-DD)
 const getJapanDate = () => {
   const now = new Date();
-  // 强行加上 9 小时，变成日本时间
   const japanTime = new Date(now.getTime() + (3600000 * 9));
   return japanTime.toISOString().split('T')[0];
 };
@@ -110,11 +108,9 @@ const checkCheckInStatus = () => {
   const user = JSON.parse(storedUser);
   userId.value = user.id;
 
-  // 🆕 核心：直接读取本地存储的日期
   const lastCheckIn = localStorage.getItem(`checkin_${user.id}`);
   const todayJapan = getJapanDate();
 
-  // 只要本地记录的日期等于今天，直接锁死按钮
   if (lastCheckIn === todayJapan) {
     isCheckedIn.value = true;
   }
@@ -124,13 +120,11 @@ const handleCheckIn = async () => {
   if (isCheckedIn.value || !userId.value) return;
 
   try {
-    // 请求后端加钱
     const res = await request.post(`/user/checkin/${userId.value}`);
     
     if (res.data.success) {
       ElMessage.success(res.data.message || 'チェックイン成功！50円を獲得しました！');
       
-      // 🆕 核心：把日本今天的日期写进浏览器本地
       const todayJapan = getJapanDate();
       localStorage.setItem(`checkin_${userId.value}`, todayJapan);
       
@@ -230,7 +224,7 @@ const submitWithdraw = async () => {
 };
 
 // ==========================================
-// 获取用户信息
+// 获取用户信息（极致秒显优化）
 // ==========================================
 onMounted(async () => {
   generateNews();
@@ -243,13 +237,23 @@ onMounted(async () => {
   username.value = user.username;
   userId.value = user.id;
   
-  // 🆕 本地检查签到状态，不请求后端
+  // 🆕 核心优化 1：优先读取本地缓存，做到 0 延迟秒显
+  if (user.balance !== undefined) {
+    userBalance.value = user.balance;
+  }
+  
+  // 本地检查签到状态
   checkCheckInStatus();
 
+  // 🆕 核心优化 2：后台静默请求最新数据，如果变了再悄悄更新
   try {
     const infoRes = await request.get(`/user/info/${user.id}`);
     if (infoRes.data.success) {
       userBalance.value = infoRes.data.user.balance;
+      
+      // 🆕 把最新余额同步写回本地缓存，下次刷新就秒出了
+      user.balance = infoRes.data.user.balance;
+      localStorage.setItem('user', JSON.stringify(user));
       
       if (user.verify_status !== infoRes.data.user.verify_status) {
         user.verify_status = infoRes.data.user.verify_status;
@@ -267,7 +271,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* 样式部分保持你原来的一模一样，完全没有任何删减 */
+/* 样式保持原样，完全没有任何删减 */
 .top-header-wrapper {}
 .ticker-banner { background: #0f172a; display: flex; align-items: center; height: 40px; overflow: hidden; color: white; font-size: 13px; font-weight: 500; }
 .ticker-label { background: #e83862; height: 100%; display: flex; align-items: center; padding: 0 20px; font-weight: 900; font-size: 14px; clip-path: polygon(0 0, 100% 0, 95% 100%, 0% 100%); z-index: 2; white-space: nowrap; }

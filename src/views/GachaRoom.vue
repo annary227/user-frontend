@@ -1,5 +1,13 @@
 <template>
-  <div class="room-container" :style="{ background: currentBg }">
+  <div class="room-container" :class="`theme-${gameType}`">
+    <!-- 🆕 赛博霓虹背景层 -->
+    <div class="neon-bg">
+      <div class="spotlight"></div>
+      <div class="grid-lines"></div>
+      <div class="glow-orb orb-1"></div>
+      <div class="glow-orb orb-2"></div>
+    </div>
+
     <!-- 🆕 悬浮返回按钮 (固定在左上角) -->
     <button class="floating-back-btn" @click="$router.push('/')">
       <span class="icon">‹</span> ロビーに戻る
@@ -175,7 +183,6 @@ const gameSettings = {
 };
 
 const currentColor = computed(() => gameSettings[gameName]?.color || '#0ea5e9');
-const currentBg = computed(() => gameSettings[gameName]?.bg || '#f2f5f8');
 const gameDesc = computed(() => gameSettings[gameName]?.desc || 'ポイを破らずに金魚を救え！');
 
 const showConfirm = ref(false);
@@ -348,20 +355,76 @@ const closeResult = () => {
 </script>
 
 <style scoped>
-/* 基础框架 */
-.room-container { font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif; min-height: 100vh; display: flex; flex-direction: column; transition: background 0.5s; }
+/* ================= 🆕 赛博霓虹背景 ================= */
+.room-container { 
+  position: relative; 
+  min-height: 100vh; 
+  display: flex; 
+  flex-direction: column; 
+  overflow: hidden; 
+  background: #0a0a0f; /* 极深底色 */
+  font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+  transition: background 0.5s;
+}
+
+.neon-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+
+.spotlight {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 800px; height: 800px;
+  background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 60%);
+  border-radius: 50%;
+}
+
+.grid-lines {
+  position: absolute; inset: -50%; 
+  background-image: 
+    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+  background-size: 40px 40px;
+  transform: perspective(500px) rotateX(60deg) translateY(-100px) translateZ(-200px);
+  animation: grid-move 10s linear infinite;
+}
+@keyframes grid-move { 100% { transform: perspective(500px) rotateX(60deg) translateY(0) translateZ(-200px); } }
+
+.glow-orb { position: absolute; border-radius: 50%; filter: blur(120px); opacity: 0.3; }
+.orb-1 { width: 500px; height: 500px; background: #e83862; top: -100px; left: -100px; animation: float1 8s ease-in-out infinite alternate; }
+.orb-2 { width: 600px; height: 600px; background: #0ea5e9; bottom: -150px; right: -100px; animation: float2 10s ease-in-out infinite alternate; }
+@keyframes float1 { 100% { transform: translate(50px, 50px); } }
+@keyframes float2 { 100% { transform: translate(-50px, -50px); } }
+
+/* 🆕 根据游戏类型，背景光晕自动换色 */
+.theme-slot .orb-1 { background: #f39c12; }
+.theme-slot .orb-2 { background: #e84118; }
+.theme-crane .orb-1 { background: #10b981; }
+.theme-crane .orb-2 { background: #0abde3; }
+.theme-roulette .orb-1 { background: #e84118; }
+.theme-roulette .orb-2 { background: #ff4757; }
+.theme-generic .orb-1 { background: #e83862; }
+.theme-generic .orb-2 { background: #0ea5e9; }
+
+/* 提高层级，让顶栏和机台在背景之上 */
+.room-header, .stage { position: relative; z-index: 10; }
+
+
+/* 悬浮返回按钮 */
 .floating-back-btn { position: fixed; top: 60px; left: 20px; z-index: 999; background: rgba(255, 255, 255, 0.95); border: 1px solid #e2e8f0; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: bold; color: #1e293b; cursor: pointer; display: flex; align-items: center; gap: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); transition: all 0.2s; }
 .floating-back-btn:hover { background: #e83862; color: white; border-color: #e83862; transform: translateY(-2px); }
 .floating-back-btn .icon { font-size: 20px; line-height: 1; margin-top: -2px; }
+
+/* 顶部导航 */
 .room-header { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 50; }
 .title { font-weight: 900; font-size: 18px; letter-spacing: 1px; }
 .header-right { width: 60px; }
+
+/* 舞台 */
 .stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
 
 /* 机器外壳 */
 .machine-body { background: #ffffff; border-radius: 30px; padding: 20px; box-shadow: 0 30px 60px rgba(0,0,0,0.1), inset 0 -5px 15px rgba(0,0,0,0.05); margin-bottom: 40px; }
 
-/* 🆕 核心 3D 舞台 */
+/* 3D 舞台 */
 .game-stage-3d { width: 320px; height: 320px; background: radial-gradient(circle at center, #ffffff 0%, #e2e8f0 100%); border-radius: 20px; position: relative; overflow: hidden; box-shadow: inset 0 15px 30px rgba(0,0,0,0.1); display: flex; justify-content: center; align-items: center; perspective: 1000px; }
 
 /* ================= 1. 3D 老虎机 ================= */
