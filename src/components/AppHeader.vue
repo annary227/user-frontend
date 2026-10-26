@@ -184,7 +184,7 @@ const generateNews = () => {
 };
 
 // ==========================================
-// 🆕 出金弹窗逻辑
+// 🆕 出金弹窗逻辑 (修复 400 报错)
 // ==========================================
 const withdrawVisible = ref(false);
 const withdrawAmount = ref(null);
@@ -196,8 +196,14 @@ const openWithdrawModal = () => {
 };
 
 const submitWithdraw = async () => {
-  if (!withdrawAmount.value || withdrawAmount.value < 100) {
+  // 🆕 校验 1：金额不能为空，且最低 100
+  if (!withdrawAmount.value || Number(withdrawAmount.value) < 100) {
     return ElMessage.warning('出金金額は 100 円以上を入力してください');
+  }
+
+  // 🆕 校验 2：金额不能大于当前余额（这就是导致 400 报错的元凶！）
+  if (Number(withdrawAmount.value) > userBalance.value) {
+    return ElMessage.error('残高が不足しています');
   }
 
   submittingWithdraw.value = true;
@@ -206,18 +212,25 @@ const submitWithdraw = async () => {
     if (!storedUser) return router.push('/login');
     const user = JSON.parse(storedUser);
 
+    // 传数字类型过去
     const res = await request.post(`/user/withdraw/${user.id}`, { 
-      amount: withdrawAmount.value 
+      amount: Number(withdrawAmount.value) 
     });
     
     if (res.data.success) {
       ElMessage.success(res.data.message || '出金申請を受け付けました');
       withdrawVisible.value = false;
+      // 成功后刷新最新余额
       const infoRes = await request.get(`/user/info/${user.id}`);
       if (infoRes.data.success) userBalance.value = infoRes.data.user.balance;
     }
   } catch (error) {
-    ElMessage.error(error.response?.data?.error || '出金申請に失敗しました');
+    // 🆕 拦截后端报错并翻译
+    let errorMsg = error.response?.data?.error || '出金申請に失敗しました';
+    if (errorMsg.includes('残高') || errorMsg.includes('余额')) {
+      errorMsg = '残高が不足しています';
+    }
+    ElMessage.error(errorMsg);
   } finally {
     submittingWithdraw.value = false;
   }
@@ -237,21 +250,17 @@ onMounted(async () => {
   username.value = user.username;
   userId.value = user.id;
   
-  // 🆕 核心优化 1：优先读取本地缓存，做到 0 延迟秒显
   if (user.balance !== undefined) {
     userBalance.value = user.balance;
   }
   
-  // 本地检查签到状态
   checkCheckInStatus();
 
-  // 🆕 核心优化 2：后台静默请求最新数据，如果变了再悄悄更新
   try {
     const infoRes = await request.get(`/user/info/${user.id}`);
     if (infoRes.data.success) {
       userBalance.value = infoRes.data.user.balance;
       
-      // 🆕 把最新余额同步写回本地缓存，下次刷新就秒出了
       user.balance = infoRes.data.user.balance;
       localStorage.setItem('user', JSON.stringify(user));
       
