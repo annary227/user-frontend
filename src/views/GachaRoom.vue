@@ -150,26 +150,30 @@
       </div>
     </Transition>
 
-    <!-- 结算凭证票根 -->
+    <!-- 🆕 结算凭证票根 (增加了 v-if="showTicket" 配合延迟开奖) -->
     <Transition name="ticket">
-      <div v-if="result" class="ticket-overlay">
+      <div v-if="result && showTicket" class="ticket-overlay">
         <div class="ticket-wrapper" :class="result.value > 0 ? 'win' : 'lose'">
           <div class="ticket-top">
             <div class="brand">QUICK ONE OFFICIAL</div>
             <div class="status">{{ result.value > 0 ? '当せん' : 'ハズレ' }}</div>
           </div>
+          
           <div class="ticket-content">
             <div class="result-icon">{{ result.value > 0 ? '🏆' : '💧' }}</div>
             <h2>{{ result.value > 0 ? 'おめでとうございます！' : '残念でした' }}</h2>
             <div class="prize-name">{{ result.prize }}</div>
             <div class="prize-value" v-if="result.value > 0">+ ¥{{ result.value.toLocaleString() }}</div>
+            
             <div class="ticket-divider"></div>
+            
             <div class="ticket-info">
               <div class="row"><span>抽選日時</span><strong>{{ currentTime }}</strong></div>
               <div class="row"><span>消費コイン</span><strong>¥{{ gameCost }}</strong></div>
               <div class="row"><span>残高</span><strong>¥{{ result.remainingBalance.toLocaleString() }}</strong></div>
             </div>
           </div>
+          
           <div class="ticket-bottom">
             <div class="barcode"></div>
             <button class="btn-close" @click="closeResult">画面を閉じる</button>
@@ -218,6 +222,7 @@ const gameDesc = computed(() => gameSettings[gameName]?.desc || 'ポイを破ら
 const showConfirm = ref(false);
 const isDrawing = ref(false);
 const result = ref(null);
+const showTicket = ref(false); // 🆕 新增：控制票根弹出
 const currentBalance = ref(0);
 const currentTime = ref('');
 const userId = ref(null);
@@ -309,6 +314,7 @@ const executeDraw = async () => {
   showConfirm.value = false;
   isDrawing.value = true;
   result.value = null;
+  showTicket.value = false; // 🆕 重置票根状态
   playSpinSound();
   
   setTimeout(async () => {
@@ -320,6 +326,11 @@ const executeDraw = async () => {
         currentTime.value = new Date().toLocaleString('ja-JP', { hour12: false });
         if (spinInterval) clearInterval(spinInterval);
         if (result.value.value > 0) playWinSound(); else playLoseSound();
+        
+        // 🆕 核心修复：给动画留出 1 秒展示时间，再弹出票根
+        setTimeout(() => {
+          showTicket.value = true;
+        }, 1000);
       }
     } catch (error) {
       alert(error.response?.data?.error || '通信エラーが発生しました。');
@@ -330,7 +341,10 @@ const executeDraw = async () => {
   }, 3000);
 };
 
-const closeResult = () => { result.value = null; };
+const closeResult = () => { 
+  result.value = null; 
+  showTicket.value = false;
+};
 </script>
 
 <style scoped>
