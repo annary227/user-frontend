@@ -89,11 +89,12 @@
 
 <script setup>
 import { ref, onMounted, nextTick, computed, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router'; // 🆕 引入了 useRoute 用于读取参数
 import request from '../api/request';
 import { ElMessage } from 'element-plus';
 
 const router = useRouter();
+const route = useRoute(); // 🆕 初始化 route
 
 const myId = ref(null);
 const onlineUsers = ref([]);
@@ -103,15 +104,31 @@ const activeChatUser = ref(null);
 const messages = ref([]);
 const newMessage = ref('');
 const chatBody = ref(null);
-let pollTimer = null; // 🆕 定时拉取消息定时器
+let pollTimer = null;
 
 // 获取本地用户ID并加载列表
-onMounted(() => {
+onMounted(async () => {
   const user = JSON.parse(localStorage.getItem('user'));
   if (!user) return router.push('/login');
   
   myId.value = user.id;
-  fetchOnlineUsers();
+  await fetchOnlineUsers();
+
+  // 🆕 核心逻辑：如果是从带红点的按钮点进来的 (?openChat=true)
+  if (route.query.openChat === 'true') {
+    try {
+      const res = await request.get(`/user/chat/unread-count/${user.id}`);
+      // 如果确实有未读，并且知道最后是谁发的
+      if (res.data.success && res.data.count > 0 && res.data.lastSenderId) {
+        const targetUser = onlineUsers.value.find(u => u.id === res.data.lastSenderId);
+        if (targetUser) {
+          openChat(targetUser); // 直接秒进他的聊天窗口
+        }
+      }
+    } catch (e) {
+      console.error("自动打开聊天失败", e);
+    }
+  }
 });
 
 // 组件销毁时清理定时器
@@ -161,7 +178,7 @@ const openChat = async (user) => {
   messages.value = []; // 清空上一段记录
   await fetchChatHistory(user.id);
   
-  // 🆕 核心修复：每 3 秒自动拉取一次最新消息，解决收不到消息的问题
+  // 每 3 秒自动拉取一次最新消息
   if (pollTimer) clearInterval(pollTimer);
   pollTimer = setInterval(() => {
     if (activeChatUser.value) {
@@ -184,7 +201,6 @@ const fetchChatHistory = async (targetId) => {
   try {
     const res = await request.get(`/user/chat/player/history/${myId.value}/${targetId}`);
     if (res.data.success) {
-      // 比对旧数据，如果长度不同才重新渲染并滚动到底部
       if (messages.value.length !== res.data.messages.length) {
         messages.value = res.data.messages;
         scrollToBottom();
@@ -201,7 +217,7 @@ const sendMessage = async () => {
   const text = newMessage.value;
   newMessage.value = '';
 
-  // 前端先乐观更新，让用户感觉秒发
+  // 前端先乐观更新
   const tempId = Date.now();
   messages.value.push({ id: tempId, sender_id: myId.value, content: text });
   scrollToBottom();
@@ -213,12 +229,11 @@ const sendMessage = async () => {
       content: text
     });
     
-    // 发送成功后立刻拉取一次，不用等3秒轮询
+    // 发送成功后立刻拉取一次
     fetchChatHistory(activeChatUser.value.id);
 
   } catch (error) {
     ElMessage.error(error.response?.data?.error || '送信に失敗しました');
-    // 如果发送失败（例如触发了风控），把刚才发的那条撤回
     messages.value.pop();
   }
 };

@@ -34,7 +34,7 @@
           <span class="balance-amount">¥{{ userBalance.toLocaleString() }}</span>
         </div>
 
-        <!-- 🆕 私聊大厅入口 (带红点提示) -->
+        <!-- 🆕 私聊大厅入口 (带红点提示，点击秒进聊天) -->
         <button class="chat-btn" @click="$router.push('/social?openChat=true')">
           <span class="chat-icon">💬</span> 
           <span class="chat-text">メッセージ</span>
@@ -112,9 +112,7 @@ const checkUnread = async () => {
     if (res.data.success) {
       unreadCount.value = res.data.count;
     }
-  } catch (e) {
-    // 静默失败，不打扰用户
-  }
+  } catch (e) {}
 };
 
 // ==========================================
@@ -301,12 +299,11 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (timer) clearInterval(timer);
-  if (unreadTimer) clearInterval(unreadTimer); // 🆕 清理定时器
+  if (unreadTimer) clearInterval(unreadTimer); 
 });
 </script>
 
 <style scoped>
-/* 样式保持原样 */
 .top-header-wrapper {}
 .ticker-banner { background: #0f172a; display: flex; align-items: center; height: 40px; overflow: hidden; color: white; font-size: 13px; font-weight: 500; }
 .ticker-label { background: #e83862; height: 100%; display: flex; align-items: center; padding: 0 20px; font-weight: 900; font-size: 14px; clip-path: polygon(0 0, 100% 0, 95% 100%, 0% 100%); z-index: 2; white-space: nowrap; }
@@ -333,7 +330,6 @@ onUnmounted(() => {
 .balance-label { font-size: 10px; color: #94a3b8; }
 .balance-amount { font-weight: 900; font-size: 16px; color: #38bdf8; font-family: monospace; }
 
-/* 🆕 私聊按钮及红点样式 */
 .chat-btn { position: relative; background: #3b82f6; color: white; border: none; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 5px; transition: 0.2s; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3); flex-shrink: 0; }
 .chat-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(59, 130, 246, 0.5); background: #2563eb; }
 .chat-icon { font-size: 16px; }
@@ -392,7 +388,6 @@ onUnmounted(() => {
   .balance-box { padding: 6px 12px; flex: 1; justify-content: center; }
   .balance-amount { font-size: 15px; }
   
-  /* 🆕 手机端隐藏文字只留图标 */
   .chat-text { display: none; }
   .chat-btn { padding: 8px 12px; }
   .badge { top: -4px; right: -4px; font-size: 10px; padding: 1px 5px; }
