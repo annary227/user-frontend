@@ -35,7 +35,7 @@
         </div>
 
         <!-- 🆕 私聊大厅入口 (带红点提示) -->
-        <button class="chat-btn" @click="$router.push('/social')">
+        <button class="chat-btn" @click="$router.push('/social?openChat=true')">
           <span class="chat-icon">💬</span> 
           <span class="chat-text">メッセージ</span>
           <!-- 未读消息红点 -->
