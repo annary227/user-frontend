@@ -47,10 +47,7 @@
           <!-- 2. 飞镖（击中后弹出标签） -->
           <div v-else-if="gameType === 'dart'" class="dart-board">
             <div class="board-rings"></div>
-            <div class="dart" :class="{ 'is-thrown': isDrawing, 'is-hit': !isDrawing && result }">
-              🎯
-            </div>
-            <!-- 命中后弹出的标签 -->
+            <div class="dart" :class="{ 'is-thrown': isDrawing, 'is-hit': !isDrawing && result }">🎯</div>
             <div class="prize-tag dart-prize" :class="result && result.value > 0 ? 'is-win' : 'is-lose'" v-if="!isDrawing && result">
               <span v-if="result.value > 0">+ ¥{{ result.value.toLocaleString() }}</span>
               <span v-else>MISS</span>
@@ -103,7 +100,6 @@
                   {{ (!isDrawing && result) ? (result.value > 0 ? '🏆' : '💧') : '🎁' }}
                 </div>
              </div>
-             <!-- 刮出后飘出的金额纸条 -->
              <div class="prize-tag scratch-prize" :class="result && result.value > 0 ? 'is-win' : 'is-lose'" v-if="!isDrawing && result">
                 <span v-if="result.value > 0">+ ¥{{ result.value.toLocaleString() }}</span>
                 <span v-else>ハズレ</span>
@@ -117,7 +113,6 @@
               <div class="wheel-inner"></div>
             </div>
             <div class="ball-3d" :class="{ 'is-spinning': isDrawing }"></div>
-            <!-- 弹出金额 -->
             <div class="prize-tag roulette-prize" :class="result && result.value > 0 ? 'is-win' : 'is-lose'" v-if="!isDrawing && result">
               <span v-if="result.value > 0">+ ¥{{ result.value.toLocaleString() }}</span>
               <span v-else>MISS</span>
@@ -128,7 +123,6 @@
           <div v-else-if="gameType === 'treasure'" class="treasure-chest">
             <div class="chest-lid" :class="{ 'is-opening': !isDrawing && result, 'is-shaking': isDrawing }"></div>
             <div class="chest-base" :class="{ 'is-shaking': isDrawing }"></div>
-            <!-- 喷出的金币 -->
             <div class="golden-fountain" v-if="!isDrawing && result && result.value > 0">
               <div class="coin c1">¥</div><div class="coin c2">¥</div>
               <div class="coin main-coin">+ ¥{{ result.value.toLocaleString() }}</div>
@@ -153,7 +147,6 @@
               </div>
             </div>
             <div class="machine-glass"></div>
-            <!-- 底部掉落硬币 -->
             <div class="slot-coin-drop" v-if="!isDrawing && result && result.value > 0">
               <div class="slot-coin">+ ¥{{ result.value.toLocaleString() }}</div>
             </div>
@@ -165,7 +158,25 @@
         <div class="control-panel">
           <div class="info-screen">
             <p class="desc">{{ gameDesc }}</p>
-            <div class="balance-display">
+            
+            <!-- 🆕 跑马灯展示区 -->
+            <div class="marquee-board" v-if="marqueePrizes.length > 0">
+              <div 
+                v-for="(prize, index) in marqueePrizes" 
+                :key="index"
+                class="marquee-item"
+                :class="{ 
+                  'is-active': currentMarqueeIndex === index,
+                  'is-win': currentMarqueeIndex === index && !isDrawing && result && result.value > 0,
+                  'is-lose': currentMarqueeIndex === index && !isDrawing && result && result.value === 0
+                }"
+              >
+                <span class="name">{{ prize.name }}</span>
+                <span class="value" v-if="prize.value > 0">¥{{ prize.value.toLocaleString() }}</span>
+              </div>
+            </div>
+
+            <div class="balance-display" style="margin-top: 15px;">
               <span class="label">残高</span>
               <span class="amount">¥ {{ currentBalance.toLocaleString() }}</span>
             </div>
@@ -273,6 +284,11 @@ const currentBalance = ref(0);
 const currentTime = ref('');
 const userId = ref(null);
 
+// 🆕 跑马灯相关
+const marqueePrizes = ref([]);
+const currentMarqueeIndex = ref(0);
+let marqueeTimer = null;
+
 // 音效引擎
 let audioCtx = null;
 let spinInterval = null;
@@ -331,6 +347,14 @@ onMounted(async () => {
       user.balance = infoRes.data.user.balance;
       localStorage.setItem('user', JSON.stringify(user));
     }
+    
+    // 🆕 拉取该游戏的奖池配置
+    const poolRes = await request.get(`/admin/probability?gameName=${gameName}`);
+    if (poolRes.data.success && poolRes.data.probability) {
+      marqueePrizes.value = poolRes.data.probability
+        .filter(p => p.probability > 0)
+        .sort((a, b) => b.value - a.value); 
+    }
   } catch (error) {
     console.warn('ユーザー情報の取得に失敗しました', error);
   }
@@ -338,6 +362,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (spinInterval) clearInterval(spinInterval);
+  if (marqueeTimer) clearInterval(marqueeTimer);
   if (audioCtx) audioCtx.close();
 });
 
@@ -358,35 +383,59 @@ const executeDraw = async () => {
   showTicket.value = false;
   playSpinSound();
   
+  // 🆕 开启跑马灯动画
+  if (marqueeTimer) clearInterval(marqueeTimer);
+  marqueeTimer = setInterval(() => {
+    currentMarqueeIndex.value = (currentMarqueeIndex.value + 1) % marqueePrizes.value.length;
+  }, 100); 
+  
+  // 🆕 强制保持 28 秒的动画（机台和跑马灯同时转），拉满期待感
   setTimeout(async () => {
     try {
       const res = await request.post('/user/draw', { userId: userId.value, gameName: gameName, cost: gameCost });
+      
       if (res.data.success) {
         result.value = res.data.data;
         currentBalance.value = res.data.data.remainingBalance;
         currentTime.value = new Date().toLocaleString('ja-JP', { hour12: false });
-        if (spinInterval) clearInterval(spinInterval);
-        if (result.value.value > 0) playWinSound(); else playLoseSound();
         
-        // 延迟弹出结算票根，让机台本身的掉落动画播完
+        // 再空转 2 秒，总时长凑够 30 秒，然后锁定目标
         setTimeout(() => {
-          showTicket.value = true;
-        }, 1800); 
+          if (spinInterval) clearInterval(spinInterval);
+          
+          // 锁定后端返回的真实结果
+          const targetIndex = marqueePrizes.value.findIndex(p => p.name === result.value.prize || (result.value.value === 0 && p.value === 0));
+          
+          if (marqueeTimer) clearInterval(marqueeTimer);
+          
+          if (targetIndex !== -1) {
+            currentMarqueeIndex.value = targetIndex; 
+          }
+          
+          if (result.value.value > 0) playWinSound(); else playLoseSound();
+          
+          // 再延迟 1.5 秒弹出结算票根，让玩家看清跑马灯停在哪里
+          setTimeout(() => {
+            showTicket.value = true;
+            isDrawing.value = false; 
+          }, 1500);
+          
+        }, 2000); 
       }
     } catch (error) {
       ElMessage.error(error.response?.data?.error || '通信エラーが発生しました。');
       if (spinInterval) clearInterval(spinInterval);
-    } finally {
+      if (marqueeTimer) clearInterval(marqueeTimer);
       isDrawing.value = false;
     }
-  }, 3000);
+  }, 28000);
 };
 
 const closeResult = () => { result.value = null; showTicket.value = false; };
 </script>
 
 <style scoped>
-/* 基础框架与背景 (和之前相同) */
+/* 完全保留了你原本的样式，只在末尾增加了跑马灯专属 UI */
 .room-container { position: relative; min-height: 100vh; display: flex; flex-direction: column; overflow: hidden; background: #050508; font-family: 'Noto Sans JP', sans-serif; }
 .hologram-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
 .aurora { position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.5; mix-blend-mode: screen; animation: aurora-flow 15s infinite alternate ease-in-out; }
@@ -418,24 +467,16 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
 .machine-body { background: #ffffff; border-radius: 30px; padding: 20px; box-shadow: 0 30px 60px rgba(0,0,0,0.5), 0 0 40px rgba(255,255,255,0.1); margin-bottom: 40px; transition: all 0.5s; }
 .machine-body.is-win-glow { box-shadow: 0 30px 60px rgba(0,0,0,0.5), 0 0 80px rgba(255, 215, 0, 0.6); transform: scale(1.02); }
+
 .game-stage-3d { width: 320px; height: 320px; background: radial-gradient(circle at center, #ffffff 0%, #e2e8f0 100%); border-radius: 20px; position: relative; overflow: hidden; box-shadow: inset 0 15px 30px rgba(0,0,0,0.1); display: flex; justify-content: center; align-items: center; perspective: 1000px; }
 
-/* ================= 通用掉落金额标签 ================= */
-.prize-tag {
-  position: absolute;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-weight: 900;
-  font-size: 18px;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-  z-index: 50;
-  animation: pop-out 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-}
+/* 通用掉落金额标签 */
+.prize-tag { position: absolute; padding: 4px 12px; border-radius: 20px; font-weight: 900; font-size: 18px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); z-index: 50; animation: pop-out 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
 .prize-tag.is-win { background: linear-gradient(135deg, #fde047, #eab308); color: #b45309; border: 2px solid #fff; }
 .prize-tag.is-lose { background: #64748b; color: #fff; border: 2px solid #475569; }
 @keyframes pop-out { 0% { transform: scale(0) translateY(20px); opacity: 0; } 100% { transform: scale(1) translateY(0); opacity: 1; } }
 
-/* ================= 1. 金鱼机 ================= */
+/* 1. 金鱼机 */
 .fish-bowl { width: 260px; height: 260px; border-radius: 50%; background: radial-gradient(circle at 50% 20%, #bae6fd, #38bdf8); position: relative; box-shadow: inset 0 20px 40px rgba(0,0,0,0.2), 0 10px 20px rgba(0,0,0,0.1); overflow: hidden; border: 4px solid #e2e8f0; }
 .water { position: absolute; bottom: 0; width: 100%; height: 70%; background: rgba(255,255,255,0.2); transition: 0.3s; }
 .water.is-rippling { animation: ripple 0.3s linear infinite; }
@@ -455,7 +496,7 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 @keyframes splash { 0% { transform: translate(-50%, 0) scale(0.5); opacity: 1; } 100% { transform: translate(-50%, -60px) scale(1.5); opacity: 0; } }
 .fish-prize { top: 30%; left: 50%; transform: translateX(-50%); animation-delay: 0.8s; }
 
-/* ================= 2. 飞镖 ================= */
+/* 2. 飞镖 */
 .dart-board { width: 220px; height: 220px; border-radius: 50%; background: conic-gradient(#ef4444 0deg 20deg, #f1f5f9 20deg 40deg, #3b82f6 40deg 60deg, #f1f5f9 60deg 80deg, #ef4444 80deg 100deg, #f1f5f9 100deg 120deg, #3b82f6 120deg 140deg, #f1f5f9 140deg 160deg, #ef4444 160deg 180deg, #f1f5f9 180deg 200deg, #3b82f6 200deg 220deg, #f1f5f9 220deg 240deg, #ef4444 240deg 260deg, #f1f5f9 260deg 280deg, #3b82f6 280deg 300deg, #f1f5f9 300deg 320deg, #ef4444 320deg 340deg, #f1f5f9 340deg 360deg); position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.2); border: 8px solid #334155; }
 .board-rings { position: absolute; inset: 20%; border-radius: 50%; border: 4px solid #334155; background: #fff; }
 .dart { position: absolute; top: -20%; left: 50%; font-size: 40px; transform: translateX(-50%); transition: 0.3s; }
@@ -464,7 +505,7 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 @keyframes throw-dart { 0% { top: -20%; transform: translateX(-50%) scale(1); } 100% { top: 45%; transform: translateX(-50%) scale(0.8); } }
 .dart-prize { top: 10%; left: 50%; transform: translateX(-50%); animation-delay: 1s; }
 
-/* ================= 3. 抓娃娃机 ================= */
+/* 3. 抓娃娃机 */
 .crane-scene { width: 100%; height: 100%; position: relative; perspective: 800px; }
 .crane-rail { position: absolute; top: 10%; width: 100%; height: 15px; background: linear-gradient(180deg, #94a3b8, #64748b); transform: rotateX(60deg); }
 .claw-3d { position: absolute; top: 10%; left: 50%; transform: translateX(-50%) translateZ(50px); transition: top 1.5s ease-in-out; transform-style: preserve-3d; display: flex; flex-direction: column; align-items: center; }
@@ -487,7 +528,7 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .coin { padding: 10px 20px; border-radius: 30px; background: radial-gradient(circle, #fde047, #ca8a04); font-size: 20px; font-weight: 900; color: #fff; box-shadow: 0 10px 20px rgba(0,0,0,0.5); animation: drop-coin 1s cubic-bezier(0.25, 1, 0.5, 1) forwards; animation-delay: 1.8s; opacity: 0; border: 4px dashed #fef08a; }
 @keyframes drop-coin { 0% { transform: translateY(-100px) scale(0.5); opacity: 0; } 60% { transform: translateY(0) scale(1.1); opacity: 1; } 80% { transform: translateY(-20px) scale(1); } 100% { transform: translateY(0) scale(1); opacity: 1; } }
 
-/* ================= 4. 扭蛋 ================= */
+/* 4. 扭蛋 */
 .gacha-machine { width: 200px; height: 260px; position: relative; display: flex; flex-direction: column; align-items: center; }
 .gacha-glass { width: 170px; height: 150px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9), rgba(255,255,255,0.3)); box-shadow: inset 0 15px 25px rgba(0,0,0,0.1), inset 0 -5px 15px rgba(0,0,0,0.05); position: relative; overflow: hidden; border: 4px solid #e2e8f0; z-index: 2; }
 .gacha-glass::after { content: ''; position: absolute; top: 10%; left: 20%; width: 30%; height: 30%; background: linear-gradient(135deg, rgba(255,255,255,0.8), transparent); border-radius: 50%; transform: rotate(-45deg); }
@@ -511,7 +552,7 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 @keyframes drop-bottom { 0% { transform: translateY(-80px); opacity: 0; } 40% { transform: translateY(0); opacity: 1; } 50% { transform: translateY(-10px); } 60% { transform: translateY(0); } 100% { transform: translateY(20px) rotate(30deg) translateX(30px); opacity: 0; } }
 @keyframes pop-paper { 0% { transform: scale(0.5); opacity: 0; bottom: 10px; } 100% { transform: scale(1); opacity: 1; bottom: 50px; } }
 
-/* ================= 5. 刮刮乐（弹出纸条） ================= */
+/* 5. 刮刮乐 */
 .scratch-scene { display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; position: relative; }
 .scratch-card { width: 200px; height: 200px; background: #fff; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); position: relative; overflow: hidden; }
 .scratch-content { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; font-size: 80px; background: #f8fafc; }
@@ -521,7 +562,7 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .scratch-card.is-scratched .scratch-cover { transform: translateY(-100%); }
 .scratch-prize { position: absolute; top: 30%; z-index: 20; animation-delay: 0.5s; }
 
-/* ================= 6. 轮盘（弹出金额牌） ================= */
+/* 6. 轮盘 */
 .roulette-scene { position: relative; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
 .wheel-3d { width: 220px; height: 220px; border-radius: 50%; position: relative; transform: rotateX(60deg); transform-style: preserve-3d; box-shadow: 0 30px 40px rgba(0,0,0,0.4); }
 .wheel-rim { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(#ef4444 0deg 30deg, #1e293b 30deg 60deg, #ef4444 60deg 90deg, #1e293b 90deg 120deg, #ef4444 120deg 150deg, #1e293b 150deg 180deg, #ef4444 180deg 210deg, #1e293b 210deg 240deg, #ef4444 240deg 270deg, #1e293b 270deg 300deg, #ef4444 300deg 330deg, #1e293b 330deg 360deg); border: 10px solid #0f172a; }
@@ -533,9 +574,9 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .ball-3d { position: absolute; top: 20%; left: 50%; width: 15px; height: 15px; background: #fff; border-radius: 50%; box-shadow: 0 0 10px #fff; transform: translateZ(30px); opacity: 0; }
 .ball-3d.is-spinning { opacity: 1; animation: ball-bounce 0.5s infinite alternate; }
 @keyframes ball-bounce { 0% { transform: translateX(-60px) translateZ(30px); } 100% { transform: translateX(60px) translateZ(30px); } }
-.roulette-prize { top: 15%; left: 50%; transform: translateX(-50%); animation-delay: 3s; } /* 轮盘转3秒后弹出 */
+.roulette-prize { top: 15%; left: 50%; transform: translateX(-50%); animation-delay: 3s; }
 
-/* ================= 7. 寻宝（金币喷泉） ================= */
+/* 7. 寻宝 */
 .treasure-chest { width: 200px; height: 150px; position: relative; perspective: 500px; }
 .chest-base { position: absolute; bottom: 0; width: 100%; height: 60%; background: #78350f; border-radius: 10px; border: 4px solid #451a03; }
 .chest-lid { position: absolute; top: 0; width: 100%; height: 40%; background: #92400e; border-radius: 50% 50% 0 0; border: 4px solid #451a03; transform-origin: bottom; transition: transform 0.5s; }
@@ -551,7 +592,7 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 @keyframes fly2 { 0% { transform: translate(0, 0); opacity: 1; } 100% { transform: translate(40px, -60px) scale(0.5); opacity: 0; } }
 @keyframes pop-coin { 0% { opacity: 0; transform: translateX(-50%) scale(0.5); top: -20px; } 100% { opacity: 1; transform: translateX(-50%) scale(1); top: -40px; } }
 
-/* ================= 8. 老虎机（掉金币） ================= */
+/* 8. 老虎机 */
 .slot-machine-3d { display: flex; gap: 15px; transform: rotateY(-15deg) rotateX(10deg); transform-style: preserve-3d; position: relative; }
 .reel-3d { width: 70px; height: 180px; background: #1e293b; border-radius: 10px; position: relative; transform-style: preserve-3d; box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.3); display: flex; justify-content: center; align-items: center; }
 .slot-face { width: 100%; height: 100%; background: linear-gradient(180deg, #fff, #e2e8f0); border-radius: 8px; display: flex; justify-content: center; align-items: center; font-size: 50px; font-weight: 900; color: #ef4444; transition: 0.3s; }
@@ -616,6 +657,64 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .ticket-leave-active { transition: opacity 0.3s; }
 .ticket-leave-to { opacity: 0; }
 @keyframes ticketDrop { 0% { transform: translateY(-50px) scale(0.9); opacity: 0; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
+
+/* ================= 🆕 跑马灯专属样式 ================= */
+.marquee-board {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 15px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  max-height: 120px;
+  overflow: hidden;
+}
+
+.marquee-item {
+  background: #1e293b;
+  color: #94a3b8;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: bold;
+  font-family: monospace;
+  transition: all 0.1s;
+  border: 2px solid transparent;
+}
+
+/* 正在滚动时的效果 */
+.marquee-item.is-active {
+  background: #e83862;
+  color: white;
+  transform: scale(1.1);
+  box-shadow: 0 0 15px rgba(232, 56, 98, 0.8);
+  z-index: 10;
+}
+
+/* 最终停下的效果 - 中奖 */
+.marquee-item.is-active.is-win {
+  background: linear-gradient(135deg, #fde047, #eab308);
+  color: #b45309;
+  border-color: #fff;
+  box-shadow: 0 0 20px rgba(253, 224, 71, 1);
+  animation: win-pulse 1.5s infinite alternate;
+}
+
+/* 最终停下的效果 - 未中奖 */
+.marquee-item.is-active.is-lose {
+  background: #64748b;
+  color: white;
+  border-color: #cbd5e1;
+}
+
+@keyframes win-pulse {
+  0% { transform: scale(1.1); }
+  100% { transform: scale(1.15); }
+}
+
 @media (max-width: 768px) {
   .floating-back-btn { top: 50px; left: 15px; padding: 6px 12px; font-size: 13px; }
   .room-header { padding: 10px 15px; }
@@ -628,5 +727,6 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
   .balance-display .amount { font-size: 20px; }
   .modal-card { width: 95%; padding: 20px; }
   .ticket-wrapper { width: 95%; }
+  .marquee-item { font-size: 11px; padding: 4px 8px; }
 }
 </style>
