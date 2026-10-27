@@ -22,8 +22,19 @@
             <label>パスワード</label>
             <div class="input-wrapper">
               <el-icon><Lock /></el-icon>
-              <input v-model="password" type="password" placeholder="パスワードを入力してください" @keyup.enter="register" />
+              <input v-model="password" type="password" placeholder="パスワードを入力してください" />
             </div>
+          </div>
+
+          <!-- 🆕 新增：确认密码输入框 -->
+          <div class="form-group">
+            <label>パスワード（確認）</label>
+            <div class="input-wrapper">
+              <el-icon><Lock /></el-icon>
+              <input v-model="confirmPassword" type="password" placeholder="もう一度パスワードを入力" @keyup.enter="register" />
+            </div>
+            <!-- 🆕 实时校验提示 (纯日文) -->
+            <p v-if="passwordMismatch" class="error-text">パスワードが一致しません</p>
           </div>
 
           <button class="register-btn" @click="register" :disabled="isLoading">
@@ -41,7 +52,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import request from '../api/request';
 import { ElMessage } from 'element-plus';
@@ -49,12 +60,32 @@ import { User, Lock } from '@element-plus/icons-vue';
 
 const username = ref('');
 const password = ref('');
+const confirmPassword = ref(''); // 🆕 新增确认密码
 const isLoading = ref(false);
 const router = useRouter();
 
+// 🆕 实时计算两次密码是否不一致
+const passwordMismatch = computed(() => {
+  return confirmPassword.value.length > 0 && password.value !== confirmPassword.value;
+});
+
 const register = async () => {
-  if (!username.value || !password.value) {
-    return ElMessage.warning('ユーザー名とパスワードを入力してください');
+  // 1. 基础空值校验 (纯日文)
+  if (!username.value || !password.value || !confirmPassword.value) {
+    return ElMessage.warning('すべての項目を入力してください');
+  }
+
+  // 2. 长度限制校验 (纯日文)
+  if (username.value.length < 3) {
+    return ElMessage.warning('ユーザー名は3文字以上で入力してください');
+  }
+  if (password.value.length < 6) {
+    return ElMessage.warning('パスワードは6文字以上で入力してください');
+  }
+
+  // 3. 密码一致性校验 (纯日文)
+  if (password.value !== confirmPassword.value) {
+    return ElMessage.error('パスワードが一致しません');
   }
 
   isLoading.value = true;
@@ -69,8 +100,9 @@ const register = async () => {
       router.push('/login');
     }
   } catch (error) {
-    // 后端返回的报错也已经被你改成日文了，这里直接透传
-    ElMessage.error(error.response?.data?.error || '登録に失敗しました。');
+    // 🆕 精确捕获后端报错（如：用户名已存在），全部兜底为日文提示
+    const errorMsg = error.response?.data?.error || '登録に失敗しました。もう一度お試しください。';
+    ElMessage.error(errorMsg);
   } finally {
     isLoading.value = false;
   }
@@ -104,7 +136,7 @@ const register = async () => {
   align-items: center;
   width: 100%;
   max-width: 520px;
-  min-height: 500px;
+  min-height: 560px;
   background: rgba(15, 23, 42, 0.7);
   backdrop-filter: blur(20px);
   border-radius: 24px;
@@ -129,6 +161,9 @@ const register = async () => {
 .input-wrapper .el-icon { color: #64748b; font-size: 18px; }
 .input-wrapper input { flex: 1; border: none; outline: none; background: transparent; font-size: 15px; color: white; }
 .input-wrapper input::placeholder { color: #475569; }
+
+/* 🆕 错误提示文字 */
+.error-text { color: #ef4444; font-size: 12px; margin-top: 6px; padding-left: 4px; }
 
 /* 注册按钮 */
 .register-btn {

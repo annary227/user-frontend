@@ -205,6 +205,8 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import request from '../api/request';
+// 🆕 引入 Element Plus 弹窗组件
+import { ElMessage } from 'element-plus';
 
 const route = useRoute();
 const router = useRouter();
@@ -306,7 +308,7 @@ onMounted(async () => {
       localStorage.setItem('user', JSON.stringify(user));
     }
   } catch (error) {
-    console.warn('获取用户信息失败', error);
+    console.warn('ユーザー情報の取得に失敗しました', error);
   }
 });
 
@@ -344,7 +346,8 @@ const executeDraw = async () => {
         }, 1200);
       }
     } catch (error) {
-      alert(error.response?.data?.error || '通信エラーが発生しました。');
+      // 🆕 替换原生 alert，使用 Element Plus 弹窗，提示纯正日文
+      ElMessage.error(error.response?.data?.error || '通信エラーが発生しました。');
       if (spinInterval) clearInterval(spinInterval);
     } finally {
       isDrawing.value = false;

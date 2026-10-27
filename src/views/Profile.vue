@@ -216,12 +216,14 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import request from '../api/request';
+// 🆕 引入 Element Plus 弹窗
+import { ElMessage, ElMessageBox } from 'element-plus';
 
 const router = useRouter();
 const userInfo = ref({});
 const verifyStatus = ref(0);
 const bankStatus = ref(0);
-const isLoadingUser = ref(true); // 🆕 控制首屏渲染
+const isLoadingUser = ref(true); 
 
 // 弹窗状态
 const showKycModal = ref(false);
@@ -243,27 +245,26 @@ const newPassword = ref('');
 const deposits = ref([]);
 const withdrawals = ref([]);
 
-// 获取用户信息（账户实名永久保存制：合并缓存，不用不完整对象覆盖本地）
+// 获取用户信息
 const fetchUserInfo = async () => {
   const storedUser = localStorage.getItem('user');
   if (!storedUser) return router.push('/login');
   const cached = JSON.parse(storedUser);
   try {
-    isLoadingUser.value = true; // 🆕 开始加载
+    isLoadingUser.value = true; 
     const res = await request.get(`/user/info/${cached.id}`);
     if (res.data.success) {
       userInfo.value = res.data.user;
       verifyStatus.value = res.data.user.verify_status;
       bankStatus.value = res.data.user.bank_name ? 1 : 0;
 
-      // 🆕 合并最新数据到本地缓存，避免 verify_status 等字段被冲掉
       const merged = { ...cached, ...res.data.user };
       localStorage.setItem('user', JSON.stringify(merged));
     }
   } catch (error) { 
     console.error(error); 
   } finally {
-    isLoadingUser.value = false; // 🆕 加载完毕
+    isLoadingUser.value = false; 
   }
 };
 
@@ -285,13 +286,13 @@ const startKyc = () => {
   showKycModal.value = true;
 };
 
-// 拦截出金（区分未申请 / 審査中 / 已实名但未绑银行）
+// 拦截出金
 const handleWithdrawClick = () => {
   if (verifyStatus.value === 0 || verifyStatus.value === 3) {
     kycStep.value = 1;
     showKycModal.value = true;
   } else if (verifyStatus.value === 1) {
-    alert('本人確認は現在審査中です。結果をお待ちください。');
+    ElMessage.warning('本人確認は現在審査中です。結果をお待ちください。');
   } else if (bankStatus.value !== 1) {
     kycStep.value = 2;
     showKycModal.value = true;
@@ -301,13 +302,12 @@ const handleWithdrawClick = () => {
   }
 };
 
-// 提交两步认证（账户实名永久保存制：成功后立即同步本地状态）
+// 提交两步认证
 const submitKycAll = async () => {
   isSubmittingKyc.value = true;
   try {
     if (verifyStatus.value !== 2) {
       const verifyRes = await request.post(`/user/verify/${userInfo.value.id}`, kycForm.value);
-      // 如果后端提交即通过，会返回最新 user（含 verify_status=2）；审核制则返回 1
       if (verifyRes.data.success && verifyRes.data.user) {
         userInfo.value = { ...userInfo.value, ...verifyRes.data.user };
         verifyStatus.value = verifyRes.data.user.verify_status;
@@ -316,50 +316,61 @@ const submitKycAll = async () => {
       }
     }
     await request.post(`/user/bind-bank/${userInfo.value.id}`, kycBankForm.value);
-    alert('申請が完了しました。審査結果をお待ちください。');
+    ElMessage.success('申請が完了しました。審査結果をお待ちください。');
     showKycModal.value = false;
     await fetchUserInfo();
-  } catch (error) { alert('申請に失敗しました。'); }
+  } catch (error) { 
+    ElMessage.error(error.response?.data?.error || '申請に失敗しました。'); 
+  }
   finally { isSubmittingKyc.value = false; }
 };
 
 // 提交提现
 const submitWithdraw = async () => {
   if (!withdrawAmount.value || withdrawAmount.value < 100) {
-    return alert('最低出金金額は 100円 です。');
+    return ElMessage.warning('最低出金金額は 100円 です。');
   }
   
   isWithdrawing.value = true;
   try {
     const res = await request.post(`/user/withdraw/${userInfo.value.id}`, { amount: withdrawAmount.value });
     if (res.data.success) {
-      alert('出金申請を受け付けました。');
+      ElMessage.success('出金申請を受け付けました。');
       showWithdrawModal.value = false;
       fetchUserInfo();
       fetchHistory();
     }
-  } catch (error) { alert(error.response?.data?.error || '申請に失敗しました。'); }
+  } catch (error) { 
+    ElMessage.error(error.response?.data?.error || '申請に失敗しました。'); 
+  }
   finally { isWithdrawing.value = false; }
 };
 
 // 提交改密
 const submitPassword = async () => {
-  if (!newPassword.value) return alert('新しいパスワードを入力してください。');
+  if (!newPassword.value) return ElMessage.warning('新しいパスワードを入力してください。');
   isChangingPwd.value = true;
   try {
     await request.post(`/user/change-password/${userInfo.value.id}`, { newPassword: newPassword.value });
-    alert('パスワードが変更されました。');
+    ElMessage.success('パスワードが変更されました。');
     showPasswordModal.value = false;
     newPassword.value = '';
-  } catch (error) { alert('変更に失敗しました。'); }
+  } catch (error) { 
+    ElMessage.error('変更に失敗しました。'); 
+  }
   finally { isChangingPwd.value = false; }
 };
 
+// 登出（改为高级确认框）
 const handleLogout = () => {
-  if (confirm('ログアウトしますか？')) {
+  ElMessageBox.confirm('ログアウトしますか？', '確認', {
+    confirmButtonText: '確定',
+    cancelButtonText: 'キャンセル',
+    type: 'warning',
+  }).then(() => {
     localStorage.removeItem('user');
     router.push('/login');
-  }
+  }).catch(() => {});
 };
 
 // 工具函数
@@ -393,7 +404,7 @@ onMounted(() => {
 .page-header h2 { margin: 0; font-size: 18px; font-weight: bold; }
 .content { max-width: 600px; margin: 20px auto; padding: 0 20px; }
 .account-banner { background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 20px; padding: 25px; color: white; box-shadow: 0 10px 20px rgba(15, 23, 42, 0.2); margin-bottom: 20px; }
-.banner-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; min-height: 30px; /* 🆕 预留高度防止抖动 */ }
+.banner-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; min-height: 30px; }
 .username { font-size: 18px; font-weight: bold; }
 .verify-btn { background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; cursor: pointer; }
 .status-badge { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
