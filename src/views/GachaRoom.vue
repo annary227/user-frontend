@@ -129,27 +129,45 @@
             </div>
           </div>
 
-          <!-- 8. 老虎机 -->
+          <!-- 8. 老虎机（纯 CSS 3D 圆柱体） -->
           <div v-else-if="gameType === 'slot'" class="slot-machine-3d">
-            <div class="reel-3d" :class="{ 'is-spinning': isDrawing }">
-              <div class="slot-face" :class="{ 'is-win': !isDrawing && result && result.value > 0 }">
-                {{ (!isDrawing && result) ? (result.value > 0 ? '7' : '🍒') : '7' }}
+            <div class="reel-container">
+              <div class="reel-3d" :class="{ 'is-spinning': isDrawing, 'is-stopped': !isDrawing && result }">
+                <div class="symbol face-0">🍒</div>
+                <div class="symbol face-1">🔔</div>
+                <div class="symbol face-2">💎</div>
+                <div class="symbol face-3 win-symbol">7</div>
+                <div class="symbol face-4">🍋</div>
+                <div class="symbol face-5">🍇</div>
               </div>
+              <div class="cylinder-gloss"></div>
             </div>
-            <div class="reel-3d" :class="{ 'is-spinning': isDrawing }" style="animation-delay: 0.1s;">
-              <div class="slot-face" :class="{ 'is-win': !isDrawing && result && result.value > 0 }">
-                {{ (!isDrawing && result) ? (result.value > 0 ? '7' : '🔔') : '7' }}
+
+            <div class="reel-container">
+              <div class="reel-3d" :class="{ 'is-spinning': isDrawing, 'is-stopped': !isDrawing && result }" style="animation-delay: 0.15s;">
+                <div class="symbol face-0">💎</div>
+                <div class="symbol face-1 win-symbol">7</div>
+                <div class="symbol face-2">🍒</div>
+                <div class="symbol face-3">🍋</div>
+                <div class="symbol face-4">🔔</div>
+                <div class="symbol face-5">🍇</div>
               </div>
+              <div class="cylinder-gloss"></div>
             </div>
-            <div class="reel-3d" :class="{ 'is-spinning': isDrawing }" style="animation-delay: 0.2s;">
-              <div class="slot-face" :class="{ 'is-win': !isDrawing && result && result.value > 0 }">
-                {{ (!isDrawing && result) ? (result.value > 0 ? '7' : '💎') : '7' }}
+
+            <div class="reel-container">
+              <div class="reel-3d" :class="{ 'is-spinning': isDrawing, 'is-stopped': !isDrawing && result }" style="animation-delay: 0.3s;">
+                <div class="symbol face-0">🍋</div>
+                <div class="symbol face-1">🍇</div>
+                <div class="symbol face-2 win-symbol">7</div>
+                <div class="symbol face-3">🍒</div>
+                <div class="symbol face-4">🔔</div>
+                <div class="symbol face-5">💎</div>
               </div>
+              <div class="cylinder-gloss"></div>
             </div>
-            <div class="machine-glass"></div>
-            <div class="slot-coin-drop" v-if="!isDrawing && result && result.value > 0">
-              <div class="slot-coin">+ ¥{{ result.value.toLocaleString() }}</div>
-            </div>
+            
+            <div class="slot-machine-glass"></div>
           </div>
 
         </div>
@@ -159,20 +177,22 @@
           <div class="info-screen">
             <p class="desc">{{ gameDesc }}</p>
             
-            <!-- 🆕 跑马灯展示区 -->
+            <!-- 🆕 跑马灯展示区（单行滑动，解决空白问题） -->
             <div class="marquee-board" v-if="marqueePrizes.length > 0">
-              <div 
-                v-for="(prize, index) in marqueePrizes" 
-                :key="index"
-                class="marquee-item"
-                :class="{ 
-                  'is-active': currentMarqueeIndex === index,
-                  'is-win': currentMarqueeIndex === index && !isDrawing && result && result.value > 0,
-                  'is-lose': currentMarqueeIndex === index && !isDrawing && result && result.value === 0
-                }"
-              >
-                <span class="name">{{ prize.name }}</span>
-                <span class="value" v-if="prize.value > 0">¥{{ prize.value.toLocaleString() }}</span>
+              <div class="marquee-scroll">
+                <div 
+                  v-for="(prize, index) in marqueePrizes" 
+                  :key="index"
+                  class="marquee-item"
+                  :class="{ 
+                    'is-active': currentMarqueeIndex === index,
+                    'is-win': currentMarqueeIndex === index && !isDrawing && result && result.value > 0,
+                    'is-lose': currentMarqueeIndex === index && !isDrawing && result && result.value === 0
+                  }"
+                >
+                  <span class="name">{{ translateName(prize.name) }}</span>
+                  <span class="value" v-if="prize.value > 0">¥{{ prize.value.toLocaleString() }}</span>
+                </div>
               </div>
             </div>
 
@@ -223,7 +243,7 @@
           <div class="ticket-content">
             <div class="result-icon">{{ result.value > 0 ? '🏆' : '💧' }}</div>
             <h2>{{ result.value > 0 ? 'おめでとうございます！' : '残念でした' }}</h2>
-            <div class="prize-name">{{ result.prize === '不中奖' || result.prize === 'ハズレ' ? 'ハズレ' : result.prize }}</div>
+            <div class="prize-name">{{ translateName(result.prize) }}</div>
             <div class="prize-value" v-if="result.value > 0">+ ¥{{ result.value.toLocaleString() }}</div>
             <div class="ticket-divider"></div>
             <div class="ticket-info">
@@ -284,10 +304,19 @@ const currentBalance = ref(0);
 const currentTime = ref('');
 const userId = ref(null);
 
-// 🆕 跑马灯相关
+// 跑马灯相关
 const marqueePrizes = ref([]);
 const currentMarqueeIndex = ref(0);
 let marqueeTimer = null;
+
+// 🆕 中文翻译拦截
+const translateName = (name) => {
+  if (!name) return 'ハズレ';
+  if (name === '不中奖' || name === '未中奖' || name === '没中奖' || name === '谢谢参与') {
+    return 'ハズレ';
+  }
+  return name;
+};
 
 // 音效引擎
 let audioCtx = null;
@@ -348,7 +377,6 @@ onMounted(async () => {
       localStorage.setItem('user', JSON.stringify(user));
     }
     
-    // 拉取该游戏的奖池配置
     const poolRes = await request.get(`/admin/probability?gameName=${gameName}`);
     if (poolRes.data.success && poolRes.data.probability) {
       marqueePrizes.value = poolRes.data.probability
@@ -383,16 +411,13 @@ const executeDraw = async () => {
   showTicket.value = false;
   playSpinSound();
   
-  // 🆕 开启跑马灯动画
   if (marqueeTimer) clearInterval(marqueeTimer);
   marqueeTimer = setInterval(() => {
     currentMarqueeIndex.value = (currentMarqueeIndex.value + 1) % marqueePrizes.value.length;
-  }, 80); // 稍微加快跑马灯闪烁
+  }, 60); 
   
-  // 🆕 总时长锁定为 15 秒
   setTimeout(async () => {
     try {
-      // 因为改了 15 秒，我们直接在这 15 秒的开头去请求结果
       const res = await request.post('/user/draw', { userId: userId.value, gameName: gameName, cost: gameCost });
       
       if (res.data.success) {
@@ -400,11 +425,9 @@ const executeDraw = async () => {
         currentBalance.value = res.data.data.remainingBalance;
         currentTime.value = new Date().toLocaleString('ja-JP', { hour12: false });
         
-        // 到 13 秒时，开始减速准备锁定目标
         setTimeout(() => {
           if (spinInterval) clearInterval(spinInterval);
           
-          // 锁定后端返回的真实结果
           const targetIndex = marqueePrizes.value.findIndex(p => p.name === result.value.prize || (result.value.value === 0 && p.value === 0));
           
           if (marqueeTimer) clearInterval(marqueeTimer);
@@ -415,14 +438,12 @@ const executeDraw = async () => {
           
           if (result.value.value > 0) playWinSound(); else playLoseSound();
           
-          // 停住 2 秒后弹出票根，让玩家看清结果
           setTimeout(() => {
             showTicket.value = true;
             isDrawing.value = false; 
-          }, 2000);
+          }, 1500);
           
-        }, 13000); // 13秒后锁定，加上最后等待，总过程约 15 秒
-        
+        }, 8500); 
       }
     } catch (error) {
       ElMessage.error(error.response?.data?.error || '通信エラーが発生しました。');
@@ -430,14 +451,135 @@ const executeDraw = async () => {
       if (marqueeTimer) clearInterval(marqueeTimer);
       isDrawing.value = false;
     }
-  }, 0); // 立即请求后端（不阻塞前端动画）
+  }, 0); 
 };
 
 const closeResult = () => { result.value = null; showTicket.value = false; };
 </script>
 
 <style scoped>
-/* 完全保留了你原本的样式，并在末尾增加了跑马灯专属 UI */
+/* ================= 核心布局调整：解决右侧空白 ================= */
+.stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; width: 100%; box-sizing: border-box; }
+
+.machine-body { background: #ffffff; border-radius: 30px; padding: 20px; box-shadow: 0 30px 60px rgba(0,0,0,0.5), 0 0 40px rgba(255,255,255,0.1); margin-bottom: 40px; transition: all 0.5s; width: 100%; max-width: 400px; display: flex; flex-direction: column; align-items: center; box-sizing: border-box; }
+.machine-body.is-win-glow { box-shadow: 0 30px 60px rgba(0,0,0,0.5), 0 0 80px rgba(255, 215, 0, 0.6); transform: scale(1.02); }
+
+/* 3D 舞台自适应 */
+.game-stage-3d { width: 100%; max-width: 320px; aspect-ratio: 1 / 1; background: radial-gradient(circle at center, #ffffff 0%, #e2e8f0 100%); border-radius: 20px; position: relative; overflow: hidden; box-shadow: inset 0 15px 30px rgba(0,0,0,0.1); display: flex; justify-content: center; align-items: center; perspective: 1000px; }
+
+.control-panel { margin-top: 20px; text-align: center; width: 100%; box-sizing: border-box; }
+.info-screen { width: 100%; display: flex; flex-direction: column; align-items: center; }
+
+/* 🆕 跑马灯：单行横向滚动，解决空白 */
+.marquee-board { width: 100%; margin-top: 15px; padding: 10px; background: rgba(0, 0, 0, 0.3); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); overflow: hidden; box-sizing: border-box; }
+.marquee-scroll { display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto; padding-bottom: 5px; }
+.marquee-scroll::-webkit-scrollbar { height: 4px; }
+.marquee-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+.marquee-item { flex-shrink: 0; background: #1e293b; color: #94a3b8; padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: bold; font-family: monospace; transition: all 0.1s; border: 2px solid transparent; }
+.marquee-item.is-active { background: #e83862; color: white; transform: scale(1.1); box-shadow: 0 0 15px rgba(232, 56, 98, 0.8); z-index: 10; }
+.marquee-item.is-active.is-win { background: linear-gradient(135deg, #fde047, #eab308); color: #b45309; border-color: #fff; box-shadow: 0 0 20px rgba(253, 224, 71, 1); animation: win-pulse 1.5s infinite alternate; }
+.marquee-item.is-active.is-lose { background: #64748b; color: white; border-color: #cbd5e1; }
+@keyframes win-pulse { 0% { transform: scale(1.1); } 100% { transform: scale(1.15); } }
+
+/* ================= 8. 老虎机（真实 3D 重制版） ================= */
+.slot-machine-3d {
+  display: flex;
+  gap: 20px;
+  position: relative;
+  perspective: 800px;
+}
+
+.reel-container {
+  position: relative;
+  width: 80px;
+  height: 200px;
+  background: #111827;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.9), 0 10px 20px rgba(0,0,0,0.5);
+  border: 3px solid #475569;
+}
+
+.reel-3d {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  transform-style: preserve-3d;
+  transform: rotateX(-120deg);
+}
+
+.reel-3d.is-spinning {
+  animation: spin-cylinder 0.4s linear infinite;
+}
+
+.reel-3d.is-stopped {
+  animation: stop-cylinder 1.5s cubic-bezier(0.17, 0.89, 0.32, 1.25) forwards;
+}
+
+@keyframes spin-cylinder {
+  0% { transform: rotateX(0deg); }
+  100% { transform: rotateX(360deg); }
+}
+
+@keyframes stop-cylinder {
+  0% { transform: rotateX(-720deg); }
+  90% { transform: rotateX(-115deg); }
+  100% { transform: rotateX(-120deg); }
+}
+
+.symbol {
+  position: absolute;
+  width: 100%;
+  height: 60px;
+  top: 50%;
+  margin-top: -30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 45px;
+  font-weight: 900;
+  color: #cbd5e1;
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  border-radius: 6px;
+  border: 1px solid #334155;
+  backface-visibility: hidden;
+  text-shadow: 0 4px 5px rgba(0,0,0,0.5);
+}
+
+.face-0 { transform: rotateX(0deg) translateZ(52px); }
+.face-1 { transform: rotateX(60deg) translateZ(52px); }
+.face-2 { transform: rotateX(120deg) translateZ(52px); }
+.face-3 { transform: rotateX(180deg) translateZ(52px); }
+.face-4 { transform: rotateX(240deg) translateZ(52px); }
+.face-5 { transform: rotateX(300deg) translateZ(52px); }
+
+.symbol.win-symbol {
+  color: #ef4444;
+  font-size: 55px;
+  text-shadow: 0 0 15px #ef4444, 0 0 30px #b91c1c;
+  background: linear-gradient(180deg, #fff 0%, #f1f5f9 100%);
+}
+
+.cylinder-gloss {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.85) 100%),
+              linear-gradient(90deg, rgba(0,0,0,0.6) 0%, rgba(255,255,255,0.2) 15%, transparent 50%, rgba(255,255,255,0.2) 85%, rgba(0,0,0,0.6) 100%);
+  z-index: 10;
+}
+
+.slot-machine-glass {
+  position: absolute;
+  inset: -15px;
+  border-radius: 15px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, transparent 40%, transparent 60%, rgba(255,255,255,0.05) 100%);
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* ================= 以下保留你原有的所有动画样式 ================= */
 .room-container { position: relative; min-height: 100vh; display: flex; flex-direction: column; overflow: hidden; background: #050508; font-family: 'Noto Sans JP', sans-serif; }
 .hologram-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
 .aurora { position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.5; mix-blend-mode: screen; animation: aurora-flow 15s infinite alternate ease-in-out; }
@@ -465,11 +607,6 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .floating-back-btn:hover { background: rgba(255,255,255,0.2); transform: translateY(-2px); }
 .room-header { padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; color: white; }
 .title { font-weight: 900; font-size: 18px; letter-spacing: 1px; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
-
-.stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
-.machine-body { background: #ffffff; border-radius: 30px; padding: 20px; box-shadow: 0 30px 60px rgba(0,0,0,0.5), 0 0 40px rgba(255,255,255,0.1); margin-bottom: 40px; transition: all 0.5s; }
-.machine-body.is-win-glow { box-shadow: 0 30px 60px rgba(0,0,0,0.5), 0 0 80px rgba(255, 215, 0, 0.6); transform: scale(1.02); }
-.game-stage-3d { width: 320px; height: 320px; background: radial-gradient(circle at center, #ffffff 0%, #e2e8f0 100%); border-radius: 20px; position: relative; overflow: hidden; box-shadow: inset 0 15px 30px rgba(0,0,0,0.1); display: flex; justify-content: center; align-items: center; perspective: 1000px; }
 
 /* 通用掉落金额标签 */
 .prize-tag { position: absolute; padding: 4px 12px; border-radius: 20px; font-weight: 900; font-size: 18px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); z-index: 50; animation: pop-out 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
@@ -593,20 +730,27 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 @keyframes fly2 { 0% { transform: translate(0, 0); opacity: 1; } 100% { transform: translate(40px, -60px) scale(0.5); opacity: 0; } }
 @keyframes pop-coin { 0% { opacity: 0; transform: translateX(-50%) scale(0.5); top: -20px; } 100% { opacity: 1; transform: translateX(-50%) scale(1); top: -40px; } }
 
-/* 8. 老虎机 */
-.slot-machine-3d { display: flex; gap: 15px; transform: rotateY(-15deg) rotateX(10deg); transform-style: preserve-3d; position: relative; }
-.reel-3d { width: 70px; height: 180px; background: #1e293b; border-radius: 10px; position: relative; transform-style: preserve-3d; box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.3); display: flex; justify-content: center; align-items: center; }
-.slot-face { width: 100%; height: 100%; background: linear-gradient(180deg, #fff, #e2e8f0); border-radius: 8px; display: flex; justify-content: center; align-items: center; font-size: 50px; font-weight: 900; color: #ef4444; transition: 0.3s; }
-.slot-face.is-win { color: #10b981; text-shadow: 0 0 20px #10b981; }
-.reel-3d.is-spinning { animation: roll-3d 0.15s linear infinite; }
-@keyframes roll-3d { 0% { transform: rotateX(0); } 100% { transform: rotateX(360deg); } }
-.machine-glass { position: absolute; inset: -10px; background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(255,255,255,0)); border-radius: 15px; transform: translateZ(50px); pointer-events: none; }
-.slot-coin-drop { position: absolute; bottom: -40px; left: 50%; transform: translateX(-50%); z-index: 30; }
-.slot-coin { background: radial-gradient(circle, #fde047, #ca8a04); padding: 8px 16px; border-radius: 20px; font-weight: 900; font-size: 18px; color: #fff; border: 2px solid #fff; box-shadow: 0 5px 10px rgba(0,0,0,0.5); animation: drop-coin 0.6s cubic-bezier(0.25, 1, 0.5, 1) 0.5s forwards; opacity: 0; }
-@keyframes drop-coin { 0% { transform: translateY(-20px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+/* 8. 老虎机重制版 */
+.slot-machine-3d { display: flex; gap: 20px; position: relative; perspective: 800px; }
+.reel-container { position: relative; width: 80px; height: 200px; background: #111827; border-radius: 10px; overflow: hidden; box-shadow: inset 0 0 20px rgba(0,0,0,0.9), 0 10px 20px rgba(0,0,0,0.5); border: 3px solid #475569; }
+.reel-3d { width: 100%; height: 100%; position: absolute; transform-style: preserve-3d; transform: rotateX(-120deg); }
+.reel-3d.is-spinning { animation: spin-cylinder 0.4s linear infinite; }
+.reel-3d.is-stopped { animation: stop-cylinder 1.5s cubic-bezier(0.17, 0.89, 0.32, 1.25) forwards; }
+@keyframes spin-cylinder { 0% { transform: rotateX(0deg); } 100% { transform: rotateX(360deg); } }
+@keyframes stop-cylinder { 0% { transform: rotateX(-720deg); } 90% { transform: rotateX(-115deg); } 100% { transform: rotateX(-120deg); } }
+.symbol { position: absolute; width: 100%; height: 60px; top: 50%; margin-top: -30px; display: flex; justify-content: center; align-items: center; font-size: 45px; font-weight: 900; color: #cbd5e1; background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); border-radius: 6px; border: 1px solid #334155; backface-visibility: hidden; text-shadow: 0 4px 5px rgba(0,0,0,0.5); }
+.face-0 { transform: rotateX(0deg) translateZ(52px); }
+.face-1 { transform: rotateX(60deg) translateZ(52px); }
+.face-2 { transform: rotateX(120deg) translateZ(52px); }
+.face-3 { transform: rotateX(180deg) translateZ(52px); }
+.face-4 { transform: rotateX(240deg) translateZ(52px); }
+.face-5 { transform: rotateX(300deg) translateZ(52px); }
+.symbol.win-symbol { color: #ef4444; font-size: 55px; text-shadow: 0 0 15px #ef4444, 0 0 30px #b91c1c; background: linear-gradient(180deg, #fff 0%, #f1f5f9 100%); }
+.cylinder-gloss { position: absolute; inset: 0; pointer-events: none; border-radius: 8px; background: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.85) 100%), linear-gradient(90deg, rgba(0,0,0,0.6) 0%, rgba(255,255,255,0.2) 15%, transparent 50%, rgba(255,255,255,0.2) 85%, rgba(0,0,0,0.6) 100%); z-index: 10; }
+.slot-machine-glass { position: absolute; inset: -15px; border-radius: 15px; background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, transparent 40%, transparent 60%, rgba(255,255,255,0.05) 100%); pointer-events: none; z-index: 20; }
 
-/* UI 样式保持原样 */
-.control-panel { margin-top: 20px; text-align: center; }
+/* 通用按钮、弹窗样式 */
+.control-panel { margin-top: 20px; text-align: center; width: 100%; }
 .desc { font-size: 13px; color: #64748b; margin-bottom: 15px; font-weight: bold; }
 .balance-display { background: #0f172a; border-radius: 12px; padding: 12px 24px; display: inline-flex; flex-direction: column; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5); }
 .balance-display .label { font-size: 10px; color: #94a3b8; letter-spacing: 2px; margin-bottom: 4px; }
@@ -659,62 +803,16 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .ticket-leave-to { opacity: 0; }
 @keyframes ticketDrop { 0% { transform: translateY(-50px) scale(0.9); opacity: 0; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
 
-/* ================= 🆕 跑马灯专属样式 ================= */
-.marquee-board {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: center;
-  margin-top: 15px;
-  padding: 10px;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  max-height: 120px;
-  overflow: hidden;
-}
-
-.marquee-item {
-  background: #1e293b;
-  color: #94a3b8;
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 13px;
-  font-weight: bold;
-  font-family: monospace;
-  transition: all 0.1s;
-  border: 2px solid transparent;
-}
-
-/* 正在滚动时的效果 */
-.marquee-item.is-active {
-  background: #e83862;
-  color: white;
-  transform: scale(1.1);
-  box-shadow: 0 0 15px rgba(232, 56, 98, 0.8);
-  z-index: 10;
-}
-
-/* 最终停下的效果 - 中奖 */
-.marquee-item.is-active.is-win {
-  background: linear-gradient(135deg, #fde047, #eab308);
-  color: #b45309;
-  border-color: #fff;
-  box-shadow: 0 0 20px rgba(253, 224, 71, 1);
-  animation: win-pulse 1.5s infinite alternate;
-}
-
-/* 最终停下的效果 - 未中奖 */
-.marquee-item.is-active.is-lose {
-  background: #64748b;
-  color: white;
-  border-color: #cbd5e1;
-}
-
-@keyframes win-pulse {
-  0% { transform: scale(1.1); }
-  100% { transform: scale(1.15); }
-}
+/* 跑马灯 */
+.marquee-board { width: 100%; margin-top: 15px; padding: 10px; background: rgba(0, 0, 0, 0.3); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); overflow: hidden; box-sizing: border-box; }
+.marquee-scroll { display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto; padding-bottom: 5px; }
+.marquee-scroll::-webkit-scrollbar { height: 4px; }
+.marquee-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+.marquee-item { flex-shrink: 0; background: #1e293b; color: #94a3b8; padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: bold; font-family: monospace; transition: all 0.1s; border: 2px solid transparent; }
+.marquee-item.is-active { background: #e83862; color: white; transform: scale(1.1); box-shadow: 0 0 15px rgba(232, 56, 98, 0.8); z-index: 10; }
+.marquee-item.is-active.is-win { background: linear-gradient(135deg, #fde047, #eab308); color: #b45309; border-color: #fff; box-shadow: 0 0 20px rgba(253, 224, 71, 1); animation: win-pulse 1.5s infinite alternate; }
+.marquee-item.is-active.is-lose { background: #64748b; color: white; border-color: #cbd5e1; }
+@keyframes win-pulse { 0% { transform: scale(1.1); } 100% { transform: scale(1.15); } }
 
 @media (max-width: 768px) {
   .floating-back-btn { top: 50px; left: 15px; padding: 6px 12px; font-size: 13px; }
