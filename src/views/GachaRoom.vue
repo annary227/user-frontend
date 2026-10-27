@@ -136,7 +136,7 @@
              </div>
           </div>
 
-          <!-- 6. 轮盘 (完美立体球形 + 精准定位 + 12等分) -->
+          <!-- 6. 轮盘 (球体优化+极速旋转) -->
           <div v-else-if="gameType === 'roulette'" class="roulette-scene">
             
             <!-- 顶部固定滚珠指针 -->
@@ -144,16 +144,19 @@
 
             <!-- 转盘主体 -->
             <div class="wheel-3d-container">
-              <!-- 旋转层 -->
+              <!-- 旋转层 (CSS Animation 驱动，确保稳定旋转) -->
               <div 
                 class="wheel-rotating-layer" 
-                :class="{ 'is-spinning': isDrawing }"
+                :class="{ 
+                  'is-spinning': isDrawing, 
+                  'is-settling': !isDrawing && result 
+                }"
                 :style="wheelStyle"
               >
                 <!-- 动态 12 宫格背景色块 -->
                 <div class="wheel-blocks" :style="dynamicConicGradient"></div>
                 
-                <!-- 动态 12 个金额标签 -->
+                <!-- 动态 12 个金额标签 (拉近半径，强制白字黑边) -->
                 <div 
                   v-for="(prize, index) in displayPrizes12" 
                   :key="index"
@@ -164,10 +167,10 @@
                 </div>
               </div>
 
-              <!-- 立体球体高光遮罩（保持静止不转，增强质感） -->
+              <!-- 立体球体高光遮罩（静态） -->
               <div class="wheel-3d-sphere-overlay"></div>
               
-              <!-- 中心固定金色塔楼 (CASINO) -->
+              <!-- 中心固定塔楼 (CASINO) -->
               <div class="wheel-center-tower">
                 <div class="tower-top">CASINO</div>
                 <div class="tower-cross">
@@ -366,34 +369,27 @@ const currentMarqueeIndex = ref(0);
 let marqueeTimer = null;
 
 // ================= 🎯 轮盘核心逻辑 =================
-const targetRotation = ref(0); // 转盘最终停止的累计角度
+const targetDeg = ref(0); // 计算最终停下的角度
 
-// 将奖池处理为固定的 12 个格子
+// 处理奖品数组，严格限制 12 个位置
 const displayPrizes12 = computed(() => {
   let list = [];
-  // 拿到所有有效奖品
   if (marqueePrizes.value.length > 0) {
     list = marqueePrizes.value.map(p => ({ ...p }));
   } else {
-    // 默认兜底
     list = [
-      { value: 100000, name: '10万' }, { value: 0, name: 'ハズレ' },
-      { value: 10000, name: '1万' }, { value: 0, name: 'ハズレ' },
-      { value: 5000, name: '5000' }, { value: 0, name: 'ハズレ' }
+      { value: 100000, name: '10万' }, { value: 0, name: '0円' },
+      { value: 10000, name: '1万' }, { value: 0, name: '0円' },
+      { value: 5000, name: '5000' }, { value: 0, name: '0円' }
     ];
   }
-  
-  // 必须补齐到 12 个，不足的用 0 填补
   while (list.length < 12) {
-    list.push({ value: 0, name: 'ハズレ' });
+    list.push({ value: 0, name: '0円' });
   }
-  
-  // 为了视觉上红黑相间，如果0太多，可以稍微打乱或者穿插一下。
-  // 但为了绝对公平对应你的奖品池，直接取前 12 个。
   return list.slice(0, 12);
 });
 
-// 金额简写格式化
+// 简化金额格式
 const formatPrize = (val) => {
   if (!val || val === 0) return '0円';
   if (val >= 10000) {
@@ -403,63 +399,46 @@ const formatPrize = (val) => {
   return val.toLocaleString();
 };
 
-// 动态计算 12 个区块的 conic-gradient (红黑交替)
+// 生成动态背景色
 const dynamicConicGradient = computed(() => {
   let gradient = 'conic-gradient(';
-  const step = 30; // 360 / 12 = 30度
-  
+  const step = 30; // 12等分，每格30度
   displayPrizes12.value.forEach((prize, index) => {
-    // 减去 15 度是为了让第 0 个区块的中心正对顶部的 12 点钟方向
+    // 偏移 15 度让第 0 格中心对准顶部
     const startDeg = index * step - 15; 
     const endDeg = (index + 1) * step - 15;
-    // 奖品 > 0 为红色，0 为黑色
-    const color = prize.value > 0 ? '#dc2626' : '#0f172a';
+    const color = prize.value > 0 ? '#dc2626' : '#0f172a'; // 红或黑
     gradient += `${color} ${startDeg}deg ${endDeg}deg, `;
   });
-  
   return { background: gradient.slice(0, -2) + ')' };
 });
 
-// 计算每个标签文字的旋转位置
+// 计算文字位置 (稍微拉近，防止贴近边缘被遮挡)
 const getLabelStyle12 = (index) => {
   const angle = index * 30;
   return {
-    // 沿半径推到中间，并将文字反向旋转保持正向阅读
-    transform: `translate(-50%, -50%) rotate(${angle}deg) translateY(-95px) rotate(${-angle}deg)`
+    transform: `translate(-50%, -50%) rotate(${angle}deg) translateY(-90px) rotate(${-angle}deg)`
   };
 };
 
-// 决定转盘怎么转（绝对圆形，不会东倒西歪）
+// 核心旋转动画逻辑
 const wheelStyle = computed(() => {
-  if (!isDrawing.value && result.value) {
-    // 目标索引（如果抽中的值在盘面上找不到，默认落在0円的格子上）
-    const targetIdx = displayPrizes12.value.findIndex(p => p.value === result.value.value);
-    const safeIdx = targetIdx !== -1 ? targetIdx : 1;
-    
-    // 每个格子 30 度
-    const anglePerBlock = 30;
-    
-    // 计算目标旋转角度：
-    // 转 5 圈 (1800度) + 我们需要让第 safeIdx 个格子转到 0 度的位置
-    // 因为第 safeIdx 个格子当前的角度是 safeIdx * 30 度，所以需要旋转 -(safeIdx * 30) 度
-    // 考虑到不出现负数导致反向转，加上 360 取余：
-    const targetDeg = 1800 + (360 - safeIdx * anglePerBlock);
-    
-    return {
-      transform: `rotate(${targetDeg}deg)`,
-      transition: 'transform 4.5s cubic-bezier(0.15, 0.9, 0.25, 1)' // 4.5秒完美惯性缓停
-    };
-  } else if (isDrawing.value) {
-    // 无脑高速旋转阶段
-    return {
-      transform: `rotate(${targetRotation.value}deg)`,
-      transition: 'none'
-    };
+  // 如果还没抽或者正在转，不添加内联 transform，让 CSS 动画接管
+  if (isDrawing.value || !result.value) {
+    return {};
   }
-  // 初始状态
+  
+  // 抽奖结束，计算最终停下的角度
+  const targetIdx = displayPrizes12.value.findIndex(p => p.value === result.value.value);
+  const safeIdx = targetIdx !== -1 ? targetIdx : 1; // 找不到就停在未中奖
+  
+  const anglePerBlock = 30;
+  // 转 5 圈(1800度) + 让目标格子对准顶部
+  const finalDeg = 1800 + (360 - safeIdx * anglePerBlock);
+  
   return {
-    transform: `rotate(0deg)`,
-    transition: 'none'
+    transform: `rotate(${finalDeg}deg)`,
+    transition: 'transform 4.5s cubic-bezier(0.15, 0.9, 0.25, 1)' // 完美缓停
   };
 });
 
@@ -472,7 +451,7 @@ const translateName = (name) => {
   return name;
 };
 
-// 音效引擎
+// 音效引擎 (保持不变)
 let audioCtx = null;
 let spinInterval = null;
 const initAudio = () => {
@@ -561,12 +540,9 @@ const executeDraw = async () => {
   initAudio(); 
   showConfirm.value = false;
   isDrawing.value = true;
-  result.value = null;
+  result.value = null; // 清空上次结果
   showTicket.value = false;
   playSpinSound();
-  
-  // 开始疯狂旋转（重置角度，加速旋转）
-  targetRotation.value = 0;
   
   if (marqueeTimer) clearInterval(marqueeTimer);
   marqueeTimer = setInterval(() => {
@@ -585,7 +561,7 @@ const executeDraw = async () => {
         setTimeout(() => {
           if (spinInterval) clearInterval(spinInterval);
           
-          // 停止旋转，触发 computed 中的精准目标角度计算
+          // 停止旋转（触发 computed 计算最终角度）
           isDrawing.value = false; 
           
           const targetIndexMarquee = marqueePrizes.value.findIndex(p => p.name === result.value.prize || (result.value.value === 0 && p.value === 0));
@@ -594,7 +570,7 @@ const executeDraw = async () => {
             currentMarqueeIndex.value = targetIndexMarquee; 
           }
           
-          // 4.5秒后（动画结束），触发音效和弹窗
+          // 4.5秒后动画结束，弹出结算
           setTimeout(() => {
             if (result.value.value > 0) playWinSound(); else playLoseSound();
             setTimeout(() => {
@@ -626,165 +602,7 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 /* 3D 舞台自适应 */
 .game-stage-3d { width: 100%; max-width: 320px; aspect-ratio: 1 / 1; background: radial-gradient(circle at center, #ffffff 0%, #e2e8f0 100%); border-radius: 20px; position: relative; overflow: hidden; box-shadow: inset 0 15px 30px rgba(0,0,0,0.1); display: flex; justify-content: center; align-items: center; perspective: 1000px; }
 
-/* ================= 4. 万代官方高保真扭蛋机 ================= */
-.bandai-gacha-machine {
-  width: 260px;
-  height: 300px;
-  background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
-  border-radius: 40px 40px 20px 20px;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  box-shadow: 
-    inset 0 5px 10px rgba(255,255,255,1),
-    inset 0 -10px 20px rgba(0,0,0,0.1),
-    0 20px 40px rgba(0,0,0,0.2);
-  border: 2px solid #cbd5e1;
-  transform-style: preserve-3d;
-}
-.machine-brand { width: 100%; display: flex; justify-content: space-between; padding: 10px 20px; box-sizing: border-box; position: absolute; top: 0; z-index: 10; }
-.logo-red { background: #ef4444; color: white; font-weight: 900; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-family: sans-serif; }
-.logo-blue { color: #1d4ed8; font-weight: 900; font-size: 12px; font-style: italic; font-family: sans-serif; }
-.acrylic-dome { width: 220px; height: 160px; margin-top: 30px; background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.1) 50%, rgba(200,220,240,0.4) 100%); border-radius: 100px 100px 20px 20px; position: relative; overflow: hidden; box-shadow: inset 0 0 20px rgba(255,255,255,0.9), inset 10px 10px 20px rgba(255,255,255,0.5), 0 5px 15px rgba(0,0,0,0.1); border: 3px solid rgba(255,255,255,0.9); border-bottom: 8px solid #cbd5e1; z-index: 2; }
-.dome-shelf { position: absolute; bottom: 25%; width: 100%; height: 8px; background: rgba(255,255,255,0.6); box-shadow: 0 4px 10px rgba(0,0,0,0.1); border-radius: 4px; }
-.capsule-pile { position: absolute; inset: 0; z-index: 1; overflow: hidden; }
-.ball { position: absolute; width: 32px; height: 32px; border-radius: 50%; box-shadow: inset -5px -5px 10px rgba(0,0,0,0.2), inset 4px 4px 8px rgba(255,255,255,0.8), 0 3px 6px rgba(0,0,0,0.15); }
-.ball-1 { background: radial-gradient(circle at 30% 30%, #fca5a5, #ef4444); top: 40px; left: 30px; }
-.ball-2 { background: radial-gradient(circle at 30% 30%, #93c5fd, #3b82f6); top: 60px; left: 70px; }
-.ball-3 { background: radial-gradient(circle at 30% 30%, #86efac, #22c55e); top: 35px; left: 110px; }
-.ball-4 { background: radial-gradient(circle at 30% 30%, #fde047, #eab308); top: 65px; left: 150px; }
-.ball-5 { background: radial-gradient(circle at 30% 30%, #d8b4fe, #a855f7); top: 95px; left: 40px; }
-.ball-6 { background: radial-gradient(circle at 30% 30%, #f9a8d4, #ec4899); top: 100px; left: 90px; }
-.ball-7 { background: radial-gradient(circle at 30% 30%, #67e8f9, #06b6d4); top: 90px; left: 140px; }
-.ball-8 { background: radial-gradient(circle at 30% 30%, #fdba74, #f97316); top: 120px; left: 70px; }
-.acrylic-dome.is-spinning .ball { animation: ball-shake 0.15s infinite alternate; }
-.acrylic-dome.is-spinning .ball:nth-child(odd) { animation-delay: 0.05s; }
-.acrylic-dome.is-spinning .ball:nth-child(even) { animation-delay: 0.1s; }
-@keyframes ball-shake { 0% { transform: translate(0, 0) rotate(0deg); } 100% { transform: translate(3px, -6px) rotate(30deg); } }
-.spin-blur { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255,255,255,0.6) 0%, transparent 40%, transparent 60%, rgba(255,255,255,0.4) 100%); z-index: 5; animation: blur-pulse 0.15s infinite alternate; }
-@keyframes blur-pulse { 0% { opacity: 0.3; } 100% { opacity: 0.8; } }
-.dome-highlight { position: absolute; top: 10px; left: 20px; width: 60px; height: 40px; background: linear-gradient(135deg, rgba(255,255,255,1) 0%, transparent 100%); border-radius: 50%; transform: rotate(-30deg); z-index: 6; pointer-events: none; }
-.machine-body-lower { width: 100%; height: 110px; background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%); border-radius: 0 0 20px 20px; display: flex; position: relative; box-shadow: 0 10px 20px rgba(0,0,0,0.1); border-top: 2px solid #e2e8f0; z-index: 1; }
-.lower-left { width: 40%; display: flex; flex-direction: column; justify-content: space-around; align-items: center; border-right: 2px solid #cbd5e1; }
-.coin-slot { font-size: 24px; color: #64748b; }
-.side-crank { width: 30px; height: 30px; background: #cbd5e1; border-radius: 50%; position: relative; box-shadow: inset 0 -3px 5px rgba(0,0,0,0.2), 0 3px 5px rgba(0,0,0,0.1); }
-.side-crank.is-turning { animation: crank-turn 0.5s infinite linear; }
-@keyframes crank-turn { 100% { transform: rotate(360deg); } }
-.crank-handle { position: absolute; top: 50%; left: 50%; width: 40px; height: 10px; background: #94a3b8; border-radius: 5px; transform: translate(-50%, -50%); box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
-.lower-right { width: 60%; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 10px 0; }
-.big-knob { width: 60px; height: 60px; background: radial-gradient(circle at 30% 30%, #60a5fa, #2563eb); border-radius: 50%; border: 4px solid #e2e8f0; box-shadow: 0 5px 10px rgba(0,0,0,0.2), inset 0 -4px 8px rgba(0,0,0,0.3); display: flex; justify-content: center; align-items: center; margin-top: -30px; z-index: 5; }
-.big-knob.is-turning { animation: knob-turn 0.5s infinite linear; }
-@keyframes knob-turn { 100% { transform: rotate(360deg); } }
-.knob-inner { font-size: 24px; color: white; font-weight: 900; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
-.exit-chute { width: 70px; height: 50px; background: #1e293b; border-radius: 10px 10px 5px 5px; margin-bottom: 5px; position: relative; box-shadow: inset 0 8px 15px rgba(0,0,0,0.8); perspective: 200px; }
-.chute-flap { position: absolute; top: 0; width: 100%; height: 100%; background: linear-gradient(180deg, #e2e8f0, #94a3b8); border-radius: 10px 10px 0 0; transform-origin: top; transform: rotateX(0deg); transition: transform 0.3s; box-shadow: 0 2px 5px rgba(0,0,0,0.3); display: flex; justify-content: center; align-items: center; overflow: hidden; }
-.chute-flap.is-pushing { transform: rotateX(80deg); }
-.dropped-capsule { position: absolute; bottom: 0; width: 50px; height: 60px; animation: drop-out 1s cubic-bezier(0.25, 1, 0.5, 1) forwards; transform-style: preserve-3d; }
-@keyframes drop-out { 0% { transform: translateY(-30px) scale(0.8); opacity: 0; } 50% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
-.capsule-half { position: absolute; width: 100%; height: 50%; box-shadow: inset 0 2px 4px rgba(255,255,255,0.5); }
-.capsule-half.top { top: 0; border-radius: 25px 25px 0 0; }
-.capsule-half.bottom { bottom: 0; border-radius: 0 0 25px 25px; }
-.win-bg { background: linear-gradient(180deg, #fef08a, #eab308); border: 1px solid #ca8a04; }
-.lose-bg { background: linear-gradient(180deg, #e2e8f0, #94a3b8); border: 1px solid #64748b; }
-.capsule-prize-text { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; font-size: 14px; font-weight: 900; z-index: 2; text-align: center; }
-.win-text { color: #b45309; text-shadow: 0 1px 2px rgba(255,255,255,0.8); }
-.lose-text { color: #334155; font-size: 11px; }
-.machine-stickers { position: absolute; bottom: 8px; left: 8px; display: flex; flex-direction: column; gap: 6px; }
-.sticker { font-size: 10px; font-weight: bold; padding: 3px 6px; border-radius: 3px; font-family: sans-serif; text-align: center; }
-.sticker.warning { background: #fef08a; color: #854d0e; border: 1px solid #ca8a04; font-size: 12px; letter-spacing: 1px; }
-.sticker.instructions { background: #e0f2fe; color: #0369a1; font-size: 9px; line-height: 1.2; display: flex; flex-direction: column; align-items: center; padding: 4px; width: 54px; }
-
-/* ================= 以下保留原有其他动画样式 ================= */
-.room-container { position: relative; min-height: 100vh; display: flex; flex-direction: column; overflow: hidden; background: #050508; font-family: 'Noto Sans JP', sans-serif; }
-.hologram-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
-.aurora { position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.5; mix-blend-mode: screen; animation: aurora-flow 15s infinite alternate ease-in-out; }
-.aurora-1 { width: 800px; height: 800px; background: #e83862; top: -300px; left: -200px; }
-.aurora-2 { width: 900px; height: 900px; background: #0ea5e9; bottom: -300px; right: -200px; animation-delay: -5s; }
-.aurora-3 { width: 600px; height: 600px; background: #8b5cf6; top: 30%; left: 40%; animation-delay: -10s; }
-.theme-slot .aurora-1 { background: #f39c12; } .theme-slot .aurora-2 { background: #e84118; }
-.theme-crane .aurora-1 { background: #10b981; } .theme-crane .aurora-2 { background: #0abde3; }
-.theme-roulette .aurora-1 { background: #e84118; } .theme-roulette .aurora-2 { background: #ff4757; }
-.theme-gacha .aurora-1 { background: #8b5cf6; } .theme-gacha .aurora-2 { background: #d946ef; }
-.theme-treasure .aurora-1 { background: #eab308; } .theme-treasure .aurora-2 { background: #ca8a04; }
-.theme-fish .aurora-1 { background: #0ea5e9; } .theme-fish .aurora-2 { background: #2dd4bf; }
-.theme-dart .aurora-1 { background: #ef4444; } .theme-dart .aurora-2 { background: #f97316; }
-.theme-scratch .aurora-1 { background: #f59e0b; } .theme-scratch .aurora-2 { background: #eab308; }
-@keyframes aurora-flow { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(100px, 100px) scale(1.2); } }
-.stars-container { position: absolute; inset: 0; perspective: 800px; overflow: hidden; }
-.star-group { position: absolute; inset: -50%; background-image: radial-gradient(1.5px 1.5px at 20px 30px, #fff, transparent), radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.8), transparent), radial-gradient(1px 1px at 90px 40px, #fff, transparent); background-repeat: repeat; background-size: 200px 200px; animation: stars-move 20s linear infinite; }
-.star-1 { animation-duration: 30s; opacity: 0.6; } .star-2 { animation-duration: 20s; opacity: 0.8; background-size: 300px 300px; } .star-3 { animation-duration: 10s; opacity: 1; background-size: 150px 150px; }
-@keyframes stars-move { 0% { transform: translateZ(0) translateY(0); } 100% { transform: translateZ(200px) translateY(-200px); } }
-.floor-reflection { position: absolute; bottom: -10%; left: 0; width: 100%; height: 300px; background: linear-gradient(to top, rgba(255,255,255,0.05), transparent); transform: perspective(500px) rotateX(70deg); transform-origin: bottom; }
-.room-header, .stage { position: relative; z-index: 10; }
-.floating-back-btn { position: fixed; top: 60px; left: 20px; z-index: 999; background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: bold; color: white; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: all 0.2s; }
-.floating-back-btn:hover { background: rgba(255,255,255,0.2); transform: translateY(-2px); }
-.room-header { padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; color: white; }
-.title { font-weight: 900; font-size: 18px; letter-spacing: 1px; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
-
-/* 通用掉落金额标签 */
-.prize-tag { position: absolute; padding: 4px 12px; border-radius: 20px; font-weight: 900; font-size: 18px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); z-index: 50; animation: pop-out 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-.prize-tag.is-win { background: linear-gradient(135deg, #fde047, #eab308); color: #b45309; border: 2px solid #fff; }
-.prize-tag.is-lose { background: #64748b; color: #fff; border: 2px solid #475569; }
-@keyframes pop-out { 0% { transform: scale(0) translateY(20px); opacity: 0; } 100% { transform: scale(1) translateY(0); opacity: 1; } }
-
-/* 金鱼机 / 飞镖 / 抓娃娃 / 刮刮乐 ...省略部分通用样式... */
-.fish-bowl { width: 260px; height: 260px; border-radius: 50%; background: radial-gradient(circle at 50% 20%, #bae6fd, #38bdf8); position: relative; box-shadow: inset 0 20px 40px rgba(0,0,0,0.2), 0 10px 20px rgba(0,0,0,0.1); overflow: hidden; border: 4px solid #e2e8f0; }
-.water { position: absolute; bottom: 0; width: 100%; height: 70%; background: rgba(255,255,255,0.2); transition: 0.3s; }
-.water.is-rippling { animation: ripple 0.3s linear infinite; }
-@keyframes ripple { 0%, 100% { transform: scaleY(1); opacity: 0.2; } 50% { transform: scaleY(1.1); opacity: 0.4; } }
-.fish-entity { position: absolute; bottom: 20px; left: 20%; font-size: 40px; transition: 0.3s; z-index: 2; }
-.fish-entity.is-swimming { animation: swim 3s infinite alternate ease-in-out; }
-@keyframes swim { 0% { transform: translate(0, 0) scaleX(1); } 100% { transform: translate(100px, -20px) scaleX(-1); } }
-.fish-entity.is-caught { animation: caught 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-@keyframes caught { 0% { bottom: 20px; left: 20%; } 100% { bottom: 140px; left: 50%; font-size: 60px; transform: translateX(-50%) rotate(15deg); } }
-.fish-entity.is-escaped { animation: escape 0.5s ease-in forwards; }
-@keyframes escape { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: translate(-50px, -50px) scale(0.5); } }
-.poi { position: absolute; top: 20%; left: 50%; transform: translateX(-50%); font-size: 60px; transition: 0.5s; z-index: 5; }
-.poi.is-scooping { animation: scoop 1.5s infinite alternate ease-in-out; }
-@keyframes scoop { 0% { top: 20%; left: 50%; transform: translateX(-50%) rotate(0); } 100% { top: 60%; left: 40%; transform: translateX(-50%) rotate(-30deg); } }
-.poi.is-broken { top: 60%; left: 40%; transform: translateX(-50%) rotate(-30deg); opacity: 0.6; }
-.splash-effect { position: absolute; bottom: 140px; left: 50%; transform: translateX(-50%); font-size: 50px; animation: splash 0.8s ease-out forwards; }
-@keyframes splash { 0% { transform: translate(-50%, 0) scale(0.5); opacity: 1; } 100% { transform: translate(-50%, -60px) scale(1.5); opacity: 0; } }
-.fish-prize { top: 30%; left: 50%; transform: translateX(-50%); animation-delay: 0.8s; }
-.dart-board { width: 220px; height: 220px; border-radius: 50%; background: conic-gradient(#ef4444 0deg 20deg, #f1f5f9 20deg 40deg, #3b82f6 40deg 60deg, #f1f5f9 60deg 80deg, #ef4444 80deg 100deg, #f1f5f9 100deg 120deg, #3b82f6 120deg 140deg, #f1f5f9 140deg 160deg, #ef4444 160deg 180deg, #f1f5f9 180deg 200deg, #3b82f6 200deg 220deg, #f1f5f9 220deg 240deg, #ef4444 240deg 260deg, #f1f5f9 260deg 280deg, #3b82f6 280deg 300deg, #f1f5f9 300deg 320deg, #ef4444 320deg 340deg, #f1f5f9 340deg 360deg); position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.2); border: 8px solid #334155; }
-.board-rings { position: absolute; inset: 20%; border-radius: 50%; border: 4px solid #334155; background: #fff; }
-.dart { position: absolute; top: -20%; left: 50%; font-size: 40px; transform: translateX(-50%); transition: 0.3s; }
-.dart.is-thrown { animation: throw-dart 1s forwards ease-in; }
-.dart.is-hit { top: 45%; animation: none; transform: translateX(-50%) scale(0.8); }
-@keyframes throw-dart { 0% { top: -20%; transform: translateX(-50%) scale(1); } 100% { top: 45%; transform: translateX(-50%) scale(0.8); } }
-.dart-prize { top: 10%; left: 50%; transform: translateX(-50%); animation-delay: 1s; }
-.crane-scene { width: 100%; height: 100%; position: relative; perspective: 800px; }
-.crane-rail { position: absolute; top: 10%; width: 100%; height: 15px; background: linear-gradient(180deg, #94a3b8, #64748b); transform: rotateX(60deg); }
-.claw-3d { position: absolute; top: 10%; left: 50%; transform: translateX(-50%) translateZ(50px); transition: top 1.5s ease-in-out; transform-style: preserve-3d; display: flex; flex-direction: column; align-items: center; }
-.claw-3d.is-dropping { top: 50%; }
-.claw-3d.is-grabbing { animation: grab-up 1.5s ease-in-out forwards; animation-delay: 1s; }
-@keyframes grab-up { 0% { top: 50%; } 100% { top: 15%; } }
-.claw-wire { width: 4px; height: 70px; background: linear-gradient(90deg, #94a3b8, #e2e8f0, #94a3b8); }
-.claw-motor { width: 40px; height: 25px; background: linear-gradient(180deg, #cbd5e1, #475569); border-radius: 5px; box-shadow: 0 5px 10px rgba(0,0,0,0.3); margin-bottom: 5px; }
-.claw-pincers { position: relative; width: 50px; height: 40px; }
-.pincer { position: absolute; top: 0; width: 8px; height: 50px; background: linear-gradient(90deg, #64748b, #cbd5e1); border-radius: 4px; transition: transform 0.3s; transform-origin: top center; }
-.pincer.left { left: 10px; transform: rotate(20deg); }
-.pincer.right { right: 10px; transform: rotate(-20deg); }
-.claw-3d.is-grabbing .pincer.left { transform: rotate(0deg); }
-.claw-3d.is-grabbing .pincer.right { transform: rotate(0deg); }
-.prize-bed { position: absolute; bottom: 15%; width: 100%; text-align: center; transition: 0.5s; }
-.prize-3d { font-size: 80px; filter: drop-shadow(0 20px 10px rgba(0,0,0,0.4)); transition: transform 0.5s; }
-.prize-bed.is-caught .prize-3d { animation: prize-fly 1s forwards; animation-delay: 1s; }
-@keyframes prize-fly { 0% { transform: scale(1); } 50% { transform: scale(0.8) translateY(-100px); opacity: 0; } 100% { transform: scale(0) translateY(-200px); opacity: 0; } }
-.coin-drop { position: absolute; bottom: 30%; left: 50%; transform: translateX(-50%); z-index: 20; }
-.coin { padding: 10px 20px; border-radius: 30px; background: radial-gradient(circle, #fde047, #ca8a04); font-size: 20px; font-weight: 900; color: #fff; box-shadow: 0 10px 20px rgba(0,0,0,0.5); animation: drop-coin 1s cubic-bezier(0.25, 1, 0.5, 1) forwards; animation-delay: 1.8s; opacity: 0; border: 4px dashed #fef08a; }
-@keyframes drop-coin { 0% { transform: translateY(-100px) scale(0.5); opacity: 0; } 60% { transform: translateY(0) scale(1.1); opacity: 1; } 80% { transform: translateY(-20px) scale(1); } 100% { transform: translateY(0) scale(1); opacity: 1; } }
-.scratch-scene { display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; position: relative; }
-.scratch-card { width: 200px; height: 200px; background: #fff; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); position: relative; overflow: hidden; }
-.scratch-content { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; font-size: 80px; background: #f8fafc; }
-.scratch-cover { position: absolute; inset: 0; background: linear-gradient(45deg, #94a3b8, #cbd5e1); z-index: 10; transition: transform 0.5s; }
-.scratch-cover.is-scratching { animation: scratch-action 0.2s infinite alternate; }
-@keyframes scratch-action { 0% { transform: translate(0, 0) rotate(0); } 100% { transform: translate(10px, 10px) rotate(5deg); } }
-.scratch-card.is-scratched .scratch-cover { transform: translateY(-100%); }
-.scratch-prize { position: absolute; top: 30%; z-index: 20; animation-delay: 0.5s; }
-
-/* ================= 6. 3D立体球形轮盘 (完美优化版) ================= */
+/* ================= 6. 轮盘 (终极修复版) ================= */
 .roulette-scene {
   position: relative;
   width: 100%;
@@ -794,13 +612,13 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
   align-items: center;
 }
 
-/* 顶部固定白球指针 */
+/* 顶部固定滚珠指针 */
 .roulette-ball-pointer {
   position: absolute;
   top: 2%;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 22px;
+  font-size: 24px;
   color: #fff;
   text-shadow: 0 4px 10px rgba(0,0,0,0.8), 0 0 10px rgba(255,255,255,0.8);
   z-index: 50;
@@ -811,17 +629,16 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
   100% { transform: translateX(-50%) translateY(-5px) scale(1.1); }
 }
 
-/* 轮盘底座（阴影与厚度） */
+/* 轮盘主体容器 */
 .wheel-3d-container {
   width: 260px;
   height: 260px;
   position: relative;
   border-radius: 50%;
-  /* 模拟厚重的球体阴影和包边 */
   box-shadow: 
     0 30px 40px rgba(0,0,0,0.7), 
-    0 0 0 8px #111827, /* 黑色外圈 */
-    0 0 0 10px #334155, /* 灰色金属外圈 */
+    0 0 0 8px #111827, 
+    0 0 0 10px #475569, 
     inset 0 0 30px rgba(0,0,0,0.9);
   background: #0f172a;
   transform-style: preserve-3d;
@@ -832,8 +649,16 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
   position: absolute;
   inset: 12px;
   border-radius: 50%;
-  /* 旋转动画在 computed 中动态注入 */
   will-change: transform;
+}
+
+/* 正在抽奖时，疯狂旋转！ */
+.wheel-rotating-layer.is-spinning {
+  animation: spin-fast 0.6s linear infinite;
+}
+@keyframes spin-fast {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 /* 动态区块背景 */
@@ -842,17 +667,16 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
   inset: 0;
   border-radius: 50%;
   box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
-  /* background 由 Vue 注入 */
 }
 
-/* 金额标签文字 */
+/* 金额标签文字 (加重描边，保证任何底色下都能看清) */
 .wheel-label {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 40px;
+  width: 44px;
   height: 20px;
-  margin: -10px -20px;
+  margin: -10px -22px;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -860,11 +684,17 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
   font-size: 13px;
   font-weight: 900;
   font-family: monospace, sans-serif;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.9);
+  /* 强效黑色描边和投影，解决文字被遮挡看不见的问题 */
+  text-shadow: 
+    -1px -1px 0 #000,  
+     1px -1px 0 #000,
+    -1px  1px 0 #000,
+     1px  1px 0 #000,
+     0px  2px 4px rgba(0,0,0,0.9);
   z-index: 5;
 }
 
-/* 立体高光层 (保持静止，营造凹透镜/球体受光质感) */
+/* 立体高光层 (保持静止) */
 .wheel-3d-sphere-overlay {
   position: absolute;
   inset: 12px;
@@ -873,8 +703,8 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
   z-index: 8;
   background: 
     radial-gradient(circle at 30% 30%, rgba(255,255,255,0.2) 0%, transparent 40%),
-    radial-gradient(circle at center, transparent 40%, rgba(0,0,0,0.6) 100%);
-  box-shadow: inset 0 10px 20px rgba(255,255,255,0.1), inset 0 -10px 30px rgba(0,0,0,0.8);
+    radial-gradient(circle at center, transparent 40%, rgba(0,0,0,0.7) 100%);
+  box-shadow: inset 0 10px 20px rgba(255,255,255,0.1), inset 0 -10px 30px rgba(0,0,0,0.9);
 }
 
 /* 中心 CASINO 塔楼 */
@@ -943,7 +773,144 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 
 .roulette-prize { top: 15%; left: 50%; transform: translateX(-50%); animation-delay: 4.5s; z-index: 60; }
 
-/* 寻宝 / 老虎机 */
+/* ================= 以下为其他保留的动画样式 ================= */
+.bandai-gacha-machine { width: 260px; height: 300px; background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%); border-radius: 40px 40px 20px 20px; position: relative; display: flex; flex-direction: column; align-items: center; box-shadow: inset 0 5px 10px rgba(255,255,255,1), inset 0 -10px 20px rgba(0,0,0,0.1), 0 20px 40px rgba(0,0,0,0.2); border: 2px solid #cbd5e1; transform-style: preserve-3d; }
+.machine-brand { width: 100%; display: flex; justify-content: space-between; padding: 10px 20px; box-sizing: border-box; position: absolute; top: 0; z-index: 10; }
+.logo-red { background: #ef4444; color: white; font-weight: 900; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-family: sans-serif; }
+.logo-blue { color: #1d4ed8; font-weight: 900; font-size: 12px; font-style: italic; font-family: sans-serif; }
+.acrylic-dome { width: 220px; height: 160px; margin-top: 30px; background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.1) 50%, rgba(200,220,240,0.4) 100%); border-radius: 100px 100px 20px 20px; position: relative; overflow: hidden; box-shadow: inset 0 0 20px rgba(255,255,255,0.9), inset 10px 10px 20px rgba(255,255,255,0.5), 0 5px 15px rgba(0,0,0,0.1); border: 3px solid rgba(255,255,255,0.9); border-bottom: 8px solid #cbd5e1; z-index: 2; }
+.dome-shelf { position: absolute; bottom: 25%; width: 100%; height: 8px; background: rgba(255,255,255,0.6); box-shadow: 0 4px 10px rgba(0,0,0,0.1); border-radius: 4px; }
+.capsule-pile { position: absolute; inset: 0; z-index: 1; overflow: hidden; }
+.ball { position: absolute; width: 32px; height: 32px; border-radius: 50%; box-shadow: inset -5px -5px 10px rgba(0,0,0,0.2), inset 4px 4px 8px rgba(255,255,255,0.8), 0 3px 6px rgba(0,0,0,0.15); }
+.ball-1 { background: radial-gradient(circle at 30% 30%, #fca5a5, #ef4444); top: 40px; left: 30px; }
+.ball-2 { background: radial-gradient(circle at 30% 30%, #93c5fd, #3b82f6); top: 60px; left: 70px; }
+.ball-3 { background: radial-gradient(circle at 30% 30%, #86efac, #22c55e); top: 35px; left: 110px; }
+.ball-4 { background: radial-gradient(circle at 30% 30%, #fde047, #eab308); top: 65px; left: 150px; }
+.ball-5 { background: radial-gradient(circle at 30% 30%, #d8b4fe, #a855f7); top: 95px; left: 40px; }
+.ball-6 { background: radial-gradient(circle at 30% 30%, #f9a8d4, #ec4899); top: 100px; left: 90px; }
+.ball-7 { background: radial-gradient(circle at 30% 30%, #67e8f9, #06b6d4); top: 90px; left: 140px; }
+.ball-8 { background: radial-gradient(circle at 30% 30%, #fdba74, #f97316); top: 120px; left: 70px; }
+.acrylic-dome.is-spinning .ball { animation: ball-shake 0.15s infinite alternate; }
+.acrylic-dome.is-spinning .ball:nth-child(odd) { animation-delay: 0.05s; }
+.acrylic-dome.is-spinning .ball:nth-child(even) { animation-delay: 0.1s; }
+@keyframes ball-shake { 0% { transform: translate(0, 0) rotate(0deg); } 100% { transform: translate(3px, -6px) rotate(30deg); } }
+.spin-blur { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255,255,255,0.6) 0%, transparent 40%, transparent 60%, rgba(255,255,255,0.4) 100%); z-index: 5; animation: blur-pulse 0.15s infinite alternate; }
+@keyframes blur-pulse { 0% { opacity: 0.3; } 100% { opacity: 0.8; } }
+.dome-highlight { position: absolute; top: 10px; left: 20px; width: 60px; height: 40px; background: linear-gradient(135deg, rgba(255,255,255,1) 0%, transparent 100%); border-radius: 50%; transform: rotate(-30deg); z-index: 6; pointer-events: none; }
+.machine-body-lower { width: 100%; height: 110px; background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%); border-radius: 0 0 20px 20px; display: flex; position: relative; box-shadow: 0 10px 20px rgba(0,0,0,0.1); border-top: 2px solid #e2e8f0; z-index: 1; }
+.lower-left { width: 40%; display: flex; flex-direction: column; justify-content: space-around; align-items: center; border-right: 2px solid #cbd5e1; }
+.coin-slot { font-size: 24px; color: #64748b; }
+.side-crank { width: 30px; height: 30px; background: #cbd5e1; border-radius: 50%; position: relative; box-shadow: inset 0 -3px 5px rgba(0,0,0,0.2), 0 3px 5px rgba(0,0,0,0.1); }
+.side-crank.is-turning { animation: crank-turn 0.5s infinite linear; }
+@keyframes crank-turn { 100% { transform: rotate(360deg); } }
+.crank-handle { position: absolute; top: 50%; left: 50%; width: 40px; height: 10px; background: #94a3b8; border-radius: 5px; transform: translate(-50%, -50%); box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+.lower-right { width: 60%; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 10px 0; }
+.big-knob { width: 60px; height: 60px; background: radial-gradient(circle at 30% 30%, #60a5fa, #2563eb); border-radius: 50%; border: 4px solid #e2e8f0; box-shadow: 0 5px 10px rgba(0,0,0,0.2), inset 0 -4px 8px rgba(0,0,0,0.3); display: flex; justify-content: center; align-items: center; margin-top: -30px; z-index: 5; }
+.big-knob.is-turning { animation: knob-turn 0.5s infinite linear; }
+@keyframes knob-turn { 100% { transform: rotate(360deg); } }
+.knob-inner { font-size: 24px; color: white; font-weight: 900; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+.exit-chute { width: 70px; height: 50px; background: #1e293b; border-radius: 10px 10px 5px 5px; margin-bottom: 5px; position: relative; box-shadow: inset 0 8px 15px rgba(0,0,0,0.8); perspective: 200px; }
+.chute-flap { position: absolute; top: 0; width: 100%; height: 100%; background: linear-gradient(180deg, #e2e8f0, #94a3b8); border-radius: 10px 10px 0 0; transform-origin: top; transform: rotateX(0deg); transition: transform 0.3s; box-shadow: 0 2px 5px rgba(0,0,0,0.3); display: flex; justify-content: center; align-items: center; overflow: hidden; }
+.chute-flap.is-pushing { transform: rotateX(80deg); }
+.dropped-capsule { position: absolute; bottom: 0; width: 50px; height: 60px; animation: drop-out 1s cubic-bezier(0.25, 1, 0.5, 1) forwards; transform-style: preserve-3d; }
+@keyframes drop-out { 0% { transform: translateY(-30px) scale(0.8); opacity: 0; } 50% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
+.capsule-half { position: absolute; width: 100%; height: 50%; box-shadow: inset 0 2px 4px rgba(255,255,255,0.5); }
+.capsule-half.top { top: 0; border-radius: 25px 25px 0 0; }
+.capsule-half.bottom { bottom: 0; border-radius: 0 0 25px 25px; }
+.win-bg { background: linear-gradient(180deg, #fef08a, #eab308); border: 1px solid #ca8a04; }
+.lose-bg { background: linear-gradient(180deg, #e2e8f0, #94a3b8); border: 1px solid #64748b; }
+.capsule-prize-text { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; font-size: 14px; font-weight: 900; z-index: 2; text-align: center; }
+.win-text { color: #b45309; text-shadow: 0 1px 2px rgba(255,255,255,0.8); }
+.lose-text { color: #334155; font-size: 11px; }
+.machine-stickers { position: absolute; bottom: 8px; left: 8px; display: flex; flex-direction: column; gap: 6px; }
+.sticker { font-size: 10px; font-weight: bold; padding: 3px 6px; border-radius: 3px; font-family: sans-serif; text-align: center; }
+.sticker.warning { background: #fef08a; color: #854d0e; border: 1px solid #ca8a04; font-size: 12px; letter-spacing: 1px; }
+.sticker.instructions { background: #e0f2fe; color: #0369a1; font-size: 9px; line-height: 1.2; display: flex; flex-direction: column; align-items: center; padding: 4px; width: 54px; }
+
+/* 其他背景、按钮、弹窗等通用样式（保留精简） */
+.room-container { position: relative; min-height: 100vh; display: flex; flex-direction: column; overflow: hidden; background: #050508; font-family: 'Noto Sans JP', sans-serif; }
+.hologram-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.aurora { position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.5; mix-blend-mode: screen; animation: aurora-flow 15s infinite alternate ease-in-out; }
+.aurora-1 { width: 800px; height: 800px; background: #e83862; top: -300px; left: -200px; }
+.aurora-2 { width: 900px; height: 900px; background: #0ea5e9; bottom: -300px; right: -200px; animation-delay: -5s; }
+.aurora-3 { width: 600px; height: 600px; background: #8b5cf6; top: 30%; left: 40%; animation-delay: -10s; }
+.theme-slot .aurora-1 { background: #f39c12; } .theme-slot .aurora-2 { background: #e84118; }
+.theme-crane .aurora-1 { background: #10b981; } .theme-crane .aurora-2 { background: #0abde3; }
+.theme-roulette .aurora-1 { background: #e84118; } .theme-roulette .aurora-2 { background: #ff4757; }
+.theme-gacha .aurora-1 { background: #8b5cf6; } .theme-gacha .aurora-2 { background: #d946ef; }
+.theme-treasure .aurora-1 { background: #eab308; } .theme-treasure .aurora-2 { background: #ca8a04; }
+.theme-fish .aurora-1 { background: #0ea5e9; } .theme-fish .aurora-2 { background: #2dd4bf; }
+.theme-dart .aurora-1 { background: #ef4444; } .theme-dart .aurora-2 { background: #f97316; }
+.theme-scratch .aurora-1 { background: #f59e0b; } .theme-scratch .aurora-2 { background: #eab308; }
+@keyframes aurora-flow { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(100px, 100px) scale(1.2); } }
+.stars-container { position: absolute; inset: 0; perspective: 800px; overflow: hidden; }
+.star-group { position: absolute; inset: -50%; background-image: radial-gradient(1.5px 1.5px at 20px 30px, #fff, transparent), radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.8), transparent), radial-gradient(1px 1px at 90px 40px, #fff, transparent); background-repeat: repeat; background-size: 200px 200px; animation: stars-move 20s linear infinite; }
+.star-1 { animation-duration: 30s; opacity: 0.6; } .star-2 { animation-duration: 20s; opacity: 0.8; background-size: 300px 300px; } .star-3 { animation-duration: 10s; opacity: 1; background-size: 150px 150px; }
+@keyframes stars-move { 0% { transform: translateZ(0) translateY(0); } 100% { transform: translateZ(200px) translateY(-200px); } }
+.floor-reflection { position: absolute; bottom: -10%; left: 0; width: 100%; height: 300px; background: linear-gradient(to top, rgba(255,255,255,0.05), transparent); transform: perspective(500px) rotateX(70deg); transform-origin: bottom; }
+.room-header, .stage { position: relative; z-index: 10; }
+.floating-back-btn { position: fixed; top: 60px; left: 20px; z-index: 999; background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: bold; color: white; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: all 0.2s; }
+.floating-back-btn:hover { background: rgba(255,255,255,0.2); transform: translateY(-2px); }
+.room-header { padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; color: white; }
+.title { font-weight: 900; font-size: 18px; letter-spacing: 1px; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+.prize-tag { position: absolute; padding: 4px 12px; border-radius: 20px; font-weight: 900; font-size: 18px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); z-index: 50; animation: pop-out 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+.prize-tag.is-win { background: linear-gradient(135deg, #fde047, #eab308); color: #b45309; border: 2px solid #fff; }
+.prize-tag.is-lose { background: #64748b; color: #fff; border: 2px solid #475569; }
+@keyframes pop-out { 0% { transform: scale(0) translateY(20px); opacity: 0; } 100% { transform: scale(1) translateY(0); opacity: 1; } }
+.fish-bowl { width: 260px; height: 260px; border-radius: 50%; background: radial-gradient(circle at 50% 20%, #bae6fd, #38bdf8); position: relative; box-shadow: inset 0 20px 40px rgba(0,0,0,0.2), 0 10px 20px rgba(0,0,0,0.1); overflow: hidden; border: 4px solid #e2e8f0; }
+.water { position: absolute; bottom: 0; width: 100%; height: 70%; background: rgba(255,255,255,0.2); transition: 0.3s; }
+.water.is-rippling { animation: ripple 0.3s linear infinite; }
+@keyframes ripple { 0%, 100% { transform: scaleY(1); opacity: 0.2; } 50% { transform: scaleY(1.1); opacity: 0.4; } }
+.fish-entity { position: absolute; bottom: 20px; left: 20%; font-size: 40px; transition: 0.3s; z-index: 2; }
+.fish-entity.is-swimming { animation: swim 3s infinite alternate ease-in-out; }
+@keyframes swim { 0% { transform: translate(0, 0) scaleX(1); } 100% { transform: translate(100px, -20px) scaleX(-1); } }
+.fish-entity.is-caught { animation: caught 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+@keyframes caught { 0% { bottom: 20px; left: 20%; } 100% { bottom: 140px; left: 50%; font-size: 60px; transform: translateX(-50%) rotate(15deg); } }
+.fish-entity.is-escaped { animation: escape 0.5s ease-in forwards; }
+@keyframes escape { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: translate(-50px, -50px) scale(0.5); } }
+.poi { position: absolute; top: 20%; left: 50%; transform: translateX(-50%); font-size: 60px; transition: 0.5s; z-index: 5; }
+.poi.is-scooping { animation: scoop 1.5s infinite alternate ease-in-out; }
+@keyframes scoop { 0% { top: 20%; left: 50%; transform: translateX(-50%) rotate(0); } 100% { top: 60%; left: 40%; transform: translateX(-50%) rotate(-30deg); } }
+.poi.is-broken { top: 60%; left: 40%; transform: translateX(-50%) rotate(-30deg); opacity: 0.6; }
+.splash-effect { position: absolute; bottom: 140px; left: 50%; transform: translateX(-50%); font-size: 50px; animation: splash 0.8s ease-out forwards; }
+@keyframes splash { 0% { transform: translate(-50%, 0) scale(0.5); opacity: 1; } 100% { transform: translate(-50%, -60px) scale(1.5); opacity: 0; } }
+.fish-prize { top: 30%; left: 50%; transform: translateX(-50%); animation-delay: 0.8s; }
+.dart-board { width: 220px; height: 220px; border-radius: 50%; background: conic-gradient(#ef4444 0deg 20deg, #f1f5f9 20deg 40deg, #3b82f6 40deg 60deg, #f1f5f9 60deg 80deg, #ef4444 80deg 100deg, #f1f5f9 100deg 120deg, #3b82f6 120deg 140deg, #f1f5f9 140deg 160deg, #ef4444 160deg 180deg, #f1f5f9 180deg 200deg, #3b82f6 200deg 220deg, #f1f5f9 220deg 240deg, #ef4444 240deg 260deg, #f1f5f9 260deg 280deg, #3b82f6 280deg 300deg, #f1f5f9 300deg 320deg, #ef4444 320deg 340deg, #f1f5f9 340deg 360deg); position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.2); border: 8px solid #334155; }
+.board-rings { position: absolute; inset: 20%; border-radius: 50%; border: 4px solid #334155; background: #fff; }
+.dart { position: absolute; top: -20%; left: 50%; font-size: 40px; transform: translateX(-50%); transition: 0.3s; }
+.dart.is-thrown { animation: throw-dart 1s forwards ease-in; }
+.dart.is-hit { top: 45%; animation: none; transform: translateX(-50%) scale(0.8); }
+@keyframes throw-dart { 0% { top: -20%; transform: translateX(-50%) scale(1); } 100% { top: 45%; transform: translateX(-50%) scale(0.8); } }
+.dart-prize { top: 10%; left: 50%; transform: translateX(-50%); animation-delay: 1s; }
+.crane-scene { width: 100%; height: 100%; position: relative; perspective: 800px; }
+.crane-rail { position: absolute; top: 10%; width: 100%; height: 15px; background: linear-gradient(180deg, #94a3b8, #64748b); transform: rotateX(60deg); }
+.claw-3d { position: absolute; top: 10%; left: 50%; transform: translateX(-50%) translateZ(50px); transition: top 1.5s ease-in-out; transform-style: preserve-3d; display: flex; flex-direction: column; align-items: center; }
+.claw-3d.is-dropping { top: 50%; }
+.claw-3d.is-grabbing { animation: grab-up 1.5s ease-in-out forwards; animation-delay: 1s; }
+@keyframes grab-up { 0% { top: 50%; } 100% { top: 15%; } }
+.claw-wire { width: 4px; height: 70px; background: linear-gradient(90deg, #94a3b8, #e2e8f0, #94a3b8); }
+.claw-motor { width: 40px; height: 25px; background: linear-gradient(180deg, #cbd5e1, #475569); border-radius: 5px; box-shadow: 0 5px 10px rgba(0,0,0,0.3); margin-bottom: 5px; }
+.claw-pincers { position: relative; width: 50px; height: 40px; }
+.pincer { position: absolute; top: 0; width: 8px; height: 50px; background: linear-gradient(90deg, #64748b, #cbd5e1); border-radius: 4px; transition: transform 0.3s; transform-origin: top center; }
+.pincer.left { left: 10px; transform: rotate(20deg); }
+.pincer.right { right: 10px; transform: rotate(-20deg); }
+.claw-3d.is-grabbing .pincer.left { transform: rotate(0deg); }
+.claw-3d.is-grabbing .pincer.right { transform: rotate(0deg); }
+.prize-bed { position: absolute; bottom: 15%; width: 100%; text-align: center; transition: 0.5s; }
+.prize-3d { font-size: 80px; filter: drop-shadow(0 20px 10px rgba(0,0,0,0.4)); transition: transform 0.5s; }
+.prize-bed.is-caught .prize-3d { animation: prize-fly 1s forwards; animation-delay: 1s; }
+@keyframes prize-fly { 0% { transform: scale(1); } 50% { transform: scale(0.8) translateY(-100px); opacity: 0; } 100% { transform: scale(0) translateY(-200px); opacity: 0; } }
+.coin-drop { position: absolute; bottom: 30%; left: 50%; transform: translateX(-50%); z-index: 20; }
+.coin { padding: 10px 20px; border-radius: 30px; background: radial-gradient(circle, #fde047, #ca8a04); font-size: 20px; font-weight: 900; color: #fff; box-shadow: 0 10px 20px rgba(0,0,0,0.5); animation: drop-coin 1s cubic-bezier(0.25, 1, 0.5, 1) forwards; animation-delay: 1.8s; opacity: 0; border: 4px dashed #fef08a; }
+@keyframes drop-coin { 0% { transform: translateY(-100px) scale(0.5); opacity: 0; } 60% { transform: translateY(0) scale(1.1); opacity: 1; } 80% { transform: translateY(-20px) scale(1); } 100% { transform: translateY(0) scale(1); opacity: 1; } }
+.scratch-scene { display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; position: relative; }
+.scratch-card { width: 200px; height: 200px; background: #fff; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); position: relative; overflow: hidden; }
+.scratch-content { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; font-size: 80px; background: #f8fafc; }
+.scratch-cover { position: absolute; inset: 0; background: linear-gradient(45deg, #94a3b8, #cbd5e1); z-index: 10; transition: transform 0.5s; }
+.scratch-cover.is-scratching { animation: scratch-action 0.2s infinite alternate; }
+@keyframes scratch-action { 0% { transform: translate(0, 0) rotate(0); } 100% { transform: translate(10px, 10px) rotate(5deg); } }
+.scratch-card.is-scratched .scratch-cover { transform: translateY(-100%); }
+.scratch-prize { position: absolute; top: 30%; z-index: 20; animation-delay: 0.5s; }
 .treasure-chest { width: 200px; height: 150px; position: relative; perspective: 500px; }
 .chest-base { position: absolute; bottom: 0; width: 100%; height: 60%; background: #78350f; border-radius: 10px; border: 4px solid #451a03; }
 .chest-lid { position: absolute; top: 0; width: 100%; height: 40%; background: #92400e; border-radius: 50% 50% 0 0; border: 4px solid #451a03; transform-origin: bottom; transition: transform 0.5s; }
@@ -958,7 +925,6 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 @keyframes fly1 { 0% { transform: translate(0, 0); opacity: 1; } 100% { transform: translate(-40px, -50px) scale(0.5); opacity: 0; } }
 @keyframes fly2 { 0% { transform: translate(0, 0); opacity: 1; } 100% { transform: translate(40px, -60px) scale(0.5); opacity: 0; } }
 @keyframes pop-coin { 0% { opacity: 0; transform: translateX(-50%) scale(0.5); top: -20px; } 100% { opacity: 1; transform: translateX(-50%) scale(1); top: -40px; } }
-
 .slot-machine-3d { display: flex; gap: 20px; position: relative; perspective: 800px; }
 .reel-container { position: relative; width: 80px; height: 200px; background: #111827; border-radius: 10px; overflow: hidden; box-shadow: inset 0 0 20px rgba(0,0,0,0.9), 0 10px 20px rgba(0,0,0,0.5); border: 3px solid #475569; }
 .reel-3d { width: 100%; height: 100%; position: absolute; transform-style: preserve-3d; transform: rotateX(-120deg); }
@@ -976,8 +942,6 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .symbol.win-symbol { color: #ef4444; font-size: 55px; text-shadow: 0 0 15px #ef4444, 0 0 30px #b91c1c; background: linear-gradient(180deg, #fff 0%, #f1f5f9 100%); }
 .cylinder-gloss { position: absolute; inset: 0; pointer-events: none; border-radius: 8px; background: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.85) 100%), linear-gradient(90deg, rgba(0,0,0,0.6) 0%, rgba(255,255,255,0.2) 15%, transparent 50%, rgba(255,255,255,0.2) 85%, rgba(0,0,0,0.6) 100%); z-index: 10; }
 .slot-machine-glass { position: absolute; inset: -15px; border-radius: 15px; background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, transparent 40%, transparent 60%, rgba(255,255,255,0.05) 100%); pointer-events: none; z-index: 20; }
-
-/* 通用按钮、弹窗、跑马灯等 */
 .control-panel { margin-top: 20px; text-align: center; width: 100%; }
 .desc { font-size: 13px; color: #64748b; margin-bottom: 15px; font-weight: bold; }
 .balance-display { background: #0f172a; border-radius: 12px; padding: 12px 24px; display: inline-flex; flex-direction: column; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5); }
@@ -1030,7 +994,6 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .ticket-leave-active { transition: opacity 0.3s; }
 .ticket-leave-to { opacity: 0; }
 @keyframes ticketDrop { 0% { transform: translateY(-50px) scale(0.9); opacity: 0; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
-
 .marquee-board { width: 100%; margin-top: 15px; padding: 10px; background: rgba(0, 0, 0, 0.3); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); overflow: hidden; box-sizing: border-box; }
 .marquee-scroll { display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto; padding-bottom: 5px; }
 .marquee-scroll::-webkit-scrollbar { height: 4px; }
@@ -1040,7 +1003,6 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .marquee-item.is-active.is-win { background: linear-gradient(135deg, #fde047, #eab308); color: #b45309; border-color: #fff; box-shadow: 0 0 20px rgba(253, 224, 71, 1); animation: win-pulse 1.5s infinite alternate; }
 .marquee-item.is-active.is-lose { background: #64748b; color: white; border-color: #cbd5e1; }
 @keyframes win-pulse { 0% { transform: scale(1.1); } 100% { transform: scale(1.15); } }
-
 @media (max-width: 768px) {
   .floating-back-btn { top: 50px; left: 15px; padding: 6px 12px; font-size: 13px; }
   .room-header { padding: 10px 15px; }
