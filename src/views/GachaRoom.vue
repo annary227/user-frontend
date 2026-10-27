@@ -163,35 +163,32 @@
              </div>
           </div>
 
-          <!-- 6. 轮盘 (2.5D 赌场质感版) -->
+          <!-- 6. 轮盘 (完美动态适配版) -->
           <div v-else-if="gameType === 'roulette'" class="roulette-scene">
             
-            <!-- 顶部白色滚珠指针 -->
-            <div class="roulette-ball" :class="{ 'is-spinning': isDrawing }"></div>
+            <!-- 顶部固定指针 -->
+            <div class="roulette-pointer">▼</div>
 
-            <div class="wheel-container">
-              <!-- 外圈金属包边 -->
-              <div class="wheel-outer-rim"></div>
+            <!-- 转盘整体旋转容器 -->
+            <div 
+              class="wheel-container" 
+              :class="{ 'is-spinning': isDrawing }"
+              :style="wheelStyle"
+            >
+              <!-- 1. 动态渲染红黑相间的扇形区块背景 -->
+              <div class="wheel-number-ring" :style="dynamicConicGradient"></div>
               
-              <!-- 旋转的数字环 -->
-              <div class="wheel-number-ring" :class="{ 'is-spinning': isDrawing, 'is-stopped': !isDrawing && result }">
-                <!-- 部分数字视觉占位 -->
-                <div class="num num-0">0</div>
-                <div class="num num-32">32</div>
-                <div class="num num-15">15</div>
-                <div class="num num-19">19</div>
-                <div class="num num-4">4</div>
-                <div class="num num-21">21</div>
-                <div class="num num-2">2</div>
-                <div class="num num-25">25</div>
-                <div class="num num-17">17</div>
-                <div class="num num-34">34</div>
-                
-                <!-- 旋转模糊遮罩 -->
-                <div class="spin-blur-ring" v-if="isDrawing"></div>
+              <!-- 2. 动态渲染金额/奖品文字 (循环6个位置) -->
+              <div 
+                v-for="(prize, index) in displayPrizes" 
+                :key="index"
+                class="num-label"
+                :style="getLabelStyle(index)"
+              >
+                {{ prize.value > 0 ? `¥${prize.value.toLocaleString()}` : '0円' }}
               </div>
 
-              <!-- 中心固定塔楼 (CASINO 区域) -->
+              <!-- 3. 固定不动的中心塔楼 -->
               <div class="wheel-center">
                 <div class="center-text">CASINO</div>
                 <div class="center-cross">
@@ -201,13 +198,13 @@
               </div>
             </div>
 
-            <!-- 获胜光环 -->
+            <!-- 获胜光环特效 -->
             <div class="win-glow" v-if="!isDrawing && result && result.value > 0"></div>
 
-            <!-- 掉落金额标签 -->
+            <!-- 掉落金额展示 -->
             <div class="prize-tag roulette-prize" :class="result && result.value > 0 ? 'is-win' : 'is-lose'" v-if="!isDrawing && result">
               <span v-if="result.value > 0">+ ¥{{ result.value.toLocaleString() }}</span>
-              <span v-else>MISS</span>
+              <span v-else>残念...</span>
             </div>
           </div>
 
@@ -398,6 +395,83 @@ const marqueePrizes = ref([]);
 const currentMarqueeIndex = ref(0);
 let marqueeTimer = null;
 
+// 🎯 轮盘核心专属状态
+const wheelRotation = ref(0);      // 当前累计旋转角度
+const targetPrizeIndex = ref(0);   // 目标落在第几个区块 (0~5)
+
+// 获取用来渲染转盘的 6 个奖品展示块
+const displayPrizes = computed(() => {
+  const defaults = [
+    { value: 10000, name: '10000円' },
+    { value: 0, name: 'ハズレ' },
+    { value: 500, name: '500円' },
+    { value: 0, name: 'ハズレ' },
+    { value: 2000, name: '2000円' },
+    { value: 0, name: 'ハズレ' }
+  ];
+  
+  if (marqueePrizes.value.length > 0) {
+    // 如果后台有数据，填满前6个，不足的用 0 补齐
+    const list = marqueePrizes.value.slice(0, 6);
+    while (list.length < 6) {
+      list.push({ value: 0, name: 'ハズレ' });
+    }
+    return list;
+  }
+  return defaults;
+});
+
+// 动态生成背景：使用红黑交替（0元用黑色）的 conic-gradient
+const dynamicConicGradient = computed(() => {
+  let gradient = 'conic-gradient(';
+  const step = 60; // 360 / 6 = 60度一个区块
+  
+  displayPrizes.value.forEach((prize, index) => {
+    const startDeg = index * step - 30; // 减去30度为了对齐顶部指针
+    const endDeg = (index + 1) * step - 30;
+    // 有奖励用红色，0元（未中奖）用黑/深色
+    const color = prize.value > 0 ? '#dc2626' : '#0f172a'; 
+    gradient += `${color} ${startDeg}deg ${endDeg}deg, `;
+  });
+  
+  gradient = gradient.slice(0, -2) + ')'; // 去掉最后的逗号和空格
+  return { background: gradient };
+});
+
+// 计算转盘要旋转到的目标角度
+const wheelStyle = computed(() => {
+  if (!isDrawing.value && result.value) {
+    // 目标区块中心度数
+    const targetDeg = targetPrizeIndex.value * 60;
+    // 转好几圈 + 偏移度数
+    const finalRotation = (360 * 5) + (360 - targetDeg); // 转5圈
+    return {
+      transform: `rotate(${finalRotation}deg)`,
+      transition: 'transform 4s cubic-bezier(0.15, 0.9, 0.25, 1)' // 4秒缓停
+    };
+  } else if (isDrawing.value) {
+    return {
+      transform: `rotate(${wheelRotation.value}deg)`,
+      transition: 'none' // 抽奖时持续快速旋转
+    };
+  } else {
+    // 初始状态
+    return {
+      transform: `rotate(0deg)`,
+      transition: 'none'
+    };
+  }
+});
+
+// 计算文字标签的位置
+const getLabelStyle = (index) => {
+  const angle = index * 60; // 每个区块 60 度
+  // 将文字推到中间，并反向旋转文字使其保持直立
+  return {
+    transform: `translate(-50%, -50%) rotate(${angle}deg) translateY(-90px) rotate(${-angle}deg)`
+  };
+};
+
 // 中文翻译拦截
 const translateName = (name) => {
   if (!name) return 'ハズレ';
@@ -500,6 +574,9 @@ const executeDraw = async () => {
   showTicket.value = false;
   playSpinSound();
   
+  // 每次抽奖清空上一次的角度，开始疯狂无脑转圈
+  wheelRotation.value = wheelRotation.value + 720; // 转两圈
+  
   if (marqueeTimer) clearInterval(marqueeTimer);
   marqueeTimer = setInterval(() => {
     currentMarqueeIndex.value = (currentMarqueeIndex.value + 1) % marqueePrizes.value.length;
@@ -517,20 +594,27 @@ const executeDraw = async () => {
         setTimeout(() => {
           if (spinInterval) clearInterval(spinInterval);
           
-          const targetIndex = marqueePrizes.value.findIndex(p => p.name === result.value.prize || (result.value.value === 0 && p.value === 0));
+          // 计算转盘停下来该指向哪里
+          let targetIndex = displayPrizes.value.findIndex(p => p.value === result.value.value);
+          if (targetIndex === -1) targetIndex = 1; // 如果没找到，默认落在第 1 个未中奖上
+          targetPrizeIndex.value = targetIndex;
           
+          // 让 isDrawing 变 false，触发 CSS 的 4秒慢停过渡
+          isDrawing.value = false; 
+          
+          const targetIndexMarquee = marqueePrizes.value.findIndex(p => p.name === result.value.prize || (result.value.value === 0 && p.value === 0));
           if (marqueeTimer) clearInterval(marqueeTimer);
-          
-          if (targetIndex !== -1) {
-            currentMarqueeIndex.value = targetIndex; 
+          if (targetIndexMarquee !== -1) {
+            currentMarqueeIndex.value = targetIndexMarquee; 
           }
           
-          if (result.value.value > 0) playWinSound(); else playLoseSound();
-          
+          // 4秒后再触发音效和弹窗（因为转盘要转4秒）
           setTimeout(() => {
-            showTicket.value = true;
-            isDrawing.value = false; 
-          }, 1500);
+            if (result.value.value > 0) playWinSound(); else playLoseSound();
+            setTimeout(() => {
+              showTicket.value = true;
+            }, 500);
+          }, 4000);
           
         }, 8500); 
       }
@@ -960,127 +1044,87 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .scratch-card.is-scratched .scratch-cover { transform: translateY(-100%); }
 .scratch-prize { position: absolute; top: 30%; z-index: 20; animation-delay: 0.5s; }
 
-/* 6. 轮盘 (2.5D 赌场质感版) */
-.roulette-scene { position: relative; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
+/* ================= 6. 完美动态适配版转盘 ================= */
+.roulette-scene {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
 
-/* 顶部白色滚珠 */
-.roulette-ball {
+/* 顶部固定指针 */
+.roulette-pointer {
   position: absolute;
-  top: 8%;
+  top: 2%;
   left: 50%;
-  width: 14px;
-  height: 14px;
-  background: radial-gradient(circle at 30% 30%, #ffffff, #cbd5e1);
-  border-radius: 50%;
   transform: translateX(-50%);
-  box-shadow: 0 3px 6px rgba(0,0,0,0.6), inset -2px -2px 4px rgba(0,0,0,0.2);
+  font-size: 28px;
+  color: #fde047;
   z-index: 50;
+  filter: drop-shadow(0 4px 2px rgba(0,0,0,0.6));
+  animation: bounce-pointer 1s infinite alternate;
 }
-/* 滚珠抽奖时沿边缘跳动的动画 */
-.roulette-ball.is-spinning {
-  animation: ball-jump 0.4s infinite alternate ease-in-out;
-}
-@keyframes ball-jump {
-  0% { top: 8%; transform: translateX(-50%) scale(1); }
-  100% { top: 12%; transform: translateX(-50%) scale(1.1); }
+@keyframes bounce-pointer {
+  0% { transform: translateX(-50%) translateY(0); }
+  100% { transform: translateX(-50%) translateY(-4px); }
 }
 
-/* 轮盘主体容器 */
+/* 转盘外框 */
 .wheel-container {
   width: 250px;
   height: 250px;
   position: relative;
   border-radius: 50%;
-  /* 模拟厚重的底座阴影 */
   box-shadow: 
-    0 30px 50px rgba(0,0,0,0.6), 
-    0 0 0 10px #1e293b, /* 最外层黑边 */
-    inset 0 0 20px rgba(0,0,0,0.8);
+    0 25px 40px rgba(0,0,0,0.6), 
+    0 0 0 8px #1e293b, 
+    inset 0 0 20px rgba(0,0,0,0.9);
   background: #0f172a;
+  /* 旋转动画与基础样式已在 computed 中动态注入 */
 }
 
-/* 外圈金属包边 */
-.wheel-outer-rim {
-  position: absolute;
-  inset: 10px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #e2e8f0 0%, #64748b 50%, #e2e8f0 100%);
-  box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
-  z-index: 1;
-}
-
-/* 数字环 */
+/* 动态区块背景（利用动态 conic-gradient） */
 .wheel-number-ring {
   position: absolute;
-  inset: 20px;
+  inset: 6px;
   border-radius: 50%;
-  z-index: 2;
-  /* 用 conic-gradient 模拟红黑相间的扇形区块 */
-  background: conic-gradient(
-    #16a34a 0deg 9.7deg,    /* 0 的绿色 */
-    #dc2626 9.7deg 29deg, #0f172a 29deg 48deg, 
-    #dc2626 48deg 68deg, #0f172a 68deg 87deg, 
-    #dc2626 87deg 107deg, #0f172a 107deg 126deg,
-    #dc2626 126deg 146deg, #0f172a 146deg 165deg,
-    #dc2626 165deg 185deg, #0f172a 185deg 204deg,
-    #dc2626 204deg 224deg, #0f172a 224deg 243deg,
-    #dc2626 243deg 263deg, #0f172a 263deg 282deg,
-    #dc2626 282deg 302deg, #0f172a 302deg 321deg,
-    #dc2626 321deg 341deg, #0f172a 341deg 360deg
-  );
   box-shadow: inset 0 0 15px rgba(0,0,0,0.8);
+  /* background 属性由 Vue 绑定注入 */
 }
 
-/* 数字占位 (这里仅做视觉模拟，利用绝对定位把数字排成一圈) */
-.num {
+/* 数字标签 */
+.num-label {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 20px;
+  width: 60px;
   height: 20px;
-  margin: -10px;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 900;
+  margin: -10px -30px;
   display: flex;
   justify-content: center;
   align-items: center;
-  font-family: sans-serif;
-}
-.num-0 { transform: rotate(0deg) translateY(-95px) rotate(0deg); }
-.num-32 { transform: rotate(20deg) translateY(-95px) rotate(-20deg); }
-.num-15 { transform: rotate(40deg) translateY(-95px) rotate(-40deg); }
-.num-19 { transform: rotate(60deg) translateY(-95px) rotate(-60deg); }
-.num-4 { transform: rotate(80deg) translateY(-95px) rotate(-80deg); }
-.num-21 { transform: rotate(100deg) translateY(-95px) rotate(-100deg); }
-.num-2 { transform: rotate(120deg) translateY(-95px) rotate(-120deg); }
-.num-25 { transform: rotate(140deg) translateY(-95px) rotate(-140deg); }
-.num-17 { transform: rotate(160deg) translateY(-95px) rotate(-160deg); }
-.num-34 { transform: rotate(180deg) translateY(-95px) rotate(-180deg); }
-
-/* 旋转时的残影模糊 */
-.spin-blur-ring {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: conic-gradient(from 0deg, transparent, rgba(255,255,255,0.3), transparent, rgba(255,255,255,0.3), transparent);
-  animation: blur-spin 0.5s linear infinite;
-}
-@keyframes blur-spin {
-  100% { transform: rotate(360deg); }
+  color: #fff;
+  font-size: 14px;
+  font-weight: 900;
+  font-family: monospace, sans-serif;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.9);
+  z-index: 5;
+  /* 具体旋转位置由 getLabelStyle 动态注入 */
 }
 
 /* 中心固定塔楼 */
 .wheel-center {
   position: absolute;
-  inset: 55px;
+  inset: 60px;
   border-radius: 50%;
   background: radial-gradient(circle at 40% 30%, #334155 0%, #0f172a 80%);
   box-shadow: 
     inset 0 5px 15px rgba(255,255,255,0.2), 
     inset 0 -5px 20px rgba(0,0,0,0.8),
     0 0 20px rgba(0,0,0,0.9);
-  z-index: 3;
+  z-index: 10;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -1090,7 +1134,7 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 
 .center-text {
   color: #fbbf24;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 900;
   letter-spacing: 2px;
   text-shadow: 0 2px 4px rgba(0,0,0,0.8);
@@ -1100,8 +1144,8 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 /* 中心的十字金属塔 */
 .center-cross {
   position: relative;
-  width: 60px;
-  height: 60px;
+  width: 50px;
+  height: 50px;
   margin-top: 5px;
 }
 .cross-bar {
@@ -1119,25 +1163,7 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
   transform: translate(-50%, -50%) rotate(90deg);
 }
 
-/* 动画控制 */
-.is-spinning { 
-  /* 模拟赌场轮盘高速旋转 */
-  animation: spin-reel 0.2s linear infinite; 
-}
-.is-stopped { 
-  /* 停下时带有惯性慢慢停 */
-  animation: stop-reel 4s cubic-bezier(0.15, 0.9, 0.25, 1) forwards; 
-}
-
-@keyframes spin-reel { 
-  100% { transform: rotate(360deg); } 
-}
-@keyframes stop-reel { 
-  0% { transform: rotate(0deg); } 
-  100% { transform: rotate(1440deg); } /* 转四圈停下 */
-}
-
-/* 获胜金色光效 */
+/* 光效特效 */
 .win-glow {
   position: absolute;
   inset: -10px;
@@ -1151,8 +1177,7 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
   100% { transform: scale(1.1); opacity: 1; }
 }
 
-/* 掉落金额标签 */
-.roulette-prize { top: 15%; left: 50%; transform: translateX(-50%); animation-delay: 4s; z-index: 60; }
+.roulette-prize { top: 15%; left: 50%; transform: translateX(-50%); animation-delay: 4.5s; z-index: 60; }
 
 
 /* 寻宝 */
