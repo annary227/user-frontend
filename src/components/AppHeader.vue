@@ -28,19 +28,23 @@
       </div>
       
       <div class="user-area">
-        <div class="sound-icon">🔊</div>
-        
         <!-- 动态余额 -->
         <div class="balance-box">
           <span class="balance-label">残高</span>
           <span class="balance-amount">¥{{ userBalance.toLocaleString() }}</span>
         </div>
+
+        <!-- 🆕 私聊大厅入口 -->
+        <button class="chat-btn" @click="$router.push('/social')">
+          <span class="chat-icon">💬</span> 
+          <span class="chat-text">メッセージ</span>
+        </button>
         
         <!-- 入金 和 出金 -->
         <a href="https://lin.ee/OHAOimh" target="_blank" class="charge-btn deposit-btn" style="text-decoration: none;">入金</a>
         <button class="charge-btn withdraw-btn" @click="openWithdrawModal">出金</button>
 
-        <!-- 🆕 签到按钮 -->
+        <!-- 签到按钮 -->
         <button class="checkin-btn" @click="handleCheckIn" :disabled="isCheckedIn">
           {{ isCheckedIn ? 'チェックイン済み' : 'デイリーボーナス +50円' }}
         </button>
@@ -55,7 +59,7 @@
       </div>
     </div>
 
-    <!-- 🆕 纯原生出金弹窗 -->
+    <!-- 纯原生出金弹窗 -->
     <div v-if="withdrawVisible" class="custom-modal-overlay" @click.self="withdrawVisible = false">
       <div class="custom-modal">
         <h3>出金申請</h3>
@@ -196,12 +200,10 @@ const openWithdrawModal = () => {
 };
 
 const submitWithdraw = async () => {
-  // 🆕 校验 1：金额不能为空，且最低 100
   if (!withdrawAmount.value || Number(withdrawAmount.value) < 100) {
     return ElMessage.warning('出金金額は 100 円以上を入力してください');
   }
 
-  // 🆕 校验 2：金额不能大于当前余额（这就是导致 400 报错的元凶！）
   if (Number(withdrawAmount.value) > userBalance.value) {
     return ElMessage.error('残高が不足しています');
   }
@@ -212,7 +214,6 @@ const submitWithdraw = async () => {
     if (!storedUser) return router.push('/login');
     const user = JSON.parse(storedUser);
 
-    // 传数字类型过去
     const res = await request.post(`/user/withdraw/${user.id}`, { 
       amount: Number(withdrawAmount.value) 
     });
@@ -220,12 +221,10 @@ const submitWithdraw = async () => {
     if (res.data.success) {
       ElMessage.success(res.data.message || '出金申請を受け付けました');
       withdrawVisible.value = false;
-      // 成功后刷新最新余额
       const infoRes = await request.get(`/user/info/${user.id}`);
       if (infoRes.data.success) userBalance.value = infoRes.data.user.balance;
     }
   } catch (error) {
-    // 🆕 拦截后端报错并翻译
     let errorMsg = error.response?.data?.error || '出金申請に失敗しました';
     if (errorMsg.includes('残高') || errorMsg.includes('余额')) {
       errorMsg = '残高が不足しています';
@@ -302,10 +301,16 @@ onUnmounted(() => {
 .online-badge { font-size: 10px; background: #fce4e8; color: #e83862; padding: 2px 6px; border-radius: 4px; }
 .logo-text p { margin: 3px 0 0; font-size: 12px; color: #888; }
 .user-area { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.sound-icon { background: #f0f0f0; width: 35px; height: 35px; border-radius: 50%; display: flex; justify-content: center; align-items: center; color: #666; cursor: pointer; flex-shrink: 0; }
+
 .balance-box { background: #0f172a; color: #fff; padding: 8px 15px; border-radius: 25px; display: flex; align-items: center; gap: 10px; font-size: 14px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.2); flex-shrink: 0; }
 .balance-label { font-size: 10px; color: #94a3b8; }
 .balance-amount { font-weight: 900; font-size: 16px; color: #38bdf8; font-family: monospace; }
+
+/* 🆕 私聊按钮样式 */
+.chat-btn { background: #3b82f6; color: white; border: none; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 5px; transition: 0.2s; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3); flex-shrink: 0; }
+.chat-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(59, 130, 246, 0.5); background: #2563eb; }
+.chat-icon { font-size: 16px; }
+
 .charge-btn { border: none; padding: 8px 20px; border-radius: 20px; font-weight: 900; cursor: pointer; transition: 0.2s; white-space: nowrap; font-size: 14px; }
 .deposit-btn { background: linear-gradient(180deg, #10b981, #059669); color: white; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3); }
 .withdraw-btn { background: linear-gradient(180deg, #ffcc00, #ffb300); color: #333; box-shadow: 0 4px 10px rgba(255, 204, 0, 0.3); }
@@ -328,6 +333,7 @@ onUnmounted(() => {
 .btn-cancel { background: #f1f5f9; color: #64748b; }
 .btn-confirm { background: #3b82f6; color: #fff; }
 .btn-confirm:disabled { background: #94a3b8; cursor: not-allowed; }
+
 @media (max-width: 768px) {
   .ticker-label { padding: 0 10px; font-size: 12px; clip-path: none; }
   .ticker-content { padding-left: 10px; font-size: 12px; }
@@ -338,9 +344,13 @@ onUnmounted(() => {
   .logo-text p { display: none; }
   .logo-text h1 { font-size: 18px; }
   .user-area { width: 100%; justify-content: space-between; gap: 8px; }
-  .sound-icon { display: none; }
   .balance-box { padding: 6px 12px; flex: 1; justify-content: center; }
   .balance-amount { font-size: 15px; }
+  
+  /* 🆕 手机端隐藏文字只留图标 */
+  .chat-text { display: none; }
+  .chat-btn { padding: 8px 12px; }
+  
   .charge-btn { padding: 6px 12px; font-size: 13px; }
   .checkin-btn { padding: 6px 12px; font-size: 13px; }
   .user-profile { margin-left: 0; padding-left: 10px; border-left: none; gap: 8px; }

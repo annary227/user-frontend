@@ -7,6 +7,8 @@ import Register from '../views/Register.vue';
 import History from '../views/History.vue';
 // 🆕 引入合规页面
 import CommerceDisclosure from '../views/CommerceDisclosure.vue';
+// 🆕 引入社交/私聊页面
+import SocialChat from '../views/SocialChat.vue';
 
 const router = createRouter({
     history: createWebHistory(),
@@ -18,7 +20,9 @@ const router = createRouter({
         { path: '/profile', component: Profile },
         { path: '/history', component: History },
         // 🆕 添加合规页面路由
-        { path: '/legal/commerce', component: CommerceDisclosure }
+        { path: '/legal/commerce', component: CommerceDisclosure },
+        // 🆕 添加社交/私聊路由
+        { path: '/social', component: SocialChat }
     ]
 });
 

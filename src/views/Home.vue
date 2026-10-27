@@ -76,7 +76,12 @@
       </div>
     </main>
 
-    <!-- 🆕 悬浮音乐开关 -->
+    <!-- 🆕 悬浮私聊大厅按钮 -->
+    <div class="social-toggle" @click="$router.push('/social')">
+      <div class="social-inner">💬</div>
+    </div>
+
+    <!-- 悬浮音乐开关 -->
     <div class="music-toggle" @click="toggleMusic">
       <div class="music-inner" :class="{ 'is-playing': isPlaying }">
         {{ isPlaying ? '🔊' : '🔇' }}
@@ -84,7 +89,7 @@
       <!-- 播放时的呼吸外圈 -->
       <div v-if="isPlaying" class="pulse-ring"></div>
       
-      <!-- 🆕 播放本地音乐 -->
+      <!-- 播放本地音乐 -->
       <audio ref="audioPlayer" loop>
         <source src="/bgm.mp3" type="audio/mpeg" />
       </audio>
@@ -101,7 +106,7 @@ import AppHeader from '../components/AppHeader.vue';
 
 const router = useRouter();
 const records = ref([]);
-const userBalance = ref(0); // 🆕 用于承接首页余额并传给抽奖页
+const userBalance = ref(0);
 
 // ==========================================
 // 🆕 游戏厅纯音乐系统
@@ -159,7 +164,6 @@ onMounted(async () => {
   
   const user = JSON.parse(storedUser);
   
-  // 🆕 核心：在首页就请求最新的余额，这样点击跳转时就能传给抽奖页
   try {
     const infoRes = await request.get(`/user/info/${user.id}`);
     if (infoRes.data.success) {
@@ -215,6 +219,42 @@ onMounted(async () => {
 .win-text { color: #e83862; font-weight: bold; }
 .lose-text { color: #999; }
 .history-empty { text-align: center; padding: 40px; color: #aaa; font-size: 14px; }
+
+/* =========================================
+   🆕 悬浮私聊大厅按钮
+   ========================================= */
+.social-toggle {
+  position: fixed;
+  bottom: 105px; /* 放在音乐按钮上方 */
+  right: 30px;
+  width: 60px;
+  height: 60px;
+  background: #3b82f6; /* 科技蓝，区别于音乐的红色 */
+  border: 1px solid #60a5fa;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
+  z-index: 999;
+  transition: all 0.3s;
+}
+
+.social-toggle:hover {
+  transform: scale(1.1) translateY(-5px);
+  box-shadow: 0 15px 30px rgba(59, 130, 246, 0.5);
+  border-color: #93c5fd;
+}
+
+.social-inner {
+  font-size: 26px;
+  transition: all 0.3s;
+}
+
+.social-toggle:hover .social-inner {
+  animation: bounce 0.8s infinite alternate;
+}
 
 /* =========================================
    🆕 悬浮游戏厅音乐系统
@@ -287,6 +327,9 @@ onMounted(async () => {
   .history-row span::before { content: attr(data-label); color: #94a3b8; font-size: 13px; margin-right: 15px; }
   .history-row span[data-label="当せん結果"] { font-weight: bold; font-size: 15px; border-top: 1px dashed #e2e8f0; padding-top: 10px; margin-top: 5px; }
   
+  /* 🆕 手机端调整按钮位置，避免遮挡 */
+  .social-toggle { bottom: 85px; right: 20px; width: 50px; height: 50px; }
+  .social-inner { font-size: 22px; }
   .music-toggle { bottom: 20px; right: 20px; width: 50px; height: 50px; }
   .music-inner { font-size: 22px; }
 }
