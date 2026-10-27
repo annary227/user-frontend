@@ -28,7 +28,6 @@
 
     <!-- 核心机台 -->
     <div class="stage">
-      <!-- 🆕 机台增加中奖发光特效 -->
       <div class="machine-body" :class="{ 'is-win-glow': !isDrawing && result && result.value > 0 }">
         
         <!-- 3D 核心舞台 -->
@@ -37,45 +36,66 @@
           <!-- 1. 金魚すくい -->
           <div v-if="gameType === 'fish'" class="fish-bowl">
             <div class="water" :class="{ 'is-rippling': isDrawing }"></div>
-            <div class="poi" :class="{ 'is-scooping': isDrawing }">
+            <div class="fish-entity" :class="{ 'is-swimming': !isDrawing, 'is-caught': !isDrawing && result && result.value > 0, 'is-escaped': !isDrawing && result && result.value === 0 }">🐟</div>
+            <div class="poi" :class="{ 'is-scooping': isDrawing, 'is-broken': !isDrawing && result && result.value === 0 }">
                {{ (!isDrawing && result && result.value === 0) ? '🕸️' : '🥅' }}
             </div>
-            <div class="jump-fish" v-if="!isDrawing && result && result.value > 0">🐟</div>
+            <div class="splash-effect" v-if="!isDrawing && result && result.value > 0">💦</div>
+            <div class="prize-tag fish-prize" v-if="!isDrawing && result && result.value > 0">+ ¥{{ result.value.toLocaleString() }}</div>
           </div>
 
-          <!-- 2. 飞镖 -->
+          <!-- 2. 飞镖（击中后弹出标签） -->
           <div v-else-if="gameType === 'dart'" class="dart-board">
             <div class="board-rings"></div>
-            <div class="dart" :class="{ 'is-thrown': isDrawing, 'is-bullseye': !isDrawing && result && result.value > 0 }">🎯</div>
+            <div class="dart" :class="{ 'is-thrown': isDrawing, 'is-hit': !isDrawing && result }">
+              🎯
+            </div>
+            <!-- 命中后弹出的标签 -->
+            <div class="prize-tag dart-prize" :class="result && result.value > 0 ? 'is-win' : 'is-lose'" v-if="!isDrawing && result">
+              <span v-if="result.value > 0">+ ¥{{ result.value.toLocaleString() }}</span>
+              <span v-else>MISS</span>
+            </div>
           </div>
 
           <!-- 3. 抓娃娃 -->
           <div v-else-if="gameType === 'crane'" class="crane-scene">
             <div class="crane-rail"></div>
-            <div class="claw-3d" :class="{ 'is-dropping': isDrawing }">
+            <div class="claw-3d" :class="{ 'is-dropping': isDrawing, 'is-grabbing': !isDrawing && result && result.value > 0 }">
               <div class="claw-wire"></div>
-              <div class="claw-body">
-                <div class="claw-pincer left"></div>
-                <div class="claw-pincer right"></div>
+              <div class="claw-motor"></div>
+              <div class="claw-pincers">
+                <div class="pincer left"></div>
+                <div class="pincer right"></div>
               </div>
             </div>
             <div class="prize-bed" :class="{ 'is-caught': !isDrawing && result && result.value > 0 }">
               <span class="prize-3d">{{ gameIcon }}</span>
+            </div>
+            <div class="coin-drop" v-if="!isDrawing && result && result.value > 0">
+              <div class="coin">+¥{{ result.value }}</div>
             </div>
           </div>
 
           <!-- 4. 扭蛋 -->
           <div v-else-if="gameType === 'gacha'" class="gacha-machine">
             <div class="gacha-glass" :class="{ 'is-spinning': isDrawing }">
-              <div class="capsule cap-1"></div>
-              <div class="capsule cap-2"></div>
-              <div class="capsule cap-3"></div>
+              <div class="capsule cap-1"></div><div class="capsule cap-2"></div><div class="capsule cap-3"></div><div class="capsule cap-4"></div>
             </div>
-            <div class="gacha-knob" :class="{ 'is-turning': isDrawing }">⚙️</div>
-            <div class="golden-capsule" v-if="!isDrawing && result && result.value > 0">🥚</div>
+            <div class="gacha-base">
+              <div class="gacha-knob" :class="{ 'is-turning': isDrawing }">⚙️</div>
+              <div class="gacha-exit"></div>
+            </div>
+            <div class="capsule-drop-group" v-if="!isDrawing && result">
+              <div class="half-capsule top-half"></div>
+              <div class="half-capsule bottom-half"></div>
+              <div class="prize-paper" :class="result.value > 0 ? 'is-win' : 'is-lose'">
+                <span v-if="result.value > 0">+ ¥{{ result.value.toLocaleString() }}</span>
+                <span v-else>残念...</span>
+              </div>
+            </div>
           </div>
 
-          <!-- 5. 刮刮乐 -->
+          <!-- 5. 刮刮乐（刮开后弹出纸条） -->
           <div v-else-if="gameType === 'scratch'" class="scratch-scene">
              <div class="scratch-card" :class="{ 'is-scratched': !isDrawing && result }">
                 <div class="scratch-cover" :class="{ 'is-scratching': isDrawing }"></div>
@@ -83,25 +103,39 @@
                   {{ (!isDrawing && result) ? (result.value > 0 ? '🏆' : '💧') : '🎁' }}
                 </div>
              </div>
+             <!-- 刮出后飘出的金额纸条 -->
+             <div class="prize-tag scratch-prize" :class="result && result.value > 0 ? 'is-win' : 'is-lose'" v-if="!isDrawing && result">
+                <span v-if="result.value > 0">+ ¥{{ result.value.toLocaleString() }}</span>
+                <span v-else>ハズレ</span>
+             </div>
           </div>
 
-          <!-- 6. 轮盘 -->
+          <!-- 6. 轮盘（球停下后弹出金额牌） -->
           <div v-else-if="gameType === 'roulette'" class="roulette-scene">
             <div class="wheel-3d" :class="{ 'is-spinning': isDrawing, 'is-stopped': !isDrawing && result }">
               <div class="wheel-rim"></div>
               <div class="wheel-inner"></div>
             </div>
             <div class="ball-3d" :class="{ 'is-spinning': isDrawing }"></div>
+            <!-- 弹出金额 -->
+            <div class="prize-tag roulette-prize" :class="result && result.value > 0 ? 'is-win' : 'is-lose'" v-if="!isDrawing && result">
+              <span v-if="result.value > 0">+ ¥{{ result.value.toLocaleString() }}</span>
+              <span v-else>MISS</span>
+            </div>
           </div>
 
-          <!-- 7. 寻宝 -->
+          <!-- 7. 寻宝（开箱后金币喷泉） -->
           <div v-else-if="gameType === 'treasure'" class="treasure-chest">
             <div class="chest-lid" :class="{ 'is-opening': !isDrawing && result, 'is-shaking': isDrawing }"></div>
             <div class="chest-base" :class="{ 'is-shaking': isDrawing }"></div>
-            <div class="sparkle" v-if="!isDrawing && result && result.value > 0">✨</div>
+            <!-- 喷出的金币 -->
+            <div class="golden-fountain" v-if="!isDrawing && result && result.value > 0">
+              <div class="coin c1">¥</div><div class="coin c2">¥</div>
+              <div class="coin main-coin">+ ¥{{ result.value.toLocaleString() }}</div>
+            </div>
           </div>
 
-          <!-- 8. 老虎机 -->
+          <!-- 8. 老虎机（中奖掉金币） -->
           <div v-else-if="gameType === 'slot'" class="slot-machine-3d">
             <div class="reel-3d" :class="{ 'is-spinning': isDrawing }">
               <div class="slot-face" :class="{ 'is-win': !isDrawing && result && result.value > 0 }">
@@ -119,6 +153,10 @@
               </div>
             </div>
             <div class="machine-glass"></div>
+            <!-- 底部掉落硬币 -->
+            <div class="slot-coin-drop" v-if="!isDrawing && result && result.value > 0">
+              <div class="slot-coin">+ ¥{{ result.value.toLocaleString() }}</div>
+            </div>
           </div>
 
         </div>
@@ -142,7 +180,6 @@
         @click="checkAuth" 
         :disabled="isDrawing"
       >
-        <!-- 🆕 修改了这里的货币符号，与残高保持一致 -->
         <span class="btn-text">{{ isDrawing ? '抽選中...' : `¥${gameCost} で挑戦する` }}</span>
         <span class="btn-shine" v-if="!isDrawing"></span>
       </button>
@@ -172,26 +209,18 @@
             <div class="brand">QUICK ONE OFFICIAL</div>
             <div class="status">{{ result.value > 0 ? '当せん' : 'ハズレ' }}</div>
           </div>
-          
           <div class="ticket-content">
             <div class="result-icon">{{ result.value > 0 ? '🏆' : '💧' }}</div>
             <h2>{{ result.value > 0 ? 'おめでとうございます！' : '残念でした' }}</h2>
-            
-            <div class="prize-name">
-              {{ result.prize === '不中奖' ? 'ハズレ' : result.prize }}
-            </div>
-            
+            <div class="prize-name">{{ result.prize === '不中奖' ? 'ハズレ' : result.prize }}</div>
             <div class="prize-value" v-if="result.value > 0">+ ¥{{ result.value.toLocaleString() }}</div>
-            
             <div class="ticket-divider"></div>
-            
             <div class="ticket-info">
               <div class="row"><span>抽選日時</span><strong>{{ currentTime }}</strong></div>
               <div class="row"><span>消費コイン</span><strong>¥{{ gameCost }}</strong></div>
               <div class="row"><span>残高</span><strong>¥{{ result.remainingBalance.toLocaleString() }}</strong></div>
             </div>
           </div>
-          
           <div class="ticket-bottom">
             <div class="barcode"></div>
             <button class="btn-close" @click="closeResult">画面を閉じる</button>
@@ -206,7 +235,6 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import request from '../api/request';
-// 🆕 引入 Element Plus 弹窗组件
 import { ElMessage } from 'element-plus';
 
 const route = useRoute();
@@ -235,7 +263,6 @@ const gameSettings = {
 };
 
 const currentColor = computed(() => gameSettings[gameName]?.color || '#0ea5e9');
-const currentBg = computed(() => gameSettings[gameName]?.bg || '#f2f5f8');
 const gameDesc = computed(() => gameSettings[gameName]?.desc || 'ポイを破らずに金魚を救え！');
 
 const showConfirm = ref(false);
@@ -295,10 +322,7 @@ onMounted(async () => {
   if (!storedUser) return router.push('/login');
   const user = JSON.parse(storedUser);
   userId.value = user.id;
-  
-  if (route.query.balance) {
-    currentBalance.value = Number(route.query.balance);
-  }
+  if (route.query.balance) currentBalance.value = Number(route.query.balance);
 
   try {
     const infoRes = await request.get(`/user/info/${user.id}`);
@@ -317,7 +341,6 @@ onUnmounted(() => {
   if (audioCtx) audioCtx.close();
 });
 
-// 🆕 优化：前置拦截余额不足，提升体验
 const checkAuth = () => {
   if (currentBalance.value < gameCost) {
     ElMessage.warning('残高が不足しています。入金してください。');
@@ -345,12 +368,12 @@ const executeDraw = async () => {
         if (spinInterval) clearInterval(spinInterval);
         if (result.value.value > 0) playWinSound(); else playLoseSound();
         
+        // 延迟弹出结算票根，让机台本身的掉落动画播完
         setTimeout(() => {
           showTicket.value = true;
-        }, 1200);
+        }, 1800); 
       }
     } catch (error) {
-      // 🆕 兜底拦截：替换原生 alert，使用 Element Plus 弹窗，提示纯正日文
       ElMessage.error(error.response?.data?.error || '通信エラーが発生しました。');
       if (spinInterval) clearInterval(spinInterval);
     } finally {
@@ -359,80 +382,34 @@ const executeDraw = async () => {
   }, 3000);
 };
 
-const closeResult = () => { 
-  result.value = null; 
-  showTicket.value = false;
-};
+const closeResult = () => { result.value = null; showTicket.value = false; };
 </script>
 
 <style scoped>
-/* ================= 🆕 高配 3D 星空与极光流体背景 ================= */
-.room-container { 
-  position: relative; min-height: 100vh; display: flex; flex-direction: column; overflow: hidden; 
-  background: #050508; 
-  font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
-}
-
+/* 基础框架与背景 (和之前相同) */
+.room-container { position: relative; min-height: 100vh; display: flex; flex-direction: column; overflow: hidden; background: #050508; font-family: 'Noto Sans JP', sans-serif; }
 .hologram-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
-
-.aurora {
-  position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.5; mix-blend-mode: screen;
-  animation: aurora-flow 15s infinite alternate ease-in-out;
-}
+.aurora { position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.5; mix-blend-mode: screen; animation: aurora-flow 15s infinite alternate ease-in-out; }
 .aurora-1 { width: 800px; height: 800px; background: #e83862; top: -300px; left: -200px; }
 .aurora-2 { width: 900px; height: 900px; background: #0ea5e9; bottom: -300px; right: -200px; animation-delay: -5s; }
 .aurora-3 { width: 600px; height: 600px; background: #8b5cf6; top: 30%; left: 40%; animation-delay: -10s; }
-
-.theme-slot .aurora-1 { background: #f39c12; }
-.theme-slot .aurora-2 { background: #e84118; }
-.theme-crane .aurora-1 { background: #10b981; }
-.theme-crane .aurora-2 { background: #0abde3; }
-.theme-roulette .aurora-1 { background: #e84118; }
-.theme-roulette .aurora-2 { background: #ff4757; }
-.theme-gacha .aurora-1 { background: #8b5cf6; }
-.theme-gacha .aurora-2 { background: #d946ef; }
-.theme-treasure .aurora-1 { background: #eab308; }
-.theme-treasure .aurora-2 { background: #ca8a04; }
-.theme-fish .aurora-1 { background: #0ea5e9; }
-.theme-fish .aurora-2 { background: #2dd4bf; }
-.theme-dart .aurora-1 { background: #ef4444; }
-.theme-dart .aurora-2 { background: #f97316; }
-.theme-scratch .aurora-1 { background: #f59e0b; }
-.theme-scratch .aurora-2 { background: #eab308; }
-
-@keyframes aurora-flow {
-  0% { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(100px, 100px) scale(1.2); }
-}
+.theme-slot .aurora-1 { background: #f39c12; } .theme-slot .aurora-2 { background: #e84118; }
+.theme-crane .aurora-1 { background: #10b981; } .theme-crane .aurora-2 { background: #0abde3; }
+.theme-roulette .aurora-1 { background: #e84118; } .theme-roulette .aurora-2 { background: #ff4757; }
+.theme-gacha .aurora-1 { background: #8b5cf6; } .theme-gacha .aurora-2 { background: #d946ef; }
+.theme-treasure .aurora-1 { background: #eab308; } .theme-treasure .aurora-2 { background: #ca8a04; }
+.theme-fish .aurora-1 { background: #0ea5e9; } .theme-fish .aurora-2 { background: #2dd4bf; }
+.theme-dart .aurora-1 { background: #ef4444; } .theme-dart .aurora-2 { background: #f97316; }
+.theme-scratch .aurora-1 { background: #f59e0b; } .theme-scratch .aurora-2 { background: #eab308; }
+@keyframes aurora-flow { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(100px, 100px) scale(1.2); } }
 
 .stars-container { position: absolute; inset: 0; perspective: 800px; overflow: hidden; }
-.star-group {
-  position: absolute; inset: -50%;
-  background-image: radial-gradient(1.5px 1.5px at 20px 30px, #fff, transparent),
-                    radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.8), transparent),
-                    radial-gradient(1px 1px at 90px 40px, #fff, transparent),
-                    radial-gradient(1.5px 1.5px at 130px 80px, rgba(255,255,255,0.6), transparent);
-  background-repeat: repeat; background-size: 200px 200px;
-  animation: stars-move 20s linear infinite;
-}
-.star-1 { animation-duration: 30s; opacity: 0.6; }
-.star-2 { animation-duration: 20s; background-size: 300px 300px; opacity: 0.8; }
-.star-3 { animation-duration: 10s; background-size: 150px 150px; opacity: 1; }
-
-@keyframes stars-move {
-  0% { transform: translateZ(0) translateY(0); }
-  100% { transform: translateZ(200px) translateY(-200px); }
-}
-
-.floor-reflection {
-  position: absolute; bottom: -10%; left: 0; width: 100%; height: 300px;
-  background: linear-gradient(to top, rgba(255,255,255,0.05), transparent);
-  transform: perspective(500px) rotateX(70deg); transform-origin: bottom;
-}
+.star-group { position: absolute; inset: -50%; background-image: radial-gradient(1.5px 1.5px at 20px 30px, #fff, transparent), radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.8), transparent), radial-gradient(1px 1px at 90px 40px, #fff, transparent); background-repeat: repeat; background-size: 200px 200px; animation: stars-move 20s linear infinite; }
+.star-1 { animation-duration: 30s; opacity: 0.6; } .star-2 { animation-duration: 20s; background-size: 300px 300px; opacity: 0.8; } .star-3 { animation-duration: 10s; background-size: 150px 150px; opacity: 1; }
+@keyframes stars-move { 0% { transform: translateZ(0) translateY(0); } 100% { transform: translateZ(200px) translateY(-200px); } }
+.floor-reflection { position: absolute; bottom: -10%; left: 0; width: 100%; height: 300px; background: linear-gradient(to top, rgba(255,255,255,0.05), transparent); transform: perspective(500px) rotateX(70deg); transform-origin: bottom; }
 
 .room-header, .stage { position: relative; z-index: 10; }
-
-/* ================= 基础组件样式 ================= */
 .floating-back-btn { position: fixed; top: 60px; left: 20px; z-index: 999; background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: bold; color: white; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: all 0.2s; }
 .floating-back-btn:hover { background: rgba(255,255,255,0.2); transform: translateY(-2px); }
 .room-header { padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; color: white; }
@@ -441,70 +418,110 @@ const closeResult = () => {
 .stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
 .machine-body { background: #ffffff; border-radius: 30px; padding: 20px; box-shadow: 0 30px 60px rgba(0,0,0,0.5), 0 0 40px rgba(255,255,255,0.1); margin-bottom: 40px; transition: all 0.5s; }
 .machine-body.is-win-glow { box-shadow: 0 30px 60px rgba(0,0,0,0.5), 0 0 80px rgba(255, 215, 0, 0.6); transform: scale(1.02); }
-
 .game-stage-3d { width: 320px; height: 320px; background: radial-gradient(circle at center, #ffffff 0%, #e2e8f0 100%); border-radius: 20px; position: relative; overflow: hidden; box-shadow: inset 0 15px 30px rgba(0,0,0,0.1); display: flex; justify-content: center; align-items: center; perspective: 1000px; }
 
-/* ================= 1. 金鱼すくい ================= */
+/* ================= 通用掉落金额标签 ================= */
+.prize-tag {
+  position: absolute;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-weight: 900;
+  font-size: 18px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+  z-index: 50;
+  animation: pop-out 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+.prize-tag.is-win { background: linear-gradient(135deg, #fde047, #eab308); color: #b45309; border: 2px solid #fff; }
+.prize-tag.is-lose { background: #64748b; color: #fff; border: 2px solid #475569; }
+@keyframes pop-out { 0% { transform: scale(0) translateY(20px); opacity: 0; } 100% { transform: scale(1) translateY(0); opacity: 1; } }
+
+/* ================= 1. 金鱼机 ================= */
 .fish-bowl { width: 260px; height: 260px; border-radius: 50%; background: radial-gradient(circle at 50% 20%, #bae6fd, #38bdf8); position: relative; box-shadow: inset 0 20px 40px rgba(0,0,0,0.2), 0 10px 20px rgba(0,0,0,0.1); overflow: hidden; border: 4px solid #e2e8f0; }
 .water { position: absolute; bottom: 0; width: 100%; height: 70%; background: rgba(255,255,255,0.2); transition: 0.3s; }
 .water.is-rippling { animation: ripple 0.3s linear infinite; }
 @keyframes ripple { 0%, 100% { transform: scaleY(1); opacity: 0.2; } 50% { transform: scaleY(1.1); opacity: 0.4; } }
-.poi { position: absolute; top: 20%; left: 50%; transform: translateX(-50%); font-size: 60px; transition: 0.5s; }
+.fish-entity { position: absolute; bottom: 20px; left: 20%; font-size: 40px; transition: 0.3s; z-index: 2; }
+.fish-entity.is-swimming { animation: swim 3s infinite alternate ease-in-out; }
+@keyframes swim { 0% { transform: translate(0, 0) scaleX(1); } 100% { transform: translate(100px, -20px) scaleX(-1); } }
+.fish-entity.is-caught { animation: caught 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+@keyframes caught { 0% { bottom: 20px; left: 20%; } 100% { bottom: 140px; left: 50%; font-size: 60px; transform: translateX(-50%) rotate(15deg); } }
+.fish-entity.is-escaped { animation: escape 0.5s ease-in forwards; }
+@keyframes escape { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: translate(-50px, -50px) scale(0.5); } }
+.poi { position: absolute; top: 20%; left: 50%; transform: translateX(-50%); font-size: 60px; transition: 0.5s; z-index: 5; }
 .poi.is-scooping { animation: scoop 1.5s infinite alternate ease-in-out; }
-@keyframes scoop { 0% { top: 20%; left: 50%; transform: translateX(-50%) rotate(0); } 100% { top: 60%; left: 20%; transform: translateX(-50%) rotate(-30deg); } }
-.jump-fish { position: absolute; top: 10%; left: 50%; transform: translateX(-50%); font-size: 50px; animation: jump 1s infinite alternate; }
-@keyframes jump { 0% { top: 10%; } 100% { top: 0%; } }
+@keyframes scoop { 0% { top: 20%; left: 50%; transform: translateX(-50%) rotate(0); } 100% { top: 60%; left: 40%; transform: translateX(-50%) rotate(-30deg); } }
+.poi.is-broken { top: 60%; left: 40%; transform: translateX(-50%) rotate(-30deg); opacity: 0.6; }
+.splash-effect { position: absolute; bottom: 140px; left: 50%; transform: translateX(-50%); font-size: 50px; animation: splash 0.8s ease-out forwards; }
+@keyframes splash { 0% { transform: translate(-50%, 0) scale(0.5); opacity: 1; } 100% { transform: translate(-50%, -60px) scale(1.5); opacity: 0; } }
+.fish-prize { top: 30%; left: 50%; transform: translateX(-50%); animation-delay: 0.8s; }
 
 /* ================= 2. 飞镖 ================= */
 .dart-board { width: 220px; height: 220px; border-radius: 50%; background: conic-gradient(#ef4444 0deg 20deg, #f1f5f9 20deg 40deg, #3b82f6 40deg 60deg, #f1f5f9 60deg 80deg, #ef4444 80deg 100deg, #f1f5f9 100deg 120deg, #3b82f6 120deg 140deg, #f1f5f9 140deg 160deg, #ef4444 160deg 180deg, #f1f5f9 180deg 200deg, #3b82f6 200deg 220deg, #f1f5f9 220deg 240deg, #ef4444 240deg 260deg, #f1f5f9 260deg 280deg, #3b82f6 280deg 300deg, #f1f5f9 300deg 320deg, #ef4444 320deg 340deg, #f1f5f9 340deg 360deg); position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.2); border: 8px solid #334155; }
 .board-rings { position: absolute; inset: 20%; border-radius: 50%; border: 4px solid #334155; background: #fff; }
 .dart { position: absolute; top: -20%; left: 50%; font-size: 40px; transform: translateX(-50%); transition: 0.3s; }
-.dart.is-thrown { animation: throw-dart 1.5s infinite alternate ease-in; }
-.dart.is-bullseye { top: 45%; animation: none; transform: translateX(-50%) scale(0.7); }
-@keyframes throw-dart { 0% { top: -20%; transform: translateX(-50%) scale(1); } 100% { top: 40%; transform: translateX(-50%) scale(0.8); } }
+.dart.is-thrown { animation: throw-dart 1s forwards ease-in; }
+.dart.is-hit { top: 45%; animation: none; transform: translateX(-50%) scale(0.8); }
+@keyframes throw-dart { 0% { top: -20%; transform: translateX(-50%) scale(1); } 100% { top: 45%; transform: translateX(-50%) scale(0.8); } }
+.dart-prize { top: 10%; left: 50%; transform: translateX(-50%); animation-delay: 1s; }
 
-/* ================= 3. 抓娃娃 ================= */
-.crane-scene { width: 100%; height: 100%; position: relative; }
+/* ================= 3. 抓娃娃机 ================= */
+.crane-scene { width: 100%; height: 100%; position: relative; perspective: 800px; }
 .crane-rail { position: absolute; top: 10%; width: 100%; height: 15px; background: linear-gradient(180deg, #94a3b8, #64748b); transform: rotateX(60deg); }
-.claw-3d { position: absolute; top: 10%; left: 50%; transform: translateX(-50%) translateZ(50px); transition: top 1.5s ease-in-out, transform 0.5s; transform-style: preserve-3d; }
-.claw-3d.is-dropping { top: 60%; }
-.claw-wire { width: 4px; height: 80px; background: #cbd5e1; margin: 0 auto; }
-.claw-body { width: 40px; height: 30px; background: #334155; border-radius: 5px; position: relative; margin: 0 auto; }
-.claw-pincer { width: 10px; height: 50px; background: #475569; position: absolute; top: 20px; border-radius: 5px; transition: transform 0.3s; }
-.claw-pincer.left { left: -5px; transform: rotate(15deg); }
-.claw-pincer.right { right: -5px; transform: rotate(-15deg); }
-.is-dropping .claw-pincer.left { transform: rotate(30deg); }
-.is-dropping .claw-pincer.right { transform: rotate(-30deg); }
-.prize-bed { position: absolute; bottom: 10%; width: 100%; text-align: center; transform: translateZ(-20px); transition: 0.5s; }
-.prize-bed.is-caught .prize-3d { opacity: 0; }
+.claw-3d { position: absolute; top: 10%; left: 50%; transform: translateX(-50%) translateZ(50px); transition: top 1.5s ease-in-out; transform-style: preserve-3d; display: flex; flex-direction: column; align-items: center; }
+.claw-3d.is-dropping { top: 50%; }
+.claw-3d.is-grabbing { animation: grab-up 1.5s ease-in-out forwards; animation-delay: 1s; }
+@keyframes grab-up { 0% { top: 50%; } 100% { top: 15%; } }
+.claw-wire { width: 4px; height: 70px; background: linear-gradient(90deg, #94a3b8, #e2e8f0, #94a3b8); }
+.claw-motor { width: 40px; height: 25px; background: linear-gradient(180deg, #cbd5e1, #475569); border-radius: 5px; box-shadow: 0 5px 10px rgba(0,0,0,0.3); margin-bottom: 5px; }
+.claw-pincers { position: relative; width: 50px; height: 40px; }
+.pincer { position: absolute; top: 0; width: 8px; height: 50px; background: linear-gradient(90deg, #64748b, #cbd5e1); border-radius: 4px; transition: transform 0.3s; transform-origin: top center; }
+.pincer.left { left: 10px; transform: rotate(20deg); }
+.pincer.right { right: 10px; transform: rotate(-20deg); }
+.claw-3d.is-grabbing .pincer.left { transform: rotate(0deg); }
+.claw-3d.is-grabbing .pincer.right { transform: rotate(0deg); }
+.prize-bed { position: absolute; bottom: 15%; width: 100%; text-align: center; transition: 0.5s; }
 .prize-3d { font-size: 80px; filter: drop-shadow(0 20px 10px rgba(0,0,0,0.4)); transition: transform 0.5s; }
-.is-dropping + .prize-bed .prize-3d { transform: translateY(-30px) scale(1.1); }
+.prize-bed.is-caught .prize-3d { animation: prize-fly 1s forwards; animation-delay: 1s; }
+@keyframes prize-fly { 0% { transform: scale(1); } 50% { transform: scale(0.8) translateY(-100px); opacity: 0; } 100% { transform: scale(0) translateY(-200px); opacity: 0; } }
+.coin-drop { position: absolute; bottom: 30%; left: 50%; transform: translateX(-50%); z-index: 20; }
+.coin { padding: 10px 20px; border-radius: 30px; background: radial-gradient(circle, #fde047, #ca8a04); font-size: 20px; font-weight: 900; color: #fff; box-shadow: 0 10px 20px rgba(0,0,0,0.5); animation: drop-coin 1s cubic-bezier(0.25, 1, 0.5, 1) forwards; animation-delay: 1.8s; opacity: 0; border: 4px dashed #fef08a; }
+@keyframes drop-coin { 0% { transform: translateY(-100px) scale(0.5); opacity: 0; } 60% { transform: translateY(0) scale(1.1); opacity: 1; } 80% { transform: translateY(-20px) scale(1); } 100% { transform: translateY(0) scale(1); opacity: 1; } }
 
 /* ================= 4. 扭蛋 ================= */
-.gacha-machine { width: 200px; height: 240px; background: #f1f5f9; border-radius: 20px; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.2); border: 4px solid #cbd5e1; display: flex; flex-direction: column; align-items: center; padding-top: 20px; }
-.gacha-glass { width: 160px; height: 140px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8), rgba(255,255,255,0.2)); box-shadow: inset 0 10px 20px rgba(0,0,0,0.1); position: relative; overflow: hidden; }
-.gacha-glass.is-spinning { animation: shake-gacha 0.2s infinite alternate; }
-@keyframes shake-gacha { 0% { transform: rotate(-5deg); } 100% { transform: rotate(5deg); } }
-.capsule { position: absolute; width: 30px; height: 30px; border-radius: 50%; background: #f43f5e; box-shadow: inset -5px -5px 10px rgba(0,0,0,0.2); }
-.cap-1 { bottom: 10px; left: 20px; background: #3b82f6; }
-.cap-2 { bottom: 30px; right: 30px; background: #f43f5e; }
-.cap-3 { bottom: 5px; left: 70px; background: #fbbf24; }
-.gacha-knob { font-size: 40px; margin-top: 20px; }
-.gacha-knob.is-turning { animation: turn-knob 0.5s infinite linear; }
+.gacha-machine { width: 200px; height: 260px; position: relative; display: flex; flex-direction: column; align-items: center; }
+.gacha-glass { width: 170px; height: 150px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9), rgba(255,255,255,0.3)); box-shadow: inset 0 15px 25px rgba(0,0,0,0.1), inset 0 -5px 15px rgba(0,0,0,0.05); position: relative; overflow: hidden; border: 4px solid #e2e8f0; z-index: 2; }
+.gacha-glass::after { content: ''; position: absolute; top: 10%; left: 20%; width: 30%; height: 30%; background: linear-gradient(135deg, rgba(255,255,255,0.8), transparent); border-radius: 50%; transform: rotate(-45deg); }
+.capsule { position: absolute; width: 28px; height: 28px; border-radius: 50%; box-shadow: inset -4px -4px 8px rgba(0,0,0,0.2); }
+.cap-1 { bottom: 10px; left: 20px; background: #3b82f6; } .cap-2 { bottom: 25px; right: 25px; background: #f43f5e; } .cap-3 { bottom: 45px; left: 60px; background: #fbbf24; } .cap-4 { bottom: 5px; left: 90px; background: #10b981; }
+.gacha-glass.is-spinning .capsule { animation: shake-ball 0.2s infinite alternate; }
+.gacha-glass.is-spinning .cap-1 { animation-delay: 0.1s; } .gacha-glass.is-spinning .cap-2 { animation-delay: 0.15s; }
+@keyframes shake-ball { 0% { transform: translate(0, 0); } 100% { transform: translate(5px, -5px); } }
+.gacha-base { width: 160px; height: 70px; background: linear-gradient(180deg, #f8fafc, #cbd5e1); border-radius: 10px 10px 0 0; position: relative; margin-top: -10px; box-shadow: 0 10px 20px rgba(0,0,0,0.2); z-index: 1; display: flex; justify-content: center; }
+.gacha-knob { font-size: 32px; position: absolute; top: 15px; }
+.gacha-knob.is-turning { animation: turn-knob 0.4s infinite linear; }
 @keyframes turn-knob { 100% { transform: rotate(360deg); } }
-.golden-capsule { position: absolute; bottom: 10px; font-size: 40px; animation: drop-capsule 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-@keyframes drop-capsule { 0% { transform: translateY(-50px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+.gacha-exit { position: absolute; bottom: 0; width: 60px; height: 30px; background: #1e293b; border-radius: 10px 10px 0 0; box-shadow: inset 0 5px 10px rgba(0,0,0,0.5); }
+.capsule-drop-group { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); width: 100px; height: 100px; z-index: 10; display: flex; justify-content: center; align-items: flex-end; }
+.half-capsule.top-half { position: absolute; width: 40px; height: 25px; background: linear-gradient(180deg, #fde047, #eab308); border-radius: 20px 20px 0 0; bottom: 20px; animation: drop-top 1.5s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+.half-capsule.bottom-half { position: absolute; width: 40px; height: 25px; background: linear-gradient(180deg, #fef08a, #eab308); border-radius: 0 0 20px 20px; bottom: 20px; animation: drop-bottom 1.5s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+.prize-paper { position: absolute; bottom: 30px; background: #fff; padding: 6px 12px; border-radius: 8px; font-weight: 900; font-size: 16px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); opacity: 0; animation: pop-paper 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.6s forwards; }
+.prize-paper.is-win { color: #ef4444; border: 2px solid #ef4444; }
+.prize-paper.is-lose { color: #64748b; border: 2px solid #64748b; }
+@keyframes drop-top { 0% { transform: translateY(-80px); opacity: 0; } 40% { transform: translateY(0); opacity: 1; } 50% { transform: translateY(-10px); } 60% { transform: translateY(0); } 100% { transform: translateY(-40px) rotate(-45deg) translateX(-30px); opacity: 0; } }
+@keyframes drop-bottom { 0% { transform: translateY(-80px); opacity: 0; } 40% { transform: translateY(0); opacity: 1; } 50% { transform: translateY(-10px); } 60% { transform: translateY(0); } 100% { transform: translateY(20px) rotate(30deg) translateX(30px); opacity: 0; } }
+@keyframes pop-paper { 0% { transform: scale(0.5); opacity: 0; bottom: 10px; } 100% { transform: scale(1); opacity: 1; bottom: 50px; } }
 
-/* ================= 5. 刮刮乐 ================= */
-.scratch-scene { display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; }
+/* ================= 5. 刮刮乐（弹出纸条） ================= */
+.scratch-scene { display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; position: relative; }
 .scratch-card { width: 200px; height: 200px; background: #fff; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); position: relative; overflow: hidden; }
 .scratch-content { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; font-size: 80px; background: #f8fafc; }
 .scratch-cover { position: absolute; inset: 0; background: linear-gradient(45deg, #94a3b8, #cbd5e1); z-index: 10; transition: transform 0.5s; }
 .scratch-cover.is-scratching { animation: scratch-action 0.2s infinite alternate; }
 @keyframes scratch-action { 0% { transform: translate(0, 0) rotate(0); } 100% { transform: translate(10px, 10px) rotate(5deg); } }
 .scratch-card.is-scratched .scratch-cover { transform: translateY(-100%); }
+.scratch-prize { position: absolute; top: 30%; z-index: 20; animation-delay: 0.5s; }
 
-/* ================= 6. 轮盘 ================= */
+/* ================= 6. 轮盘（弹出金额牌） ================= */
 .roulette-scene { position: relative; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
 .wheel-3d { width: 220px; height: 220px; border-radius: 50%; position: relative; transform: rotateX(60deg); transform-style: preserve-3d; box-shadow: 0 30px 40px rgba(0,0,0,0.4); }
 .wheel-rim { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(#ef4444 0deg 30deg, #1e293b 30deg 60deg, #ef4444 60deg 90deg, #1e293b 90deg 120deg, #ef4444 120deg 150deg, #1e293b 150deg 180deg, #ef4444 180deg 210deg, #1e293b 210deg 240deg, #ef4444 240deg 270deg, #1e293b 270deg 300deg, #ef4444 300deg 330deg, #1e293b 330deg 360deg); border: 10px solid #0f172a; }
@@ -516,27 +533,37 @@ const closeResult = () => {
 .ball-3d { position: absolute; top: 20%; left: 50%; width: 15px; height: 15px; background: #fff; border-radius: 50%; box-shadow: 0 0 10px #fff; transform: translateZ(30px); opacity: 0; }
 .ball-3d.is-spinning { opacity: 1; animation: ball-bounce 0.5s infinite alternate; }
 @keyframes ball-bounce { 0% { transform: translateX(-60px) translateZ(30px); } 100% { transform: translateX(60px) translateZ(30px); } }
+.roulette-prize { top: 15%; left: 50%; transform: translateX(-50%); animation-delay: 3s; } /* 轮盘转3秒后弹出 */
 
-/* ================= 7. 寻宝 ================= */
+/* ================= 7. 寻宝（金币喷泉） ================= */
 .treasure-chest { width: 200px; height: 150px; position: relative; perspective: 500px; }
 .chest-base { position: absolute; bottom: 0; width: 100%; height: 60%; background: #78350f; border-radius: 10px; border: 4px solid #451a03; }
 .chest-lid { position: absolute; top: 0; width: 100%; height: 40%; background: #92400e; border-radius: 50% 50% 0 0; border: 4px solid #451a03; transform-origin: bottom; transition: transform 0.5s; }
 .chest-lid.is-opening { transform: rotateX(110deg); }
 .is-shaking { animation: shake 0.1s infinite; }
 @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
-.sparkle { position: absolute; top: -20%; left: 50%; transform: translateX(-50%); font-size: 40px; animation: pop-sparkle 0.5s infinite alternate; }
-@keyframes pop-sparkle { 0% { transform: translateX(-50%) scale(1); opacity: 1; } 100% { transform: translateX(-50%) scale(1.5); opacity: 0.5; } }
+.golden-fountain { position: absolute; top: 0; left: 50%; width: 100px; height: 100px; transform: translateX(-50%); pointer-events: none; z-index: 20; }
+.golden-fountain .coin { position: absolute; width: 20px; height: 20px; background: radial-gradient(circle, #fde047, #ca8a04); border-radius: 50%; font-size: 12px; font-weight: bold; color: #fff; display: flex; justify-content: center; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.3); opacity: 0; }
+.golden-fountain .c1 { left: 10%; animation: fly1 0.8s 0.5s forwards ease-out; }
+.golden-fountain .c2 { right: 10%; animation: fly2 0.8s 0.6s forwards ease-out; }
+.golden-fountain .main-coin { width: auto; border-radius: 20px; padding: 4px 12px; left: 50%; transform: translateX(-50%); top: 20px; font-size: 16px; animation: pop-coin 0.6s 0.7s forwards cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+@keyframes fly1 { 0% { transform: translate(0, 0); opacity: 1; } 100% { transform: translate(-40px, -50px) scale(0.5); opacity: 0; } }
+@keyframes fly2 { 0% { transform: translate(0, 0); opacity: 1; } 100% { transform: translate(40px, -60px) scale(0.5); opacity: 0; } }
+@keyframes pop-coin { 0% { opacity: 0; transform: translateX(-50%) scale(0.5); top: -20px; } 100% { opacity: 1; transform: translateX(-50%) scale(1); top: -40px; } }
 
-/* ================= 8. 老虎机 ================= */
-.slot-machine-3d { display: flex; gap: 15px; transform: rotateY(-15deg) rotateX(10deg); transform-style: preserve-3d; }
+/* ================= 8. 老虎机（掉金币） ================= */
+.slot-machine-3d { display: flex; gap: 15px; transform: rotateY(-15deg) rotateX(10deg); transform-style: preserve-3d; position: relative; }
 .reel-3d { width: 70px; height: 180px; background: #1e293b; border-radius: 10px; position: relative; transform-style: preserve-3d; box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.3); display: flex; justify-content: center; align-items: center; }
 .slot-face { width: 100%; height: 100%; background: linear-gradient(180deg, #fff, #e2e8f0); border-radius: 8px; display: flex; justify-content: center; align-items: center; font-size: 50px; font-weight: 900; color: #ef4444; transition: 0.3s; }
 .slot-face.is-win { color: #10b981; text-shadow: 0 0 20px #10b981; }
 .reel-3d.is-spinning { animation: roll-3d 0.15s linear infinite; }
 @keyframes roll-3d { 0% { transform: rotateX(0); } 100% { transform: rotateX(360deg); } }
 .machine-glass { position: absolute; inset: -10px; background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(255,255,255,0)); border-radius: 15px; transform: translateZ(50px); pointer-events: none; }
+.slot-coin-drop { position: absolute; bottom: -40px; left: 50%; transform: translateX(-50%); z-index: 30; }
+.slot-coin { background: radial-gradient(circle, #fde047, #ca8a04); padding: 8px 16px; border-radius: 20px; font-weight: 900; font-size: 18px; color: #fff; border: 2px solid #fff; box-shadow: 0 5px 10px rgba(0,0,0,0.5); animation: drop-coin 0.6s cubic-bezier(0.25, 1, 0.5, 1) 0.5s forwards; opacity: 0; }
+@keyframes drop-coin { 0% { transform: translateY(-20px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
 
-/* 控制台 & 按钮 */
+/* UI 样式保持原样 */
 .control-panel { margin-top: 20px; text-align: center; }
 .desc { font-size: 13px; color: #64748b; margin-bottom: 15px; font-weight: bold; }
 .balance-display { background: #0f172a; border-radius: 12px; padding: 12px 24px; display: inline-flex; flex-direction: column; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5); }
@@ -547,8 +574,6 @@ const closeResult = () => {
 .heavy-btn:disabled { background: #94a3b8 !important; cursor: not-allowed; transform: none; box-shadow: none; }
 .btn-shine { position: absolute; top: 0; left: -100%; width: 50%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent); transform: skewX(-20deg); animation: shine 3s infinite; }
 @keyframes shine { 100% { left: 200%; } }
-
-/* 弹窗与票根 */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); display: flex; justify-content: center; align-items: center; z-index: 1000; }
 .modal-card { background: white; padding: 30px; border-radius: 24px; width: 85%; max-width: 320px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
 .modal-icon { font-size: 40px; margin-bottom: 10px; }
@@ -559,7 +584,6 @@ const closeResult = () => {
 .modal-actions button { flex: 1; padding: 14px; border-radius: 16px; border: none; font-weight: bold; font-size: 15px; cursor: pointer; }
 .btn-cancel { background: #f1f5f9; color: #64748b; }
 .btn-confirm { color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
-
 .ticket-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); display: flex; justify-content: center; align-items: center; z-index: 2000; }
 .ticket-wrapper { width: 85%; max-width: 340px; background: #fff; border-radius: 16px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); overflow: hidden; position: relative; }
 .ticket-top { padding: 20px; display: flex; justify-content: space-between; align-items: center; color: white; }
@@ -583,7 +607,6 @@ const closeResult = () => {
 .barcode { height: 40px; width: 80%; margin: 0 auto 15px; background: repeating-linear-gradient(90deg, #1e293b, #1e293b 2px, transparent 2px, transparent 5px); opacity: 0.8; }
 .btn-close { width: 100%; padding: 15px; background: #1e293b; color: white; border: none; border-radius: 16px; font-weight: bold; font-size: 15px; cursor: pointer; transition: 0.2s; }
 .btn-close:hover { background: #0f172a; }
-
 .modal-enter-active, .modal-leave-active { transition: opacity 0.3s; }
 .modal-enter-from, .modal-leave-to { opacity: 0; }
 .modal-enter-active .modal-card { animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
@@ -593,7 +616,6 @@ const closeResult = () => {
 .ticket-leave-active { transition: opacity 0.3s; }
 .ticket-leave-to { opacity: 0; }
 @keyframes ticketDrop { 0% { transform: translateY(-50px) scale(0.9); opacity: 0; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
-
 @media (max-width: 768px) {
   .floating-back-btn { top: 50px; left: 15px; padding: 6px 12px; font-size: 13px; }
   .room-header { padding: 10px 15px; }
@@ -601,11 +623,6 @@ const closeResult = () => {
   .stage { padding: 10px; }
   .machine-body { padding: 10px; margin-bottom: 25px; }
   .game-stage-3d { width: 260px; height: 260px; }
-  .cube-wrapper, .cube-face { width: 90px; height: 90px; }
-  .front { transform: translateZ(45px); }
-  .back { transform: rotateY(180deg) translateZ(45px); }
-  .left { transform: rotateY(-90deg) translateZ(45px); }
-  .right { transform: rotateY(90deg) translateZ(45px); }
   .heavy-btn { max-width: 100%; padding: 16px; font-size: 16px; }
   .balance-display { padding: 10px 18px; }
   .balance-display .amount { font-size: 20px; }
