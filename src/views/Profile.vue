@@ -48,6 +48,17 @@
           <span>ログアウト</span><span class="arrow">›</span>
         </div>
       </div>
+
+      <!-- 🆕 防白嫖提示横幅 -->
+      <div class="deposit-notice-card">
+        <div class="notice-icon">💡</div>
+        <div class="notice-content">
+          <h4>出金に関する重要なお知らせ</h4>
+          <p>
+            不正利用防止のため、<strong>キャンペーンや毎日ログイン（チェックイン）等で獲得したボーナス残高のみ</strong>でプレイされた場合、初回のご入金（デポジット）が完了するまで出金申請を行うことができません。あらかじめご了承ください。
+          </p>
+        </div>
+      </div>
     </main>
 
     <!-- ================= 弹窗 1：两步认证 ================= -->
@@ -120,7 +131,6 @@
         <div class="modal-card">
           <h3>出金申請</h3>
           <div class="form-group">
-            <!-- 🆕 移除了“出金金額 (¥)”文字，只保留输入框 -->
             <input v-model.number="withdrawAmount" type="number" placeholder="出金金額を入力してください" />
           </div>
           <div class="modal-actions">
@@ -397,7 +407,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* 样式保持你原本的一模一样，没有任何删减 */
+/* 样式保持你原本的一模一样，没有任何删减，只在最后加了提示框样式 */
 .profile-container { min-height: 100vh; background: #f1f5f9; font-family: 'Noto Sans JP', sans-serif; }
 .page-header { background: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eaeaea; }
 .back-btn { background: none; border: none; font-size: 16px; color: #1e293b; cursor: pointer; font-weight: bold; }
@@ -452,4 +462,41 @@ onMounted(() => {
 .line-btn:hover { background: #05b04b; }
 .modal-enter-active, .modal-leave-active { transition: opacity 0.3s; }
 .modal-enter-from, .modal-leave-to { opacity: 0; }
+
+/* 🆕 防白嫖提示横幅样式 */
+.deposit-notice-card {
+  margin-top: 20px;
+  background: #fffbeb; /* 柔和的淡黄色背景，代表提示 */
+  border: 1px solid #fde68a; /* 黄色边框 */
+  border-radius: 16px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.05);
+}
+
+.notice-icon {
+  font-size: 20px;
+  line-height: 1.5;
+}
+
+.notice-content h4 {
+  margin: 0 0 6px 0;
+  font-size: 14px;
+  color: #b45309; /* 深黄色标题 */
+  font-weight: 800;
+}
+
+.notice-content p {
+  margin: 0;
+  font-size: 12px;
+  color: #78350f; /* 暗棕色正文 */
+  line-height: 1.6;
+}
+
+.notice-content strong {
+  font-weight: 900;
+  color: #b45309;
+}
 </style>

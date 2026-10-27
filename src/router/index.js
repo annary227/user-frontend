@@ -7,8 +7,6 @@ import Register from '../views/Register.vue';
 import History from '../views/History.vue';
 // 🆕 引入合规页面
 import CommerceDisclosure from '../views/CommerceDisclosure.vue';
-// 🆕 引入赛马页面（请确保你在 views 文件夹下新建了 HorseRace.vue）
-import HorseRace from '../views/HorseRace.vue';
 
 const router = createRouter({
     history: createWebHistory(),
@@ -20,9 +18,7 @@ const router = createRouter({
         { path: '/profile', component: Profile },
         { path: '/history', component: History },
         // 🆕 添加合规页面路由
-        { path: '/legal/commerce', component: CommerceDisclosure },
-        // 🆕 添加赛马专属路由
-        { path: '/horse', component: HorseRace }
+        { path: '/legal/commerce', component: CommerceDisclosure }
     ]
 });
 
