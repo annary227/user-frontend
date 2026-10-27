@@ -138,8 +138,12 @@
 
               <!-- 装饰贴纸区 -->
               <div class="machine-stickers">
-                <div class="sticker warning">500円</div>
-                <div class="sticker instructions">カプセルを取り出してください</div>
+                <div class="sticker warning">{{ gameCost }}円</div>
+                <div class="sticker instructions">
+                  <span>カプセルを</span>
+                  <span>取り出して</span>
+                  <span>ください</span>
+                </div>
               </div>
 
             </div>
@@ -155,17 +159,52 @@
              </div>
              <div class="prize-tag scratch-prize" :class="result && result.value > 0 ? 'is-win' : 'is-lose'" v-if="!isDrawing && result">
                 <span v-if="result.value > 0">+ ¥{{ result.value.toLocaleString() }}</span>
-                <span v-else>ハズレ</span>
+                <span v-else>残念...</span>
              </div>
           </div>
 
-          <!-- 6. 轮盘 -->
+          <!-- 6. 轮盘 (2.5D 赌场质感版) -->
           <div v-else-if="gameType === 'roulette'" class="roulette-scene">
-            <div class="wheel-3d" :class="{ 'is-spinning': isDrawing, 'is-stopped': !isDrawing && result }">
-              <div class="wheel-rim"></div>
-              <div class="wheel-inner"></div>
+            
+            <!-- 顶部白色滚珠指针 -->
+            <div class="roulette-ball" :class="{ 'is-spinning': isDrawing }"></div>
+
+            <div class="wheel-container">
+              <!-- 外圈金属包边 -->
+              <div class="wheel-outer-rim"></div>
+              
+              <!-- 旋转的数字环 -->
+              <div class="wheel-number-ring" :class="{ 'is-spinning': isDrawing, 'is-stopped': !isDrawing && result }">
+                <!-- 部分数字视觉占位 -->
+                <div class="num num-0">0</div>
+                <div class="num num-32">32</div>
+                <div class="num num-15">15</div>
+                <div class="num num-19">19</div>
+                <div class="num num-4">4</div>
+                <div class="num num-21">21</div>
+                <div class="num num-2">2</div>
+                <div class="num num-25">25</div>
+                <div class="num num-17">17</div>
+                <div class="num num-34">34</div>
+                
+                <!-- 旋转模糊遮罩 -->
+                <div class="spin-blur-ring" v-if="isDrawing"></div>
+              </div>
+
+              <!-- 中心固定塔楼 (CASINO 区域) -->
+              <div class="wheel-center">
+                <div class="center-text">CASINO</div>
+                <div class="center-cross">
+                  <div class="cross-bar"></div>
+                  <div class="cross-bar"></div>
+                </div>
+              </div>
             </div>
-            <div class="ball-3d" :class="{ 'is-spinning': isDrawing }"></div>
+
+            <!-- 获胜光环 -->
+            <div class="win-glow" v-if="!isDrawing && result && result.value > 0"></div>
+
+            <!-- 掉落金额标签 -->
             <div class="prize-tag roulette-prize" :class="result && result.value > 0 ? 'is-win' : 'is-lose'" v-if="!isDrawing && result">
               <span v-if="result.value > 0">+ ¥{{ result.value.toLocaleString() }}</span>
               <span v-else>MISS</span>
@@ -791,21 +830,38 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 /* 装饰贴纸 */
 .machine-stickers {
   position: absolute;
-  bottom: 5px;
-  left: 5px;
+  bottom: 8px;
+  left: 8px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 }
 .sticker {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: bold;
-  padding: 2px 6px;
+  padding: 3px 6px;
   border-radius: 3px;
   font-family: sans-serif;
+  text-align: center;
 }
-.sticker.warning { background: #fef08a; color: #854d0e; border: 1px solid #ca8a04; }
-.sticker.instructions { background: #e0f2fe; color: #0369a1; font-size: 8px; max-width: 60px; line-height: 1.1; }
+.sticker.warning { 
+  background: #fef08a; 
+  color: #854d0e; 
+  border: 1px solid #ca8a04; 
+  font-size: 12px; 
+  letter-spacing: 1px;
+}
+.sticker.instructions { 
+  background: #e0f2fe; 
+  color: #0369a1; 
+  font-size: 9px; 
+  line-height: 1.2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px;
+  width: 54px;
+}
 
 /* ================= 以下保留原有其他动画样式 ================= */
 .room-container { position: relative; min-height: 100vh; display: flex; flex-direction: column; overflow: hidden; background: #050508; font-family: 'Noto Sans JP', sans-serif; }
@@ -904,19 +960,200 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .scratch-card.is-scratched .scratch-cover { transform: translateY(-100%); }
 .scratch-prize { position: absolute; top: 30%; z-index: 20; animation-delay: 0.5s; }
 
-/* 轮盘 */
+/* 6. 轮盘 (2.5D 赌场质感版) */
 .roulette-scene { position: relative; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
-.wheel-3d { width: 220px; height: 220px; border-radius: 50%; position: relative; transform: rotateX(60deg); transform-style: preserve-3d; box-shadow: 0 30px 40px rgba(0,0,0,0.4); }
-.wheel-rim { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(#ef4444 0deg 30deg, #1e293b 30deg 60deg, #ef4444 60deg 90deg, #1e293b 90deg 120deg, #ef4444 120deg 150deg, #1e293b 150deg 180deg, #ef4444 180deg 210deg, #1e293b 210deg 240deg, #ef4444 240deg 270deg, #1e293b 270deg 300deg, #ef4444 300deg 330deg, #1e293b 330deg 360deg); border: 10px solid #0f172a; }
-.wheel-inner { position: absolute; inset: 20%; background: radial-gradient(circle, #f8fafc 0%, #cbd5e1 100%); border-radius: 50%; transform: translateZ(10px); box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
-.is-spinning { animation: spin-3d 0.3s linear infinite; }
-.is-stopped { animation: stop-3d 3s cubic-bezier(0.17, 0.67, 0.12, 1) forwards; }
-@keyframes spin-3d { 100% { transform: rotateX(60deg) rotateZ(360deg); } }
-@keyframes stop-3d { 100% { transform: rotateX(60deg) rotateZ(720deg); } }
-.ball-3d { position: absolute; top: 20%; left: 50%; width: 15px; height: 15px; background: #fff; border-radius: 50%; box-shadow: 0 0 10px #fff; transform: translateZ(30px); opacity: 0; }
-.ball-3d.is-spinning { opacity: 1; animation: ball-bounce 0.5s infinite alternate; }
-@keyframes ball-bounce { 0% { transform: translateX(-60px) translateZ(30px); } 100% { transform: translateX(60px) translateZ(30px); } }
-.roulette-prize { top: 15%; left: 50%; transform: translateX(-50%); animation-delay: 3s; }
+
+/* 顶部白色滚珠 */
+.roulette-ball {
+  position: absolute;
+  top: 8%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  background: radial-gradient(circle at 30% 30%, #ffffff, #cbd5e1);
+  border-radius: 50%;
+  transform: translateX(-50%);
+  box-shadow: 0 3px 6px rgba(0,0,0,0.6), inset -2px -2px 4px rgba(0,0,0,0.2);
+  z-index: 50;
+}
+/* 滚珠抽奖时沿边缘跳动的动画 */
+.roulette-ball.is-spinning {
+  animation: ball-jump 0.4s infinite alternate ease-in-out;
+}
+@keyframes ball-jump {
+  0% { top: 8%; transform: translateX(-50%) scale(1); }
+  100% { top: 12%; transform: translateX(-50%) scale(1.1); }
+}
+
+/* 轮盘主体容器 */
+.wheel-container {
+  width: 250px;
+  height: 250px;
+  position: relative;
+  border-radius: 50%;
+  /* 模拟厚重的底座阴影 */
+  box-shadow: 
+    0 30px 50px rgba(0,0,0,0.6), 
+    0 0 0 10px #1e293b, /* 最外层黑边 */
+    inset 0 0 20px rgba(0,0,0,0.8);
+  background: #0f172a;
+}
+
+/* 外圈金属包边 */
+.wheel-outer-rim {
+  position: absolute;
+  inset: 10px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e2e8f0 0%, #64748b 50%, #e2e8f0 100%);
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+  z-index: 1;
+}
+
+/* 数字环 */
+.wheel-number-ring {
+  position: absolute;
+  inset: 20px;
+  border-radius: 50%;
+  z-index: 2;
+  /* 用 conic-gradient 模拟红黑相间的扇形区块 */
+  background: conic-gradient(
+    #16a34a 0deg 9.7deg,    /* 0 的绿色 */
+    #dc2626 9.7deg 29deg, #0f172a 29deg 48deg, 
+    #dc2626 48deg 68deg, #0f172a 68deg 87deg, 
+    #dc2626 87deg 107deg, #0f172a 107deg 126deg,
+    #dc2626 126deg 146deg, #0f172a 146deg 165deg,
+    #dc2626 165deg 185deg, #0f172a 185deg 204deg,
+    #dc2626 204deg 224deg, #0f172a 224deg 243deg,
+    #dc2626 243deg 263deg, #0f172a 263deg 282deg,
+    #dc2626 282deg 302deg, #0f172a 302deg 321deg,
+    #dc2626 321deg 341deg, #0f172a 341deg 360deg
+  );
+  box-shadow: inset 0 0 15px rgba(0,0,0,0.8);
+}
+
+/* 数字占位 (这里仅做视觉模拟，利用绝对定位把数字排成一圈) */
+.num {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: sans-serif;
+}
+.num-0 { transform: rotate(0deg) translateY(-95px) rotate(0deg); }
+.num-32 { transform: rotate(20deg) translateY(-95px) rotate(-20deg); }
+.num-15 { transform: rotate(40deg) translateY(-95px) rotate(-40deg); }
+.num-19 { transform: rotate(60deg) translateY(-95px) rotate(-60deg); }
+.num-4 { transform: rotate(80deg) translateY(-95px) rotate(-80deg); }
+.num-21 { transform: rotate(100deg) translateY(-95px) rotate(-100deg); }
+.num-2 { transform: rotate(120deg) translateY(-95px) rotate(-120deg); }
+.num-25 { transform: rotate(140deg) translateY(-95px) rotate(-140deg); }
+.num-17 { transform: rotate(160deg) translateY(-95px) rotate(-160deg); }
+.num-34 { transform: rotate(180deg) translateY(-95px) rotate(-180deg); }
+
+/* 旋转时的残影模糊 */
+.spin-blur-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent, rgba(255,255,255,0.3), transparent, rgba(255,255,255,0.3), transparent);
+  animation: blur-spin 0.5s linear infinite;
+}
+@keyframes blur-spin {
+  100% { transform: rotate(360deg); }
+}
+
+/* 中心固定塔楼 */
+.wheel-center {
+  position: absolute;
+  inset: 55px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 30%, #334155 0%, #0f172a 80%);
+  box-shadow: 
+    inset 0 5px 15px rgba(255,255,255,0.2), 
+    inset 0 -5px 20px rgba(0,0,0,0.8),
+    0 0 20px rgba(0,0,0,0.9);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  border: 2px solid #475569;
+}
+
+.center-text {
+  color: #fbbf24;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+  font-family: serif;
+}
+
+/* 中心的十字金属塔 */
+.center-cross {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  margin-top: 5px;
+}
+.cross-bar {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(180deg, #fef08a, #ca8a04);
+  border-radius: 2px;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+.cross-bar:nth-child(2) {
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+
+/* 动画控制 */
+.is-spinning { 
+  /* 模拟赌场轮盘高速旋转 */
+  animation: spin-reel 0.2s linear infinite; 
+}
+.is-stopped { 
+  /* 停下时带有惯性慢慢停 */
+  animation: stop-reel 4s cubic-bezier(0.15, 0.9, 0.25, 1) forwards; 
+}
+
+@keyframes spin-reel { 
+  100% { transform: rotate(360deg); } 
+}
+@keyframes stop-reel { 
+  0% { transform: rotate(0deg); } 
+  100% { transform: rotate(1440deg); } /* 转四圈停下 */
+}
+
+/* 获胜金色光效 */
+.win-glow {
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(253, 224, 71, 0.4) 0%, transparent 70%);
+  animation: pulse-glow 1.5s infinite alternate;
+  z-index: 1;
+}
+@keyframes pulse-glow {
+  0% { transform: scale(0.9); opacity: 0.5; }
+  100% { transform: scale(1.1); opacity: 1; }
+}
+
+/* 掉落金额标签 */
+.roulette-prize { top: 15%; left: 50%; transform: translateX(-50%); animation-delay: 4s; z-index: 60; }
+
 
 /* 寻宝 */
 .treasure-chest { width: 200px; height: 150px; position: relative; perspective: 500px; }
