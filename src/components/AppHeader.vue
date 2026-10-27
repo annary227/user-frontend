@@ -34,10 +34,12 @@
           <span class="balance-amount">¥{{ userBalance.toLocaleString() }}</span>
         </div>
 
-        <!-- 🆕 私聊大厅入口 -->
+        <!-- 🆕 私聊大厅入口 (带红点提示) -->
         <button class="chat-btn" @click="$router.push('/social')">
           <span class="chat-icon">💬</span> 
           <span class="chat-text">メッセージ</span>
+          <!-- 未读消息红点 -->
+          <span v-if="unreadCount > 0" class="badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
         </button>
         
         <!-- 入金 和 出金 -->
@@ -94,6 +96,26 @@ const router = useRouter();
 const userBalance = ref(0);
 const username = ref('ゲスト');
 const userId = ref(null);
+
+// ==========================================
+// 🆕 未读消息红点逻辑
+// ==========================================
+const unreadCount = ref(0);
+let unreadTimer = null;
+
+const checkUnread = async () => {
+  const storedUser = localStorage.getItem('user');
+  if (!storedUser) return;
+  const user = JSON.parse(storedUser);
+  try {
+    const res = await request.get(`/user/chat/unread-count/${user.id}`);
+    if (res.data.success) {
+      unreadCount.value = res.data.count;
+    }
+  } catch (e) {
+    // 静默失败，不打扰用户
+  }
+};
 
 // ==========================================
 // 🆕 签到逻辑 (前端硬编码日本时间 + 本地锁死)
@@ -188,7 +210,7 @@ const generateNews = () => {
 };
 
 // ==========================================
-// 🆕 出金弹窗逻辑 (修复 400 报错)
+// 🆕 出金弹窗逻辑
 // ==========================================
 const withdrawVisible = ref(false);
 const withdrawAmount = ref(null);
@@ -236,7 +258,7 @@ const submitWithdraw = async () => {
 };
 
 // ==========================================
-// 获取用户信息（极致秒显优化）
+// 生命周期管理
 // ==========================================
 onMounted(async () => {
   generateNews();
@@ -254,6 +276,10 @@ onMounted(async () => {
   }
   
   checkCheckInStatus();
+
+  // 🆕 启动未读消息轮询
+  checkUnread();
+  unreadTimer = setInterval(checkUnread, 5000);
 
   try {
     const infoRes = await request.get(`/user/info/${user.id}`);
@@ -275,11 +301,12 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (timer) clearInterval(timer);
+  if (unreadTimer) clearInterval(unreadTimer); // 🆕 清理定时器
 });
 </script>
 
 <style scoped>
-/* 样式保持原样，完全没有任何删减 */
+/* 样式保持原样 */
 .top-header-wrapper {}
 .ticker-banner { background: #0f172a; display: flex; align-items: center; height: 40px; overflow: hidden; color: white; font-size: 13px; font-weight: 500; }
 .ticker-label { background: #e83862; height: 100%; display: flex; align-items: center; padding: 0 20px; font-weight: 900; font-size: 14px; clip-path: polygon(0 0, 100% 0, 95% 100%, 0% 100%); z-index: 2; white-space: nowrap; }
@@ -306,10 +333,28 @@ onUnmounted(() => {
 .balance-label { font-size: 10px; color: #94a3b8; }
 .balance-amount { font-weight: 900; font-size: 16px; color: #38bdf8; font-family: monospace; }
 
-/* 🆕 私聊按钮样式 */
-.chat-btn { background: #3b82f6; color: white; border: none; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 5px; transition: 0.2s; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3); flex-shrink: 0; }
+/* 🆕 私聊按钮及红点样式 */
+.chat-btn { position: relative; background: #3b82f6; color: white; border: none; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 5px; transition: 0.2s; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3); flex-shrink: 0; }
 .chat-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(59, 130, 246, 0.5); background: #2563eb; }
 .chat-icon { font-size: 16px; }
+.badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #ef4444;
+  color: white;
+  font-size: 11px;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
+  animation: pulse-red 1.5s infinite;
+}
+@keyframes pulse-red {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+  70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
 
 .charge-btn { border: none; padding: 8px 20px; border-radius: 20px; font-weight: 900; cursor: pointer; transition: 0.2s; white-space: nowrap; font-size: 14px; }
 .deposit-btn { background: linear-gradient(180deg, #10b981, #059669); color: white; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3); }
@@ -350,6 +395,7 @@ onUnmounted(() => {
   /* 🆕 手机端隐藏文字只留图标 */
   .chat-text { display: none; }
   .chat-btn { padding: 8px 12px; }
+  .badge { top: -4px; right: -4px; font-size: 10px; padding: 1px 5px; }
   
   .charge-btn { padding: 6px 12px; font-size: 13px; }
   .checkin-btn { padding: 6px 12px; font-size: 13px; }

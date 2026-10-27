@@ -53,7 +53,7 @@
     <div class="chat-window" v-show="activeChatUser">
       <!-- 窗口头部 -->
       <div class="window-header">
-        <button class="back-btn" @click="activeChatUser = null">‹ 戻る</button>
+        <button class="back-btn" @click="closeChat">‹ 戻る</button>
         <span>{{ activeChatUser?.username }} とのチャット</span>
       </div>
       
@@ -88,7 +88,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, computed } from 'vue';
+import { ref, onMounted, nextTick, computed, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import request from '../api/request';
 import { ElMessage } from 'element-plus';
@@ -103,6 +103,7 @@ const activeChatUser = ref(null);
 const messages = ref([]);
 const newMessage = ref('');
 const chatBody = ref(null);
+let pollTimer = null; // 🆕 定时拉取消息定时器
 
 // 获取本地用户ID并加载列表
 onMounted(() => {
@@ -111,6 +112,11 @@ onMounted(() => {
   
   myId.value = user.id;
   fetchOnlineUsers();
+});
+
+// 组件销毁时清理定时器
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer);
 });
 
 // 获取在线假人和真实用户
@@ -154,6 +160,23 @@ const openChat = async (user) => {
   activeChatUser.value = user;
   messages.value = []; // 清空上一段记录
   await fetchChatHistory(user.id);
+  
+  // 🆕 核心修复：每 3 秒自动拉取一次最新消息，解决收不到消息的问题
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(() => {
+    if (activeChatUser.value) {
+      fetchChatHistory(activeChatUser.value.id);
+    }
+  }, 3000);
+};
+
+// 关闭聊天窗口
+const closeChat = () => {
+  activeChatUser.value = null;
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
 };
 
 // 获取聊天记录
@@ -161,8 +184,11 @@ const fetchChatHistory = async (targetId) => {
   try {
     const res = await request.get(`/user/chat/player/history/${myId.value}/${targetId}`);
     if (res.data.success) {
-      messages.value = res.data.messages;
-      scrollToBottom();
+      // 比对旧数据，如果长度不同才重新渲染并滚动到底部
+      if (messages.value.length !== res.data.messages.length) {
+        messages.value = res.data.messages;
+        scrollToBottom();
+      }
     }
   } catch (e) {
     console.error(e);
@@ -187,13 +213,8 @@ const sendMessage = async () => {
       content: text
     });
     
-    // 🆕 发送成功后，延迟 2.5 秒去拉取一次记录（因为假人是在 2 秒后回复的）
-    // 这样用户就能立刻看到假人的自动回复
-    setTimeout(() => {
-      if (activeChatUser.value) {
-        fetchChatHistory(activeChatUser.value.id);
-      }
-    }, 2500);
+    // 发送成功后立刻拉取一次，不用等3秒轮询
+    fetchChatHistory(activeChatUser.value.id);
 
   } catch (error) {
     ElMessage.error(error.response?.data?.error || '送信に失敗しました');
