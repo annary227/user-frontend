@@ -142,7 +142,8 @@
         @click="checkAuth" 
         :disabled="isDrawing"
       >
-        <span class="btn-text">{{ isDrawing ? '抽選中...' : `${gameCost} コインで挑戦する` }}</span>
+        <!-- 🆕 修改了这里的货币符号，与残高保持一致 -->
+        <span class="btn-text">{{ isDrawing ? '抽選中...' : `¥${gameCost} で挑戦する` }}</span>
         <span class="btn-shine" v-if="!isDrawing"></span>
       </button>
     </div>
@@ -303,7 +304,6 @@ onMounted(async () => {
     const infoRes = await request.get(`/user/info/${user.id}`);
     if (infoRes.data.success) {
       currentBalance.value = infoRes.data.user.balance;
-      // 实名状态由账户层永久保存，房间层不再读取/写入 verify_status
       user.balance = infoRes.data.user.balance;
       localStorage.setItem('user', JSON.stringify(user));
     }
@@ -317,8 +317,12 @@ onUnmounted(() => {
   if (audioCtx) audioCtx.close();
 });
 
-// 账户实名永久保存制：实名在账户层完成一次后永久生效，房间层不再拦截
+// 🆕 优化：前置拦截余额不足，提升体验
 const checkAuth = () => {
+  if (currentBalance.value < gameCost) {
+    ElMessage.warning('残高が不足しています。入金してください。');
+    return;
+  }
   showConfirm.value = true;
 };
 
@@ -346,7 +350,7 @@ const executeDraw = async () => {
         }, 1200);
       }
     } catch (error) {
-      // 🆕 替换原生 alert，使用 Element Plus 弹窗，提示纯正日文
+      // 🆕 兜底拦截：替换原生 alert，使用 Element Plus 弹窗，提示纯正日文
       ElMessage.error(error.response?.data?.error || '通信エラーが発生しました。');
       if (spinInterval) clearInterval(spinInterval);
     } finally {
