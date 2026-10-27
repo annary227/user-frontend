@@ -116,27 +116,24 @@ const checkUnread = async () => {
 };
 
 // ==========================================
-// 🆕 签到逻辑 (前端硬编码日本时间 + 本地锁死)
+// 🆕 签到逻辑 (改为完全依赖后端判断)
 // ==========================================
 const isCheckedIn = ref(false);
 
-const getJapanDate = () => {
-  const now = new Date();
-  const japanTime = new Date(now.getTime() + (3600000 * 9));
-  return japanTime.toISOString().split('T')[0];
-};
-
-const checkCheckInStatus = () => {
+const checkCheckInStatus = async () => {
   const storedUser = localStorage.getItem('user');
   if (!storedUser) return;
   const user = JSON.parse(storedUser);
   userId.value = user.id;
 
-  const lastCheckIn = localStorage.getItem(`checkin_${user.id}`);
-  const todayJapan = getJapanDate();
-
-  if (lastCheckIn === todayJapan) {
-    isCheckedIn.value = true;
+  try {
+    // 🆕 每次进页面都去请求后端，彻底防刷
+    const res = await request.get(`/user/checkin-status/${user.id}`);
+    if (res.data.success) {
+      isCheckedIn.value = res.data.hasCheckedIn;
+    }
+  } catch (error) {
+    console.error("获取签到状态失败", error);
   }
 };
 
@@ -149,9 +146,7 @@ const handleCheckIn = async () => {
     if (res.data.success) {
       ElMessage.success(res.data.message || 'チェックイン成功！50円を獲得しました！');
       
-      const todayJapan = getJapanDate();
-      localStorage.setItem(`checkin_${userId.value}`, todayJapan);
-      
+      // 🆕 成功后不需要再存 localStorage 了，直接改状态即可
       isCheckedIn.value = true;
       userBalance.value += 50; 
     }
@@ -273,6 +268,7 @@ onMounted(async () => {
     userBalance.value = user.balance;
   }
   
+  // 🆕 获取真实的签到状态
   checkCheckInStatus();
 
   // 🆕 启动未读消息轮询
