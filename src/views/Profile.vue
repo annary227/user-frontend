@@ -243,21 +243,22 @@ const newPassword = ref('');
 const deposits = ref([]);
 const withdrawals = ref([]);
 
-// 获取用户信息
+// 获取用户信息（账户实名永久保存制：合并缓存，不用不完整对象覆盖本地）
 const fetchUserInfo = async () => {
   const storedUser = localStorage.getItem('user');
   if (!storedUser) return router.push('/login');
-  const user = JSON.parse(storedUser);
+  const cached = JSON.parse(storedUser);
   try {
     isLoadingUser.value = true; // 🆕 开始加载
-    const res = await request.get(`/user/info/${user.id}`);
+    const res = await request.get(`/user/info/${cached.id}`);
     if (res.data.success) {
       userInfo.value = res.data.user;
       verifyStatus.value = res.data.user.verify_status;
       bankStatus.value = res.data.user.bank_name ? 1 : 0;
-      
-      // 🆕 用最新数据同步本地缓存
-      localStorage.setItem('user', JSON.stringify(res.data.user));
+
+      // 🆕 合并最新数据到本地缓存，避免 verify_status 等字段被冲掉
+      const merged = { ...cached, ...res.data.user };
+      localStorage.setItem('user', JSON.stringify(merged));
     }
   } catch (error) { 
     console.error(error); 
@@ -284,11 +285,13 @@ const startKyc = () => {
   showKycModal.value = true;
 };
 
-// 拦截出金
+// 拦截出金（区分未申请 / 審査中 / 已实名但未绑银行）
 const handleWithdrawClick = () => {
-  if (verifyStatus.value !== 2) {
+  if (verifyStatus.value === 0 || verifyStatus.value === 3) {
     kycStep.value = 1;
     showKycModal.value = true;
+  } else if (verifyStatus.value === 1) {
+    alert('本人確認は現在審査中です。結果をお待ちください。');
   } else if (bankStatus.value !== 1) {
     kycStep.value = 2;
     showKycModal.value = true;
@@ -298,17 +301,24 @@ const handleWithdrawClick = () => {
   }
 };
 
-// 提交两步认证
+// 提交两步认证（账户实名永久保存制：成功后立即同步本地状态）
 const submitKycAll = async () => {
   isSubmittingKyc.value = true;
   try {
     if (verifyStatus.value !== 2) {
-      await request.post(`/user/verify/${userInfo.value.id}`, kycForm.value);
+      const verifyRes = await request.post(`/user/verify/${userInfo.value.id}`, kycForm.value);
+      // 如果后端提交即通过，会返回最新 user（含 verify_status=2）；审核制则返回 1
+      if (verifyRes.data.success && verifyRes.data.user) {
+        userInfo.value = { ...userInfo.value, ...verifyRes.data.user };
+        verifyStatus.value = verifyRes.data.user.verify_status;
+        const cached = JSON.parse(localStorage.getItem('user') || '{}');
+        localStorage.setItem('user', JSON.stringify({ ...cached, ...verifyRes.data.user }));
+      }
     }
     await request.post(`/user/bind-bank/${userInfo.value.id}`, kycBankForm.value);
     alert('申請が完了しました。審査結果をお待ちください。');
     showKycModal.value = false;
-    fetchUserInfo();
+    await fetchUserInfo();
   } catch (error) { alert('申請に失敗しました。'); }
   finally { isSubmittingKyc.value = false; }
 };

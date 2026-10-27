@@ -92,13 +92,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'; // 🆕 引入了 onMounted
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import request from '../api/request';
 import { User, Lock } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 
-// 🆕 默认置空，不显示任何账号
 const username = ref('');
 const password = ref('');
 const rememberMe = ref(true);
@@ -106,7 +105,7 @@ const isLoading = ref(false);
 const showLineModal = ref(false);
 const router = useRouter();
 
-// 🆕 仅在本地开发环境自动填充测试账号，线上环境静默
+// 仅在本地开发环境自动填充测试账号，线上环境静默
 onMounted(() => {
   if (import.meta.env.DEV) {
     username.value = 'test_user';
@@ -124,7 +123,13 @@ const handleLogin = async () => {
       password: password.value 
     });
     if (res.data.success) {
-      localStorage.setItem('user', JSON.stringify(res.data.user));
+      // 🆕 核心修复：确保 verify_status 字段存在，防止被 undefined 覆盖导致误判
+      const userData = res.data.user || {};
+      if (userData.verify_status === undefined) {
+        userData.verify_status = 0; // 兜底，防止丢失
+      }
+      
+      localStorage.setItem('user', JSON.stringify(userData));
       ElMessage.success('ログイン成功');
       router.push('/');
     }

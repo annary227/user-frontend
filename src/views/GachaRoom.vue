@@ -176,7 +176,6 @@
             <div class="result-icon">{{ result.value > 0 ? '🏆' : '💧' }}</div>
             <h2>{{ result.value > 0 ? 'おめでとうございます！' : '残念でした' }}</h2>
             
-            <!-- 🆕 核心防穿帮：如果后端传了“不中奖”，在这里强制翻译成日语 -->
             <div class="prize-name">
               {{ result.prize === '不中奖' ? 'ハズレ' : result.prize }}
             </div>
@@ -221,7 +220,6 @@ const gameTypeMap = {
 };
 const gameType = computed(() => gameTypeMap[gameName] || 'fish');
 
-// 🆕 已修复：将“大富豪専用”改成了纯正日语描述
 const gameSettings = {
   '金魚すくい': { color: '#0ea5e9', bg: '#e0f2fe', desc: 'ポイを破らずに金魚を救え！' },
   'ダーツチャレンジ': { color: '#ef4444', bg: '#fee2e2', desc: 'ブルの真ん中を狙い撃て！' },
@@ -244,7 +242,6 @@ const showTicket = ref(false);
 const currentBalance = ref(0);
 const currentTime = ref('');
 const userId = ref(null);
-const verifyStatus = ref(0); 
 
 // 音效引擎
 let audioCtx = null;
@@ -304,11 +301,13 @@ onMounted(async () => {
     const infoRes = await request.get(`/user/info/${user.id}`);
     if (infoRes.data.success) {
       currentBalance.value = infoRes.data.user.balance;
-      verifyStatus.value = infoRes.data.user.verify_status; 
-      user.verify_status = infoRes.data.user.verify_status;
+      // 实名状态由账户层永久保存，房间层不再读取/写入 verify_status
+      user.balance = infoRes.data.user.balance;
       localStorage.setItem('user', JSON.stringify(user));
     }
-  } catch (error) {}
+  } catch (error) {
+    console.warn('获取用户信息失败', error);
+  }
 });
 
 onUnmounted(() => {
@@ -316,14 +315,9 @@ onUnmounted(() => {
   if (audioCtx) audioCtx.close();
 });
 
+// 账户实名永久保存制：实名在账户层完成一次后永久生效，房间层不再拦截
 const checkAuth = () => {
-  if (verifyStatus.value !== 2) {
-    if (confirm('本人確認が完了していません。マイページで認証を行ってください。')) {
-      router.push('/profile');
-    }
-    return;
-  }
-  showConfirm.value = true; 
+  showConfirm.value = true;
 };
 
 const executeDraw = async () => {
