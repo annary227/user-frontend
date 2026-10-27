@@ -44,7 +44,7 @@
             <div class="prize-tag fish-prize" v-if="!isDrawing && result && result.value > 0">+ ¥{{ result.value.toLocaleString() }}</div>
           </div>
 
-          <!-- 2. 飞镖（击中后弹出标签） -->
+          <!-- 2. 飞镖 -->
           <div v-else-if="gameType === 'dart'" class="dart-board">
             <div class="board-rings"></div>
             <div class="dart" :class="{ 'is-thrown': isDrawing, 'is-hit': !isDrawing && result }">🎯</div>
@@ -92,7 +92,7 @@
             </div>
           </div>
 
-          <!-- 5. 刮刮乐（刮开后弹出纸条） -->
+          <!-- 5. 刮刮乐 -->
           <div v-else-if="gameType === 'scratch'" class="scratch-scene">
              <div class="scratch-card" :class="{ 'is-scratched': !isDrawing && result }">
                 <div class="scratch-cover" :class="{ 'is-scratching': isDrawing }"></div>
@@ -106,7 +106,7 @@
              </div>
           </div>
 
-          <!-- 6. 轮盘（球停下后弹出金额牌） -->
+          <!-- 6. 轮盘 -->
           <div v-else-if="gameType === 'roulette'" class="roulette-scene">
             <div class="wheel-3d" :class="{ 'is-spinning': isDrawing, 'is-stopped': !isDrawing && result }">
               <div class="wheel-rim"></div>
@@ -119,7 +119,7 @@
             </div>
           </div>
 
-          <!-- 7. 寻宝（开箱后金币喷泉） -->
+          <!-- 7. 寻宝 -->
           <div v-else-if="gameType === 'treasure'" class="treasure-chest">
             <div class="chest-lid" :class="{ 'is-opening': !isDrawing && result, 'is-shaking': isDrawing }"></div>
             <div class="chest-base" :class="{ 'is-shaking': isDrawing }"></div>
@@ -129,7 +129,7 @@
             </div>
           </div>
 
-          <!-- 8. 老虎机（中奖掉金币） -->
+          <!-- 8. 老虎机 -->
           <div v-else-if="gameType === 'slot'" class="slot-machine-3d">
             <div class="reel-3d" :class="{ 'is-spinning': isDrawing }">
               <div class="slot-face" :class="{ 'is-win': !isDrawing && result && result.value > 0 }">
@@ -223,7 +223,7 @@
           <div class="ticket-content">
             <div class="result-icon">{{ result.value > 0 ? '🏆' : '💧' }}</div>
             <h2>{{ result.value > 0 ? 'おめでとうございます！' : '残念でした' }}</h2>
-            <div class="prize-name">{{ result.prize === '不中奖' ? 'ハズレ' : result.prize }}</div>
+            <div class="prize-name">{{ result.prize === '不中奖' || result.prize === 'ハズレ' ? 'ハズレ' : result.prize }}</div>
             <div class="prize-value" v-if="result.value > 0">+ ¥{{ result.value.toLocaleString() }}</div>
             <div class="ticket-divider"></div>
             <div class="ticket-info">
@@ -348,7 +348,7 @@ onMounted(async () => {
       localStorage.setItem('user', JSON.stringify(user));
     }
     
-    // 🆕 拉取该游戏的奖池配置
+    // 拉取该游戏的奖池配置
     const poolRes = await request.get(`/admin/probability?gameName=${gameName}`);
     if (poolRes.data.success && poolRes.data.probability) {
       marqueePrizes.value = poolRes.data.probability
@@ -387,11 +387,12 @@ const executeDraw = async () => {
   if (marqueeTimer) clearInterval(marqueeTimer);
   marqueeTimer = setInterval(() => {
     currentMarqueeIndex.value = (currentMarqueeIndex.value + 1) % marqueePrizes.value.length;
-  }, 100); 
+  }, 80); // 稍微加快跑马灯闪烁
   
-  // 🆕 强制保持 28 秒的动画（机台和跑马灯同时转），拉满期待感
+  // 🆕 总时长锁定为 15 秒
   setTimeout(async () => {
     try {
+      // 因为改了 15 秒，我们直接在这 15 秒的开头去请求结果
       const res = await request.post('/user/draw', { userId: userId.value, gameName: gameName, cost: gameCost });
       
       if (res.data.success) {
@@ -399,7 +400,7 @@ const executeDraw = async () => {
         currentBalance.value = res.data.data.remainingBalance;
         currentTime.value = new Date().toLocaleString('ja-JP', { hour12: false });
         
-        // 再空转 2 秒，总时长凑够 30 秒，然后锁定目标
+        // 到 13 秒时，开始减速准备锁定目标
         setTimeout(() => {
           if (spinInterval) clearInterval(spinInterval);
           
@@ -414,13 +415,14 @@ const executeDraw = async () => {
           
           if (result.value.value > 0) playWinSound(); else playLoseSound();
           
-          // 再延迟 1.5 秒弹出结算票根，让玩家看清跑马灯停在哪里
+          // 停住 2 秒后弹出票根，让玩家看清结果
           setTimeout(() => {
             showTicket.value = true;
             isDrawing.value = false; 
-          }, 1500);
+          }, 2000);
           
-        }, 2000); 
+        }, 13000); // 13秒后锁定，加上最后等待，总过程约 15 秒
+        
       }
     } catch (error) {
       ElMessage.error(error.response?.data?.error || '通信エラーが発生しました。');
@@ -428,14 +430,14 @@ const executeDraw = async () => {
       if (marqueeTimer) clearInterval(marqueeTimer);
       isDrawing.value = false;
     }
-  }, 28000);
+  }, 0); // 立即请求后端（不阻塞前端动画）
 };
 
 const closeResult = () => { result.value = null; showTicket.value = false; };
 </script>
 
 <style scoped>
-/* 完全保留了你原本的样式，只在末尾增加了跑马灯专属 UI */
+/* 完全保留了你原本的样式，并在末尾增加了跑马灯专属 UI */
 .room-container { position: relative; min-height: 100vh; display: flex; flex-direction: column; overflow: hidden; background: #050508; font-family: 'Noto Sans JP', sans-serif; }
 .hologram-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
 .aurora { position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.5; mix-blend-mode: screen; animation: aurora-flow 15s infinite alternate ease-in-out; }
@@ -467,7 +469,6 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
 .machine-body { background: #ffffff; border-radius: 30px; padding: 20px; box-shadow: 0 30px 60px rgba(0,0,0,0.5), 0 0 40px rgba(255,255,255,0.1); margin-bottom: 40px; transition: all 0.5s; }
 .machine-body.is-win-glow { box-shadow: 0 30px 60px rgba(0,0,0,0.5), 0 0 80px rgba(255, 215, 0, 0.6); transform: scale(1.02); }
-
 .game-stage-3d { width: 320px; height: 320px; background: radial-gradient(circle at center, #ffffff 0%, #e2e8f0 100%); border-radius: 20px; position: relative; overflow: hidden; box-shadow: inset 0 15px 30px rgba(0,0,0,0.1); display: flex; justify-content: center; align-items: center; perspective: 1000px; }
 
 /* 通用掉落金额标签 */
