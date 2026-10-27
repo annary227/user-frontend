@@ -16,7 +16,7 @@
 
       <div class="section-title">
         <h3>🎮 ゲームラインナップ</h3>
-        <span>全8種類</span>
+        <span>全9種類</span>
       </div>
 
       <div class="game-grid">
@@ -31,15 +31,7 @@
           :icon="game.icon"
           :color="game.color"
           :btnColor="game.color"
-          @play="$router.push({ 
-            path: '/gacha', 
-            query: { 
-              name: game.title, 
-              price: game.price, 
-              icon: game.icon,
-              balance: userBalance // 🆕 把当前余额传给抽奖页，实现秒显
-            } 
-          })"
+          @play="handlePlay(game)"
         />
       </div>
 
@@ -101,7 +93,7 @@ import AppHeader from '../components/AppHeader.vue';
 
 const router = useRouter();
 const records = ref([]);
-const userBalance = ref(0); // 🆕 用于承接首页余额并传给抽奖页
+const userBalance = ref(0);
 
 // ==========================================
 // 🆕 游戏厅纯音乐系统
@@ -123,7 +115,6 @@ const toggleMusic = () => {
   }
 };
 
-// 离开页面时自动暂停音乐
 onUnmounted(() => {
   if (audioPlayer.value) {
     audioPlayer.value.pause();
@@ -141,8 +132,36 @@ const games = ref([
   { title: 'スクラッチ', desc: '削って当てる！お手軽スクラッチ', price: 50, maxPrize: '¥500,000', icon: '🪙', color: '#ffa502' },
   { title: 'ルーレット', desc: '大富豪専用！超高額ルーレット', price: 1000, maxPrize: '¥10,000,000', icon: '🎡', color: '#e84118' },
   { title: '宝探し', desc: '古代の財宝を見つけ出せ！', price: 300, maxPrize: '¥3,000,000', icon: '💎', color: '#009432' },
-  { title: 'スロット', desc: '7を揃えて大当たりを狙え！', price: 500, maxPrize: '¥5,000,000', icon: '🍒', color: '#f39c12' }
+  { title: 'スロット', desc: '7を揃えて大当たりを狙え！', price: 500, maxPrize: '¥5,000,000', icon: '🍒', color: '#f39c12' },
+  
+  // 🆕 新增：速度赛马卡片
+  { 
+    title: 'スピード競馬', 
+    desc: '本物の臨場感！3Dレースで大金を掴め！', 
+    price: 500, 
+    maxPrize: '¥5,000,000', 
+    icon: '🏇', 
+    color: '#8b5cf6', 
+    path: '/horse' // 专属路由
+  }
 ]);
+
+// 🆕 统一处理点击跳转逻辑
+const handlePlay = (game) => {
+  if (game.path) {
+    router.push({ path: game.path });
+  } else {
+    router.push({ 
+      path: '/gacha', 
+      query: { 
+        name: game.title, 
+        price: game.price, 
+        icon: game.icon,
+        balance: userBalance.value
+      } 
+    });
+  }
+};
 
 const formatTime = (timeStr) => {
   if (!timeStr) return '';
@@ -159,7 +178,6 @@ onMounted(async () => {
   
   const user = JSON.parse(storedUser);
   
-  // 🆕 核心：在首页就请求最新的余额，这样点击跳转时就能传给抽奖页
   try {
     const infoRes = await request.get(`/user/info/${user.id}`);
     if (infoRes.data.success) {
