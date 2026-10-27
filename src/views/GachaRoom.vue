@@ -73,58 +73,36 @@
             </div>
           </div>
 
-          <!-- 4. 扭蛋机（万代官方高保真版） -->
+          <!-- 4. 扭蛋机 -->
           <div v-else-if="gameType === 'gacha'" class="bandai-gacha-machine">
-            
-            <!-- 顶部品牌 Logo -->
             <div class="machine-brand">
               <span class="logo-red">BANDAI</span>
               <span class="logo-blue">GASHAPON</span>
             </div>
-
-            <!-- 巨大的弧形透明舱门 -->
             <div class="acrylic-dome" :class="{ 'is-spinning': isDrawing }">
-              <!-- 内部隔板 -->
               <div class="dome-shelf"></div>
-              
-              <!-- 内部堆满的扭蛋球 -->
               <div class="capsule-pile">
-                <div class="ball ball-1"></div>
-                <div class="ball ball-2"></div>
-                <div class="ball ball-3"></div>
-                <div class="ball ball-4"></div>
-                <div class="ball ball-5"></div>
-                <div class="ball ball-6"></div>
-                <div class="ball ball-7"></div>
-                <div class="ball ball-8"></div>
+                <div class="ball ball-1"></div><div class="ball ball-2"></div>
+                <div class="ball ball-3"></div><div class="ball ball-4"></div>
+                <div class="ball ball-5"></div><div class="ball ball-6"></div>
+                <div class="ball ball-7"></div><div class="ball ball-8"></div>
               </div>
-
-              <!-- 疯狂旋转时的视觉模糊 -->
               <div class="spin-blur" v-if="isDrawing"></div>
-              
-              <!-- 舱门高光 -->
               <div class="dome-highlight"></div>
             </div>
-
-            <!-- 机台下半部分（控制区） -->
             <div class="machine-body-lower">
-              
-              <!-- 左侧：退币口和摇杆区 -->
               <div class="lower-left">
                 <div class="coin-slot">🪙</div>
                 <div class="side-crank" :class="{ 'is-turning': isDrawing }">
                   <div class="crank-handle"></div>
                 </div>
               </div>
-
-              <!-- 右侧：大旋钮和出蛋口 -->
               <div class="lower-right">
                 <div class="big-knob" :class="{ 'is-turning': isDrawing }">
                   <div class="knob-inner">↻</div>
                 </div>
                 <div class="exit-chute">
                   <div class="chute-flap" :class="{ 'is-pushing': !isDrawing && result }">
-                    <!-- 掉落的扭蛋（直接爆金额） -->
                     <div class="dropped-capsule" v-if="!isDrawing && result">
                       <div class="capsule-half top" :class="result.value > 0 ? 'win-bg' : 'lose-bg'"></div>
                       <div class="capsule-half bottom" :class="result.value > 0 ? 'win-bg' : 'lose-bg'"></div>
@@ -135,8 +113,6 @@
                   </div>
                 </div>
               </div>
-
-              <!-- 装饰贴纸区 -->
               <div class="machine-stickers">
                 <div class="sticker warning">{{ gameCost }}円</div>
                 <div class="sticker instructions">
@@ -145,7 +121,6 @@
                   <span>ください</span>
                 </div>
               </div>
-
             </div>
           </div>
 
@@ -153,9 +128,7 @@
           <div v-else-if="gameType === 'scratch'" class="scratch-scene">
              <div class="scratch-card" :class="{ 'is-scratched': !isDrawing && result }">
                 <div class="scratch-cover" :class="{ 'is-scratching': isDrawing }"></div>
-                <div class="scratch-content">
-                  {{ (!isDrawing && result) ? (result.value > 0 ? '🏆' : '💧') : '🎁' }}
-                </div>
+                <div class="scratch-content">{{ (!isDrawing && result) ? (result.value > 0 ? '🏆' : '💧') : '🎁' }}</div>
              </div>
              <div class="prize-tag scratch-prize" :class="result && result.value > 0 ? 'is-win' : 'is-lose'" v-if="!isDrawing && result">
                 <span v-if="result.value > 0">+ ¥{{ result.value.toLocaleString() }}</span>
@@ -163,45 +136,51 @@
              </div>
           </div>
 
-          <!-- 6. 轮盘 (完美动态适配版) -->
+          <!-- 6. 轮盘 (完美立体球形 + 精准定位 + 12等分) -->
           <div v-else-if="gameType === 'roulette'" class="roulette-scene">
             
-            <!-- 顶部固定指针 -->
-            <div class="roulette-pointer">▼</div>
+            <!-- 顶部固定滚珠指针 -->
+            <div class="roulette-ball-pointer">⚪</div>
 
-            <!-- 转盘整体旋转容器 -->
-            <div 
-              class="wheel-container" 
-              :class="{ 'is-spinning': isDrawing }"
-              :style="wheelStyle"
-            >
-              <!-- 1. 动态渲染红黑相间的扇形区块背景 -->
-              <div class="wheel-number-ring" :style="dynamicConicGradient"></div>
-              
-              <!-- 2. 动态渲染金额/奖品文字 (循环6个位置) -->
+            <!-- 转盘主体 -->
+            <div class="wheel-3d-container">
+              <!-- 旋转层 -->
               <div 
-                v-for="(prize, index) in displayPrizes" 
-                :key="index"
-                class="num-label"
-                :style="getLabelStyle(index)"
+                class="wheel-rotating-layer" 
+                :class="{ 'is-spinning': isDrawing }"
+                :style="wheelStyle"
               >
-                {{ prize.value > 0 ? `¥${prize.value.toLocaleString()}` : '0円' }}
+                <!-- 动态 12 宫格背景色块 -->
+                <div class="wheel-blocks" :style="dynamicConicGradient"></div>
+                
+                <!-- 动态 12 个金额标签 -->
+                <div 
+                  v-for="(prize, index) in displayPrizes12" 
+                  :key="index"
+                  class="wheel-label"
+                  :style="getLabelStyle12(index)"
+                >
+                  {{ formatPrize(prize.value) }}
+                </div>
               </div>
 
-              <!-- 3. 固定不动的中心塔楼 -->
-              <div class="wheel-center">
-                <div class="center-text">CASINO</div>
-                <div class="center-cross">
+              <!-- 立体球体高光遮罩（保持静止不转，增强质感） -->
+              <div class="wheel-3d-sphere-overlay"></div>
+              
+              <!-- 中心固定金色塔楼 (CASINO) -->
+              <div class="wheel-center-tower">
+                <div class="tower-top">CASINO</div>
+                <div class="tower-cross">
                   <div class="cross-bar"></div>
                   <div class="cross-bar"></div>
                 </div>
               </div>
             </div>
 
-            <!-- 获胜光环特效 -->
+            <!-- 中奖光效 -->
             <div class="win-glow" v-if="!isDrawing && result && result.value > 0"></div>
 
-            <!-- 掉落金额展示 -->
+            <!-- 结果标签 -->
             <div class="prize-tag roulette-prize" :class="result && result.value > 0 ? 'is-win' : 'is-lose'" v-if="!isDrawing && result">
               <span v-if="result.value > 0">+ ¥{{ result.value.toLocaleString() }}</span>
               <span v-else>残念...</span>
@@ -222,34 +201,25 @@
           <div v-else-if="gameType === 'slot'" class="slot-machine-3d">
             <div class="reel-container">
               <div class="reel-3d" :class="{ 'is-spinning': isDrawing, 'is-stopped': !isDrawing && result }">
-                <div class="symbol face-0">🍒</div>
-                <div class="symbol face-1">🔔</div>
-                <div class="symbol face-2">💎</div>
-                <div class="symbol face-3 win-symbol">7</div>
-                <div class="symbol face-4">🍋</div>
-                <div class="symbol face-5">🍇</div>
+                <div class="symbol face-0">🍒</div><div class="symbol face-1">🔔</div>
+                <div class="symbol face-2">💎</div><div class="symbol face-3 win-symbol">7</div>
+                <div class="symbol face-4">🍋</div><div class="symbol face-5">🍇</div>
               </div>
               <div class="cylinder-gloss"></div>
             </div>
             <div class="reel-container">
               <div class="reel-3d" :class="{ 'is-spinning': isDrawing, 'is-stopped': !isDrawing && result }" style="animation-delay: 0.15s;">
-                <div class="symbol face-0">💎</div>
-                <div class="symbol face-1 win-symbol">7</div>
-                <div class="symbol face-2">🍒</div>
-                <div class="symbol face-3">🍋</div>
-                <div class="symbol face-4">🔔</div>
-                <div class="symbol face-5">🍇</div>
+                <div class="symbol face-0">💎</div><div class="symbol face-1 win-symbol">7</div>
+                <div class="symbol face-2">🍒</div><div class="symbol face-3">🍋</div>
+                <div class="symbol face-4">🔔</div><div class="symbol face-5">🍇</div>
               </div>
               <div class="cylinder-gloss"></div>
             </div>
             <div class="reel-container">
               <div class="reel-3d" :class="{ 'is-spinning': isDrawing, 'is-stopped': !isDrawing && result }" style="animation-delay: 0.3s;">
-                <div class="symbol face-0">🍋</div>
-                <div class="symbol face-1">🍇</div>
-                <div class="symbol face-2 win-symbol">7</div>
-                <div class="symbol face-3">🍒</div>
-                <div class="symbol face-4">🔔</div>
-                <div class="symbol face-5">💎</div>
+                <div class="symbol face-0">🍋</div><div class="symbol face-1">🍇</div>
+                <div class="symbol face-2 win-symbol">7</div><div class="symbol face-3">🍒</div>
+                <div class="symbol face-4">🔔</div><div class="symbol face-5">💎</div>
               </div>
               <div class="cylinder-gloss"></div>
             </div>
@@ -395,84 +365,105 @@ const marqueePrizes = ref([]);
 const currentMarqueeIndex = ref(0);
 let marqueeTimer = null;
 
-// 🎯 轮盘核心专属状态
-const wheelRotation = ref(0);      // 当前累计旋转角度
-const targetPrizeIndex = ref(0);   // 目标落在第几个区块 (0~5)
+// ================= 🎯 轮盘核心逻辑 =================
+const targetRotation = ref(0); // 转盘最终停止的累计角度
 
-// 获取用来渲染转盘的 6 个奖品展示块
-const displayPrizes = computed(() => {
-  const defaults = [
-    { value: 10000, name: '10000円' },
-    { value: 0, name: 'ハズレ' },
-    { value: 500, name: '500円' },
-    { value: 0, name: 'ハズレ' },
-    { value: 2000, name: '2000円' },
-    { value: 0, name: 'ハズレ' }
-  ];
-  
+// 将奖池处理为固定的 12 个格子
+const displayPrizes12 = computed(() => {
+  let list = [];
+  // 拿到所有有效奖品
   if (marqueePrizes.value.length > 0) {
-    // 如果后台有数据，填满前6个，不足的用 0 补齐
-    const list = marqueePrizes.value.slice(0, 6);
-    while (list.length < 6) {
-      list.push({ value: 0, name: 'ハズレ' });
-    }
-    return list;
+    list = marqueePrizes.value.map(p => ({ ...p }));
+  } else {
+    // 默认兜底
+    list = [
+      { value: 100000, name: '10万' }, { value: 0, name: 'ハズレ' },
+      { value: 10000, name: '1万' }, { value: 0, name: 'ハズレ' },
+      { value: 5000, name: '5000' }, { value: 0, name: 'ハズレ' }
+    ];
   }
-  return defaults;
+  
+  // 必须补齐到 12 个，不足的用 0 填补
+  while (list.length < 12) {
+    list.push({ value: 0, name: 'ハズレ' });
+  }
+  
+  // 为了视觉上红黑相间，如果0太多，可以稍微打乱或者穿插一下。
+  // 但为了绝对公平对应你的奖品池，直接取前 12 个。
+  return list.slice(0, 12);
 });
 
-// 动态生成背景：使用红黑交替（0元用黑色）的 conic-gradient
+// 金额简写格式化
+const formatPrize = (val) => {
+  if (!val || val === 0) return '0円';
+  if (val >= 10000) {
+    const w = val / 10000;
+    return `${w % 1 === 0 ? w : w.toFixed(1)}万`;
+  }
+  return val.toLocaleString();
+};
+
+// 动态计算 12 个区块的 conic-gradient (红黑交替)
 const dynamicConicGradient = computed(() => {
   let gradient = 'conic-gradient(';
-  const step = 60; // 360 / 6 = 60度一个区块
+  const step = 30; // 360 / 12 = 30度
   
-  displayPrizes.value.forEach((prize, index) => {
-    const startDeg = index * step - 30; // 减去30度为了对齐顶部指针
-    const endDeg = (index + 1) * step - 30;
-    // 有奖励用红色，0元（未中奖）用黑/深色
-    const color = prize.value > 0 ? '#dc2626' : '#0f172a'; 
+  displayPrizes12.value.forEach((prize, index) => {
+    // 减去 15 度是为了让第 0 个区块的中心正对顶部的 12 点钟方向
+    const startDeg = index * step - 15; 
+    const endDeg = (index + 1) * step - 15;
+    // 奖品 > 0 为红色，0 为黑色
+    const color = prize.value > 0 ? '#dc2626' : '#0f172a';
     gradient += `${color} ${startDeg}deg ${endDeg}deg, `;
   });
   
-  gradient = gradient.slice(0, -2) + ')'; // 去掉最后的逗号和空格
-  return { background: gradient };
+  return { background: gradient.slice(0, -2) + ')' };
 });
 
-// 计算转盘要旋转到的目标角度
-const wheelStyle = computed(() => {
-  if (!isDrawing.value && result.value) {
-    // 目标区块中心度数
-    const targetDeg = targetPrizeIndex.value * 60;
-    // 转好几圈 + 偏移度数
-    const finalRotation = (360 * 5) + (360 - targetDeg); // 转5圈
-    return {
-      transform: `rotate(${finalRotation}deg)`,
-      transition: 'transform 4s cubic-bezier(0.15, 0.9, 0.25, 1)' // 4秒缓停
-    };
-  } else if (isDrawing.value) {
-    return {
-      transform: `rotate(${wheelRotation.value}deg)`,
-      transition: 'none' // 抽奖时持续快速旋转
-    };
-  } else {
-    // 初始状态
-    return {
-      transform: `rotate(0deg)`,
-      transition: 'none'
-    };
-  }
-});
-
-// 计算文字标签的位置
-const getLabelStyle = (index) => {
-  const angle = index * 60; // 每个区块 60 度
-  // 将文字推到中间，并反向旋转文字使其保持直立
+// 计算每个标签文字的旋转位置
+const getLabelStyle12 = (index) => {
+  const angle = index * 30;
   return {
-    transform: `translate(-50%, -50%) rotate(${angle}deg) translateY(-90px) rotate(${-angle}deg)`
+    // 沿半径推到中间，并将文字反向旋转保持正向阅读
+    transform: `translate(-50%, -50%) rotate(${angle}deg) translateY(-95px) rotate(${-angle}deg)`
   };
 };
 
-// 中文翻译拦截
+// 决定转盘怎么转（绝对圆形，不会东倒西歪）
+const wheelStyle = computed(() => {
+  if (!isDrawing.value && result.value) {
+    // 目标索引（如果抽中的值在盘面上找不到，默认落在0円的格子上）
+    const targetIdx = displayPrizes12.value.findIndex(p => p.value === result.value.value);
+    const safeIdx = targetIdx !== -1 ? targetIdx : 1;
+    
+    // 每个格子 30 度
+    const anglePerBlock = 30;
+    
+    // 计算目标旋转角度：
+    // 转 5 圈 (1800度) + 我们需要让第 safeIdx 个格子转到 0 度的位置
+    // 因为第 safeIdx 个格子当前的角度是 safeIdx * 30 度，所以需要旋转 -(safeIdx * 30) 度
+    // 考虑到不出现负数导致反向转，加上 360 取余：
+    const targetDeg = 1800 + (360 - safeIdx * anglePerBlock);
+    
+    return {
+      transform: `rotate(${targetDeg}deg)`,
+      transition: 'transform 4.5s cubic-bezier(0.15, 0.9, 0.25, 1)' // 4.5秒完美惯性缓停
+    };
+  } else if (isDrawing.value) {
+    // 无脑高速旋转阶段
+    return {
+      transform: `rotate(${targetRotation.value}deg)`,
+      transition: 'none'
+    };
+  }
+  // 初始状态
+  return {
+    transform: `rotate(0deg)`,
+    transition: 'none'
+  };
+});
+
+// 中文拦截
 const translateName = (name) => {
   if (!name) return 'ハズレ';
   if (name === '不中奖' || name === '未中奖' || name === '没中奖' || name === '谢谢参与') {
@@ -574,8 +565,8 @@ const executeDraw = async () => {
   showTicket.value = false;
   playSpinSound();
   
-  // 每次抽奖清空上一次的角度，开始疯狂无脑转圈
-  wheelRotation.value = wheelRotation.value + 720; // 转两圈
+  // 开始疯狂旋转（重置角度，加速旋转）
+  targetRotation.value = 0;
   
   if (marqueeTimer) clearInterval(marqueeTimer);
   marqueeTimer = setInterval(() => {
@@ -594,12 +585,7 @@ const executeDraw = async () => {
         setTimeout(() => {
           if (spinInterval) clearInterval(spinInterval);
           
-          // 计算转盘停下来该指向哪里
-          let targetIndex = displayPrizes.value.findIndex(p => p.value === result.value.value);
-          if (targetIndex === -1) targetIndex = 1; // 如果没找到，默认落在第 1 个未中奖上
-          targetPrizeIndex.value = targetIndex;
-          
-          // 让 isDrawing 变 false，触发 CSS 的 4秒慢停过渡
+          // 停止旋转，触发 computed 中的精准目标角度计算
           isDrawing.value = false; 
           
           const targetIndexMarquee = marqueePrizes.value.findIndex(p => p.name === result.value.prize || (result.value.value === 0 && p.value === 0));
@@ -608,13 +594,13 @@ const executeDraw = async () => {
             currentMarqueeIndex.value = targetIndexMarquee; 
           }
           
-          // 4秒后再触发音效和弹窗（因为转盘要转4秒）
+          // 4.5秒后（动画结束），触发音效和弹窗
           setTimeout(() => {
             if (result.value.value > 0) playWinSound(); else playLoseSound();
             setTimeout(() => {
               showTicket.value = true;
             }, 500);
-          }, 4000);
+          }, 4500);
           
         }, 8500); 
       }
@@ -657,70 +643,13 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
   border: 2px solid #cbd5e1;
   transform-style: preserve-3d;
 }
-
-/* 顶部 Logo */
-.machine-brand {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  padding: 10px 20px;
-  box-sizing: border-box;
-  position: absolute;
-  top: 0;
-  z-index: 10;
-}
+.machine-brand { width: 100%; display: flex; justify-content: space-between; padding: 10px 20px; box-sizing: border-box; position: absolute; top: 0; z-index: 10; }
 .logo-red { background: #ef4444; color: white; font-weight: 900; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-family: sans-serif; }
 .logo-blue { color: #1d4ed8; font-weight: 900; font-size: 12px; font-style: italic; font-family: sans-serif; }
-
-/* 巨大的弧形透明舱门 */
-.acrylic-dome {
-  width: 220px;
-  height: 160px;
-  margin-top: 30px;
-  background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.1) 50%, rgba(200,220,240,0.4) 100%);
-  border-radius: 100px 100px 20px 20px;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 
-    inset 0 0 20px rgba(255,255,255,0.9),
-    inset 10px 10px 20px rgba(255,255,255,0.5),
-    0 5px 15px rgba(0,0,0,0.1);
-  border: 3px solid rgba(255,255,255,0.9);
-  border-bottom: 8px solid #cbd5e1;
-  z-index: 2;
-}
-
-/* 内部隔板 */
-.dome-shelf {
-  position: absolute;
-  bottom: 25%;
-  width: 100%;
-  height: 8px;
-  background: rgba(255,255,255,0.6);
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-  border-radius: 4px;
-}
-
-/* 内部堆满的扭蛋球 */
-.capsule-pile {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  overflow: hidden;
-}
-
-.ball {
-  position: absolute;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  box-shadow: 
-    inset -5px -5px 10px rgba(0,0,0,0.2),
-    inset 4px 4px 8px rgba(255,255,255,0.8),
-    0 3px 6px rgba(0,0,0,0.15);
-}
-
-/* 球体位置及颜色分配 */
+.acrylic-dome { width: 220px; height: 160px; margin-top: 30px; background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.1) 50%, rgba(200,220,240,0.4) 100%); border-radius: 100px 100px 20px 20px; position: relative; overflow: hidden; box-shadow: inset 0 0 20px rgba(255,255,255,0.9), inset 10px 10px 20px rgba(255,255,255,0.5), 0 5px 15px rgba(0,0,0,0.1); border: 3px solid rgba(255,255,255,0.9); border-bottom: 8px solid #cbd5e1; z-index: 2; }
+.dome-shelf { position: absolute; bottom: 25%; width: 100%; height: 8px; background: rgba(255,255,255,0.6); box-shadow: 0 4px 10px rgba(0,0,0,0.1); border-radius: 4px; }
+.capsule-pile { position: absolute; inset: 0; z-index: 1; overflow: hidden; }
+.ball { position: absolute; width: 32px; height: 32px; border-radius: 50%; box-shadow: inset -5px -5px 10px rgba(0,0,0,0.2), inset 4px 4px 8px rgba(255,255,255,0.8), 0 3px 6px rgba(0,0,0,0.15); }
 .ball-1 { background: radial-gradient(circle at 30% 30%, #fca5a5, #ef4444); top: 40px; left: 30px; }
 .ball-2 { background: radial-gradient(circle at 30% 30%, #93c5fd, #3b82f6); top: 60px; left: 70px; }
 .ball-3 { background: radial-gradient(circle at 30% 30%, #86efac, #22c55e); top: 35px; left: 110px; }
@@ -729,223 +658,42 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .ball-6 { background: radial-gradient(circle at 30% 30%, #f9a8d4, #ec4899); top: 100px; left: 90px; }
 .ball-7 { background: radial-gradient(circle at 30% 30%, #67e8f9, #06b6d4); top: 90px; left: 140px; }
 .ball-8 { background: radial-gradient(circle at 30% 30%, #fdba74, #f97316); top: 120px; left: 70px; }
-
-/* 旋转时的抖动 */
-.acrylic-dome.is-spinning .ball {
-  animation: ball-shake 0.15s infinite alternate;
-}
+.acrylic-dome.is-spinning .ball { animation: ball-shake 0.15s infinite alternate; }
 .acrylic-dome.is-spinning .ball:nth-child(odd) { animation-delay: 0.05s; }
 .acrylic-dome.is-spinning .ball:nth-child(even) { animation-delay: 0.1s; }
-@keyframes ball-shake {
-  0% { transform: translate(0, 0) rotate(0deg); }
-  100% { transform: translate(3px, -6px) rotate(30deg); }
-}
-
-/* 旋转视觉模糊 */
-.spin-blur {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(255,255,255,0.6) 0%, transparent 40%, transparent 60%, rgba(255,255,255,0.4) 100%);
-  z-index: 5;
-  animation: blur-pulse 0.15s infinite alternate;
-}
+@keyframes ball-shake { 0% { transform: translate(0, 0) rotate(0deg); } 100% { transform: translate(3px, -6px) rotate(30deg); } }
+.spin-blur { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255,255,255,0.6) 0%, transparent 40%, transparent 60%, rgba(255,255,255,0.4) 100%); z-index: 5; animation: blur-pulse 0.15s infinite alternate; }
 @keyframes blur-pulse { 0% { opacity: 0.3; } 100% { opacity: 0.8; } }
-
-/* 舱门高光 */
-.dome-highlight {
-  position: absolute;
-  top: 10px;
-  left: 20px;
-  width: 60px;
-  height: 40px;
-  background: linear-gradient(135deg, rgba(255,255,255,1) 0%, transparent 100%);
-  border-radius: 50%;
-  transform: rotate(-30deg);
-  z-index: 6;
-  pointer-events: none;
-}
-
-/* 机台下半部分 */
-.machine-body-lower {
-  width: 100%;
-  height: 110px;
-  background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
-  border-radius: 0 0 20px 20px;
-  display: flex;
-  position: relative;
-  box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-  border-top: 2px solid #e2e8f0;
-  z-index: 1;
-}
-
-/* 左侧区 */
-.lower-left {
-  width: 40%;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-around;
-  align-items: center;
-  border-right: 2px solid #cbd5e1;
-}
+.dome-highlight { position: absolute; top: 10px; left: 20px; width: 60px; height: 40px; background: linear-gradient(135deg, rgba(255,255,255,1) 0%, transparent 100%); border-radius: 50%; transform: rotate(-30deg); z-index: 6; pointer-events: none; }
+.machine-body-lower { width: 100%; height: 110px; background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%); border-radius: 0 0 20px 20px; display: flex; position: relative; box-shadow: 0 10px 20px rgba(0,0,0,0.1); border-top: 2px solid #e2e8f0; z-index: 1; }
+.lower-left { width: 40%; display: flex; flex-direction: column; justify-content: space-around; align-items: center; border-right: 2px solid #cbd5e1; }
 .coin-slot { font-size: 24px; color: #64748b; }
-.side-crank {
-  width: 30px;
-  height: 30px;
-  background: #cbd5e1;
-  border-radius: 50%;
-  position: relative;
-  box-shadow: inset 0 -3px 5px rgba(0,0,0,0.2), 0 3px 5px rgba(0,0,0,0.1);
-}
+.side-crank { width: 30px; height: 30px; background: #cbd5e1; border-radius: 50%; position: relative; box-shadow: inset 0 -3px 5px rgba(0,0,0,0.2), 0 3px 5px rgba(0,0,0,0.1); }
 .side-crank.is-turning { animation: crank-turn 0.5s infinite linear; }
 @keyframes crank-turn { 100% { transform: rotate(360deg); } }
-.crank-handle {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 40px;
-  height: 10px;
-  background: #94a3b8;
-  border-radius: 5px;
-  transform: translate(-50%, -50%);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-
-/* 右侧区 */
-.lower-right {
-  width: 60%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 0;
-}
-.big-knob {
-  width: 60px;
-  height: 60px;
-  background: radial-gradient(circle at 30% 30%, #60a5fa, #2563eb);
-  border-radius: 50%;
-  border: 4px solid #e2e8f0;
-  box-shadow: 0 5px 10px rgba(0,0,0,0.2), inset 0 -4px 8px rgba(0,0,0,0.3);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-top: -30px;
-  z-index: 5;
-}
+.crank-handle { position: absolute; top: 50%; left: 50%; width: 40px; height: 10px; background: #94a3b8; border-radius: 5px; transform: translate(-50%, -50%); box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+.lower-right { width: 60%; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 10px 0; }
+.big-knob { width: 60px; height: 60px; background: radial-gradient(circle at 30% 30%, #60a5fa, #2563eb); border-radius: 50%; border: 4px solid #e2e8f0; box-shadow: 0 5px 10px rgba(0,0,0,0.2), inset 0 -4px 8px rgba(0,0,0,0.3); display: flex; justify-content: center; align-items: center; margin-top: -30px; z-index: 5; }
 .big-knob.is-turning { animation: knob-turn 0.5s infinite linear; }
 @keyframes knob-turn { 100% { transform: rotate(360deg); } }
-.knob-inner {
-  font-size: 24px;
-  color: white;
-  font-weight: 900;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-}
-
-/* 出蛋口 */
-.exit-chute {
-  width: 70px;
-  height: 50px;
-  background: #1e293b;
-  border-radius: 10px 10px 5px 5px;
-  margin-bottom: 5px;
-  position: relative;
-  box-shadow: inset 0 8px 15px rgba(0,0,0,0.8);
-  perspective: 200px;
-}
-.chute-flap {
-  position: absolute;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(180deg, #e2e8f0, #94a3b8);
-  border-radius: 10px 10px 0 0;
-  transform-origin: top;
-  transform: rotateX(0deg);
-  transition: transform 0.3s;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  overflow: hidden;
-}
-.chute-flap.is-pushing {
-  transform: rotateX(80deg);
-}
-
-/* 掉落的扭蛋 */
-.dropped-capsule {
-  position: absolute;
-  bottom: 0;
-  width: 50px;
-  height: 60px;
-  animation: drop-out 1s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-  transform-style: preserve-3d;
-}
-@keyframes drop-out {
-  0% { transform: translateY(-30px) scale(0.8); opacity: 0; }
-  50% { transform: translateY(0) scale(1); opacity: 1; }
-  100% { transform: translateY(0) scale(1); opacity: 1; }
-}
-.capsule-half {
-  position: absolute;
-  width: 100%;
-  height: 50%;
-  box-shadow: inset 0 2px 4px rgba(255,255,255,0.5);
-}
+.knob-inner { font-size: 24px; color: white; font-weight: 900; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+.exit-chute { width: 70px; height: 50px; background: #1e293b; border-radius: 10px 10px 5px 5px; margin-bottom: 5px; position: relative; box-shadow: inset 0 8px 15px rgba(0,0,0,0.8); perspective: 200px; }
+.chute-flap { position: absolute; top: 0; width: 100%; height: 100%; background: linear-gradient(180deg, #e2e8f0, #94a3b8); border-radius: 10px 10px 0 0; transform-origin: top; transform: rotateX(0deg); transition: transform 0.3s; box-shadow: 0 2px 5px rgba(0,0,0,0.3); display: flex; justify-content: center; align-items: center; overflow: hidden; }
+.chute-flap.is-pushing { transform: rotateX(80deg); }
+.dropped-capsule { position: absolute; bottom: 0; width: 50px; height: 60px; animation: drop-out 1s cubic-bezier(0.25, 1, 0.5, 1) forwards; transform-style: preserve-3d; }
+@keyframes drop-out { 0% { transform: translateY(-30px) scale(0.8); opacity: 0; } 50% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
+.capsule-half { position: absolute; width: 100%; height: 50%; box-shadow: inset 0 2px 4px rgba(255,255,255,0.5); }
 .capsule-half.top { top: 0; border-radius: 25px 25px 0 0; }
 .capsule-half.bottom { bottom: 0; border-radius: 0 0 25px 25px; }
 .win-bg { background: linear-gradient(180deg, #fef08a, #eab308); border: 1px solid #ca8a04; }
 .lose-bg { background: linear-gradient(180deg, #e2e8f0, #94a3b8); border: 1px solid #64748b; }
-
-.capsule-prize-text {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 14px;
-  font-weight: 900;
-  z-index: 2;
-  text-align: center;
-}
+.capsule-prize-text { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; font-size: 14px; font-weight: 900; z-index: 2; text-align: center; }
 .win-text { color: #b45309; text-shadow: 0 1px 2px rgba(255,255,255,0.8); }
 .lose-text { color: #334155; font-size: 11px; }
-
-/* 装饰贴纸 */
-.machine-stickers {
-  position: absolute;
-  bottom: 8px;
-  left: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.sticker {
-  font-size: 10px;
-  font-weight: bold;
-  padding: 3px 6px;
-  border-radius: 3px;
-  font-family: sans-serif;
-  text-align: center;
-}
-.sticker.warning { 
-  background: #fef08a; 
-  color: #854d0e; 
-  border: 1px solid #ca8a04; 
-  font-size: 12px; 
-  letter-spacing: 1px;
-}
-.sticker.instructions { 
-  background: #e0f2fe; 
-  color: #0369a1; 
-  font-size: 9px; 
-  line-height: 1.2;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 4px;
-  width: 54px;
-}
+.machine-stickers { position: absolute; bottom: 8px; left: 8px; display: flex; flex-direction: column; gap: 6px; }
+.sticker { font-size: 10px; font-weight: bold; padding: 3px 6px; border-radius: 3px; font-family: sans-serif; text-align: center; }
+.sticker.warning { background: #fef08a; color: #854d0e; border: 1px solid #ca8a04; font-size: 12px; letter-spacing: 1px; }
+.sticker.instructions { background: #e0f2fe; color: #0369a1; font-size: 9px; line-height: 1.2; display: flex; flex-direction: column; align-items: center; padding: 4px; width: 54px; }
 
 /* ================= 以下保留原有其他动画样式 ================= */
 .room-container { position: relative; min-height: 100vh; display: flex; flex-direction: column; overflow: hidden; background: #050508; font-family: 'Noto Sans JP', sans-serif; }
@@ -963,13 +711,11 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .theme-dart .aurora-1 { background: #ef4444; } .theme-dart .aurora-2 { background: #f97316; }
 .theme-scratch .aurora-1 { background: #f59e0b; } .theme-scratch .aurora-2 { background: #eab308; }
 @keyframes aurora-flow { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(100px, 100px) scale(1.2); } }
-
 .stars-container { position: absolute; inset: 0; perspective: 800px; overflow: hidden; }
 .star-group { position: absolute; inset: -50%; background-image: radial-gradient(1.5px 1.5px at 20px 30px, #fff, transparent), radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.8), transparent), radial-gradient(1px 1px at 90px 40px, #fff, transparent); background-repeat: repeat; background-size: 200px 200px; animation: stars-move 20s linear infinite; }
-.star-1 { animation-duration: 30s; opacity: 0.6; } .star-2 { animation-duration: 20s; background-size: 300px 300px; opacity: 0.8; } .star-3 { animation-duration: 10s; background-size: 150px 150px; opacity: 1; }
+.star-1 { animation-duration: 30s; opacity: 0.6; } .star-2 { animation-duration: 20s; opacity: 0.8; background-size: 300px 300px; } .star-3 { animation-duration: 10s; opacity: 1; background-size: 150px 150px; }
 @keyframes stars-move { 0% { transform: translateZ(0) translateY(0); } 100% { transform: translateZ(200px) translateY(-200px); } }
 .floor-reflection { position: absolute; bottom: -10%; left: 0; width: 100%; height: 300px; background: linear-gradient(to top, rgba(255,255,255,0.05), transparent); transform: perspective(500px) rotateX(70deg); transform-origin: bottom; }
-
 .room-header, .stage { position: relative; z-index: 10; }
 .floating-back-btn { position: fixed; top: 60px; left: 20px; z-index: 999; background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: bold; color: white; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: all 0.2s; }
 .floating-back-btn:hover { background: rgba(255,255,255,0.2); transform: translateY(-2px); }
@@ -982,7 +728,7 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .prize-tag.is-lose { background: #64748b; color: #fff; border: 2px solid #475569; }
 @keyframes pop-out { 0% { transform: scale(0) translateY(20px); opacity: 0; } 100% { transform: scale(1) translateY(0); opacity: 1; } }
 
-/* 金鱼机 */
+/* 金鱼机 / 飞镖 / 抓娃娃 / 刮刮乐 ...省略部分通用样式... */
 .fish-bowl { width: 260px; height: 260px; border-radius: 50%; background: radial-gradient(circle at 50% 20%, #bae6fd, #38bdf8); position: relative; box-shadow: inset 0 20px 40px rgba(0,0,0,0.2), 0 10px 20px rgba(0,0,0,0.1); overflow: hidden; border: 4px solid #e2e8f0; }
 .water { position: absolute; bottom: 0; width: 100%; height: 70%; background: rgba(255,255,255,0.2); transition: 0.3s; }
 .water.is-rippling { animation: ripple 0.3s linear infinite; }
@@ -1001,8 +747,6 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .splash-effect { position: absolute; bottom: 140px; left: 50%; transform: translateX(-50%); font-size: 50px; animation: splash 0.8s ease-out forwards; }
 @keyframes splash { 0% { transform: translate(-50%, 0) scale(0.5); opacity: 1; } 100% { transform: translate(-50%, -60px) scale(1.5); opacity: 0; } }
 .fish-prize { top: 30%; left: 50%; transform: translateX(-50%); animation-delay: 0.8s; }
-
-/* 飞镖 */
 .dart-board { width: 220px; height: 220px; border-radius: 50%; background: conic-gradient(#ef4444 0deg 20deg, #f1f5f9 20deg 40deg, #3b82f6 40deg 60deg, #f1f5f9 60deg 80deg, #ef4444 80deg 100deg, #f1f5f9 100deg 120deg, #3b82f6 120deg 140deg, #f1f5f9 140deg 160deg, #ef4444 160deg 180deg, #f1f5f9 180deg 200deg, #3b82f6 200deg 220deg, #f1f5f9 220deg 240deg, #ef4444 240deg 260deg, #f1f5f9 260deg 280deg, #3b82f6 280deg 300deg, #f1f5f9 300deg 320deg, #ef4444 320deg 340deg, #f1f5f9 340deg 360deg); position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.2); border: 8px solid #334155; }
 .board-rings { position: absolute; inset: 20%; border-radius: 50%; border: 4px solid #334155; background: #fff; }
 .dart { position: absolute; top: -20%; left: 50%; font-size: 40px; transform: translateX(-50%); transition: 0.3s; }
@@ -1010,8 +754,6 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .dart.is-hit { top: 45%; animation: none; transform: translateX(-50%) scale(0.8); }
 @keyframes throw-dart { 0% { top: -20%; transform: translateX(-50%) scale(1); } 100% { top: 45%; transform: translateX(-50%) scale(0.8); } }
 .dart-prize { top: 10%; left: 50%; transform: translateX(-50%); animation-delay: 1s; }
-
-/* 抓娃娃 */
 .crane-scene { width: 100%; height: 100%; position: relative; perspective: 800px; }
 .crane-rail { position: absolute; top: 10%; width: 100%; height: 15px; background: linear-gradient(180deg, #94a3b8, #64748b); transform: rotateX(60deg); }
 .claw-3d { position: absolute; top: 10%; left: 50%; transform: translateX(-50%) translateZ(50px); transition: top 1.5s ease-in-out; transform-style: preserve-3d; display: flex; flex-direction: column; align-items: center; }
@@ -1033,8 +775,6 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .coin-drop { position: absolute; bottom: 30%; left: 50%; transform: translateX(-50%); z-index: 20; }
 .coin { padding: 10px 20px; border-radius: 30px; background: radial-gradient(circle, #fde047, #ca8a04); font-size: 20px; font-weight: 900; color: #fff; box-shadow: 0 10px 20px rgba(0,0,0,0.5); animation: drop-coin 1s cubic-bezier(0.25, 1, 0.5, 1) forwards; animation-delay: 1.8s; opacity: 0; border: 4px dashed #fef08a; }
 @keyframes drop-coin { 0% { transform: translateY(-100px) scale(0.5); opacity: 0; } 60% { transform: translateY(0) scale(1.1); opacity: 1; } 80% { transform: translateY(-20px) scale(1); } 100% { transform: translateY(0) scale(1); opacity: 1; } }
-
-/* 刮刮乐 */
 .scratch-scene { display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; position: relative; }
 .scratch-card { width: 200px; height: 200px; background: #fff; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); position: relative; overflow: hidden; }
 .scratch-content { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; font-size: 80px; background: #f8fafc; }
@@ -1044,7 +784,7 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .scratch-card.is-scratched .scratch-cover { transform: translateY(-100%); }
 .scratch-prize { position: absolute; top: 30%; z-index: 20; animation-delay: 0.5s; }
 
-/* ================= 6. 完美动态适配版转盘 ================= */
+/* ================= 6. 3D立体球形轮盘 (完美优化版) ================= */
 .roulette-scene {
   position: relative;
   width: 100%;
@@ -1054,95 +794,118 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
   align-items: center;
 }
 
-/* 顶部固定指针 */
-.roulette-pointer {
+/* 顶部固定白球指针 */
+.roulette-ball-pointer {
   position: absolute;
   top: 2%;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 28px;
-  color: #fde047;
+  font-size: 22px;
+  color: #fff;
+  text-shadow: 0 4px 10px rgba(0,0,0,0.8), 0 0 10px rgba(255,255,255,0.8);
   z-index: 50;
-  filter: drop-shadow(0 4px 2px rgba(0,0,0,0.6));
-  animation: bounce-pointer 1s infinite alternate;
+  animation: bounce-ball 1.5s infinite alternate ease-in-out;
 }
-@keyframes bounce-pointer {
-  0% { transform: translateX(-50%) translateY(0); }
-  100% { transform: translateX(-50%) translateY(-4px); }
+@keyframes bounce-ball {
+  0% { transform: translateX(-50%) translateY(0) scale(1); }
+  100% { transform: translateX(-50%) translateY(-5px) scale(1.1); }
 }
 
-/* 转盘外框 */
-.wheel-container {
-  width: 250px;
-  height: 250px;
+/* 轮盘底座（阴影与厚度） */
+.wheel-3d-container {
+  width: 260px;
+  height: 260px;
   position: relative;
   border-radius: 50%;
+  /* 模拟厚重的球体阴影和包边 */
   box-shadow: 
-    0 25px 40px rgba(0,0,0,0.6), 
-    0 0 0 8px #1e293b, 
-    inset 0 0 20px rgba(0,0,0,0.9);
+    0 30px 40px rgba(0,0,0,0.7), 
+    0 0 0 8px #111827, /* 黑色外圈 */
+    0 0 0 10px #334155, /* 灰色金属外圈 */
+    inset 0 0 30px rgba(0,0,0,0.9);
   background: #0f172a;
-  /* 旋转动画与基础样式已在 computed 中动态注入 */
+  transform-style: preserve-3d;
 }
 
-/* 动态区块背景（利用动态 conic-gradient） */
-.wheel-number-ring {
+/* 旋转层 */
+.wheel-rotating-layer {
   position: absolute;
-  inset: 6px;
+  inset: 12px;
   border-radius: 50%;
-  box-shadow: inset 0 0 15px rgba(0,0,0,0.8);
-  /* background 属性由 Vue 绑定注入 */
+  /* 旋转动画在 computed 中动态注入 */
+  will-change: transform;
 }
 
-/* 数字标签 */
-.num-label {
+/* 动态区块背景 */
+.wheel-blocks {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+  /* background 由 Vue 注入 */
+}
+
+/* 金额标签文字 */
+.wheel-label {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 60px;
+  width: 40px;
   height: 20px;
-  margin: -10px -30px;
+  margin: -10px -20px;
   display: flex;
   justify-content: center;
   align-items: center;
   color: #fff;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 900;
   font-family: monospace, sans-serif;
   text-shadow: 0 2px 4px rgba(0,0,0,0.9);
   z-index: 5;
-  /* 具体旋转位置由 getLabelStyle 动态注入 */
 }
 
-/* 中心固定塔楼 */
-.wheel-center {
+/* 立体高光层 (保持静止，营造凹透镜/球体受光质感) */
+.wheel-3d-sphere-overlay {
+  position: absolute;
+  inset: 12px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 8;
+  background: 
+    radial-gradient(circle at 30% 30%, rgba(255,255,255,0.2) 0%, transparent 40%),
+    radial-gradient(circle at center, transparent 40%, rgba(0,0,0,0.6) 100%);
+  box-shadow: inset 0 10px 20px rgba(255,255,255,0.1), inset 0 -10px 30px rgba(0,0,0,0.8);
+}
+
+/* 中心 CASINO 塔楼 */
+.wheel-center-tower {
   position: absolute;
   inset: 60px;
   border-radius: 50%;
-  background: radial-gradient(circle at 40% 30%, #334155 0%, #0f172a 80%);
+  background: radial-gradient(circle at 40% 30%, #475569 0%, #0f172a 80%);
   box-shadow: 
-    inset 0 5px 15px rgba(255,255,255,0.2), 
-    inset 0 -5px 20px rgba(0,0,0,0.8),
-    0 0 20px rgba(0,0,0,0.9);
+    inset 0 8px 15px rgba(255,255,255,0.2), 
+    inset 0 -8px 20px rgba(0,0,0,0.9),
+    0 10px 20px rgba(0,0,0,0.8),
+    0 0 0 4px #1e293b;
   z-index: 10;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  border: 2px solid #475569;
+  border: 2px solid #64748b;
 }
 
-.center-text {
+.tower-top {
   color: #fbbf24;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 900;
   letter-spacing: 2px;
   text-shadow: 0 2px 4px rgba(0,0,0,0.8);
   font-family: serif;
 }
 
-/* 中心的十字金属塔 */
-.center-cross {
+.tower-cross {
   position: relative;
   width: 50px;
   height: 50px;
@@ -1163,14 +926,15 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
   transform: translate(-50%, -50%) rotate(90deg);
 }
 
-/* 光效特效 */
+/* 中奖光效 */
 .win-glow {
   position: absolute;
-  inset: -10px;
+  inset: -15px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(253, 224, 71, 0.4) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(253, 224, 71, 0.5) 0%, transparent 70%);
   animation: pulse-glow 1.5s infinite alternate;
   z-index: 1;
+  pointer-events: none;
 }
 @keyframes pulse-glow {
   0% { transform: scale(0.9); opacity: 0.5; }
@@ -1179,8 +943,7 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 
 .roulette-prize { top: 15%; left: 50%; transform: translateX(-50%); animation-delay: 4.5s; z-index: 60; }
 
-
-/* 寻宝 */
+/* 寻宝 / 老虎机 */
 .treasure-chest { width: 200px; height: 150px; position: relative; perspective: 500px; }
 .chest-base { position: absolute; bottom: 0; width: 100%; height: 60%; background: #78350f; border-radius: 10px; border: 4px solid #451a03; }
 .chest-lid { position: absolute; top: 0; width: 100%; height: 40%; background: #92400e; border-radius: 50% 50% 0 0; border: 4px solid #451a03; transform-origin: bottom; transition: transform 0.5s; }
@@ -1196,7 +959,6 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 @keyframes fly2 { 0% { transform: translate(0, 0); opacity: 1; } 100% { transform: translate(40px, -60px) scale(0.5); opacity: 0; } }
 @keyframes pop-coin { 0% { opacity: 0; transform: translateX(-50%) scale(0.5); top: -20px; } 100% { opacity: 1; transform: translateX(-50%) scale(1); top: -40px; } }
 
-/* 老虎机 */
 .slot-machine-3d { display: flex; gap: 20px; position: relative; perspective: 800px; }
 .reel-container { position: relative; width: 80px; height: 200px; background: #111827; border-radius: 10px; overflow: hidden; box-shadow: inset 0 0 20px rgba(0,0,0,0.9), 0 10px 20px rgba(0,0,0,0.5); border: 3px solid #475569; }
 .reel-3d { width: 100%; height: 100%; position: absolute; transform-style: preserve-3d; transform: rotateX(-120deg); }
@@ -1215,7 +977,7 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .cylinder-gloss { position: absolute; inset: 0; pointer-events: none; border-radius: 8px; background: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.85) 100%), linear-gradient(90deg, rgba(0,0,0,0.6) 0%, rgba(255,255,255,0.2) 15%, transparent 50%, rgba(255,255,255,0.2) 85%, rgba(0,0,0,0.6) 100%); z-index: 10; }
 .slot-machine-glass { position: absolute; inset: -15px; border-radius: 15px; background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, transparent 40%, transparent 60%, rgba(255,255,255,0.05) 100%); pointer-events: none; z-index: 20; }
 
-/* 通用按钮、弹窗样式 */
+/* 通用按钮、弹窗、跑马灯等 */
 .control-panel { margin-top: 20px; text-align: center; width: 100%; }
 .desc { font-size: 13px; color: #64748b; margin-bottom: 15px; font-weight: bold; }
 .balance-display { background: #0f172a; border-radius: 12px; padding: 12px 24px; display: inline-flex; flex-direction: column; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5); }
@@ -1269,7 +1031,6 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .ticket-leave-to { opacity: 0; }
 @keyframes ticketDrop { 0% { transform: translateY(-50px) scale(0.9); opacity: 0; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
 
-/* 跑马灯 */
 .marquee-board { width: 100%; margin-top: 15px; padding: 10px; background: rgba(0, 0, 0, 0.3); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); overflow: hidden; box-sizing: border-box; }
 .marquee-scroll { display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto; padding-bottom: 5px; }
 .marquee-scroll::-webkit-scrollbar { height: 4px; }
@@ -1293,8 +1054,6 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
   .modal-card { width: 95%; padding: 20px; }
   .ticket-wrapper { width: 95%; }
   .marquee-item { font-size: 11px; padding: 4px 8px; }
-  
-  /* 移动端微调扭蛋机 */
   .bandai-gacha-machine { transform: scale(0.9); }
 }
 </style>
