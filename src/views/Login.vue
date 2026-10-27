@@ -32,7 +32,6 @@
           </div>
 
           <div class="form-actions">
-            <!-- 🆕 替换为原生的可点击自定义勾选框 -->
             <div class="custom-checkbox" @click="rememberMe = !rememberMe">
               <div class="box" :class="{ active: rememberMe }">
                 <span v-if="rememberMe">✓</span>
@@ -44,22 +43,13 @@
           </div>
           
           <button class="login-btn" @click="handleLogin" :disabled="isLoading">
-            {{ isLoading ? 'ログイン中...' : 'ログイン / 登 录' }}
+            {{ isLoading ? 'ログイン中...' : 'ログイン' }}
           </button>
 
           <p class="register-link">
             アカウントをお持ちでないですか？ 
             <a @click="$router.push('/register')">新規登録</a>
           </p>
-
-          <div class="social-login">
-            <p>または以下でログイン</p>
-            <div class="social-icons">
-              <div class="social-icon">G</div>
-              <div class="social-icon">X</div>
-              <div class="social-icon">L</div>
-            </div>
-          </div>
 
           <p class="footer-text">※本サイトは18歳未満のご利用はできません。</p>
 
@@ -69,11 +59,16 @@
             <span>🛡️ 公安委員会認可</span>
             <span>⚡ 即時入出金</span>
           </div>
+
+          <!-- 🆕 底部合规链接（替换了原来的第三方登录） -->
+          <div class="legal-links">
+            <a @click="$router.push('/legal/commerce')">特定商取引法に基づく表記</a>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- 🆕 忘记密码弹窗 -->
+    <!-- 忘记密码弹窗 -->
     <Transition name="fade">
       <div v-if="showLineModal" class="line-modal-overlay" @click.self="showLineModal = false">
         <div class="line-modal-card">
@@ -114,7 +109,8 @@ onMounted(() => {
 });
 
 const handleLogin = async () => {
-  if (!username.value || !password.value) return ElMessage.warning('请输入账号密码');
+  // 🆕 修复了中文提示
+  if (!username.value || !password.value) return ElMessage.warning('ユーザー名とパスワードを入力してください');
   
   isLoading.value = true;
   try {
@@ -123,18 +119,18 @@ const handleLogin = async () => {
       password: password.value 
     });
     if (res.data.success) {
-      // 🆕 核心修复：确保 verify_status 字段存在，防止被 undefined 覆盖导致误判
       const userData = res.data.user || {};
       if (userData.verify_status === undefined) {
-        userData.verify_status = 0; // 兜底，防止丢失
+        userData.verify_status = 0; 
       }
       
       localStorage.setItem('user', JSON.stringify(userData));
-      ElMessage.success('ログイン成功');
+      ElMessage.success('ログインに成功しました');
       router.push('/');
     }
   } catch (error) {
-    ElMessage.error(error.response?.data?.error || '登录失败，请检查账号密码');
+    // 🆕 修复了中文提示
+    ElMessage.error(error.response?.data?.error || 'ログインに失敗しました。認証情報をご確認ください。');
   } finally {
     isLoading.value = false;
   }
@@ -168,7 +164,7 @@ const handleLogin = async () => {
   align-items: center;
   width: 100%;
   max-width: 520px;
-  min-height: 650px;
+  min-height: 600px; /* 适当缩短了一点高度因为去掉了社交登录 */
   background: rgba(15, 23, 42, 0.7);
   backdrop-filter: blur(20px);
   border-radius: 24px;
@@ -211,7 +207,7 @@ const handleLogin = async () => {
 /* 操作区 */
 .form-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
 
-/* 🆕 自定义勾选框样式 */
+/* 自定义勾选框样式 */
 .custom-checkbox { display: flex; align-items: center; gap: 8px; cursor: pointer; color: #cbd5e1; font-size: 14px; }
 .custom-checkbox .box { width: 18px; height: 18px; border: 1px solid #64748b; border-radius: 4px; display: flex; justify-content: center; align-items: center; font-size: 12px; color: white; transition: 0.2s; }
 .custom-checkbox .box.active { background: #e83862; border-color: #e83862; }
@@ -230,21 +226,16 @@ const handleLogin = async () => {
 .register-link { margin-top: 25px; font-size: 14px; color: #94a3b8; text-align: center; }
 .register-link a { color: #e83862; font-weight: bold; cursor: pointer; text-decoration: underline; }
 
-/* 第三方登录 */
-.social-login { margin-top: 30px; text-align: center; }
-.social-login p { font-size: 12px; color: #64748b; margin-bottom: 15px; position: relative; }
-.social-login p::before, .social-login p::after { content: ""; position: absolute; top: 50%; width: 30%; height: 1px; background: #334155; }
-.social-login p::before { left: 0; }
-.social-login p::after { right: 0; }
-.social-icons { display: flex; justify-content: center; gap: 15px; }
-.social-icon { width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; justify-content: center; align-items: center; font-weight: bold; color: #cbd5e1; cursor: pointer; transition: 0.2s; border: 1px solid rgba(255,255,255,0.1); }
-.social-icon:hover { background: rgba(255,255,255,0.1); color: white; }
-
 .footer-text { margin-top: 20px; font-size: 11px; color: #475569; text-align: center; }
 
 /* 信任标签 */
 .trust-badges { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 25px; }
 .trust-badges span { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 6px 12px; border-radius: 20px; font-size: 11px; color: #cbd5e1; }
+
+/* 🆕 底部合规链接 */
+.legal-links { margin-top: 30px; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 20px; }
+.legal-links a { color: #64748b; font-size: 12px; cursor: pointer; text-decoration: none; transition: 0.2s; }
+.legal-links a:hover { color: #cbd5e1; text-decoration: underline; }
 
 /* ================= 🆕 忘记密码弹窗样式 ================= */
 .line-modal-overlay {
