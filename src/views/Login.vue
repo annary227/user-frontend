@@ -16,7 +16,7 @@
           <p class="welcome-sub">アカウントにログインして取引を開始</p>
 
           <div class="form-group">
-            <label>ユーザー名 / 邮箱</label>
+            <label>ユーザー名 / メールアドレス</label>
             <div class="input-wrapper">
               <el-icon><User /></el-icon>
               <input v-model="username" type="text" placeholder="ユーザー名を入力" />
@@ -24,7 +24,7 @@
           </div>
 
           <div class="form-group">
-            <label>パスワード / 密码</label>
+            <label>パスワード</label>
             <div class="input-wrapper">
               <el-icon><Lock /></el-icon>
               <input v-model="password" type="password" placeholder="パスワードを入力" @keyup.enter="handleLogin" />
