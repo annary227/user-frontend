@@ -26,14 +26,14 @@
             </div>
           </div>
 
-          <!-- 🆕 新增：确认密码输入框 -->
+          <!-- 确认密码输入框 -->
           <div class="form-group">
             <label>パスワード（確認）</label>
             <div class="input-wrapper">
               <el-icon><Lock /></el-icon>
               <input v-model="confirmPassword" type="password" placeholder="もう一度パスワードを入力" @keyup.enter="register" />
             </div>
-            <!-- 🆕 实时校验提示 (纯日文) -->
+            <!-- 实时校验提示 (纯日文) -->
             <p v-if="passwordMismatch" class="error-text">パスワードが一致しません</p>
           </div>
 
@@ -48,6 +48,18 @@
         </div>
       </div>
     </div>
+
+    <!-- 🆕 注册成功高级弹窗 -->
+    <Transition name="modal">
+      <div v-if="showSuccessModal" class="success-modal-overlay">
+        <div class="success-modal-card">
+          <div class="success-icon">🎉</div>
+          <h3>登録が完了しました！</h3>
+          <p>アカウントの作成に成功しました。<br>ログインしてゲームを始めましょう。</p>
+          <button class="success-confirm-btn" @click="goToLogin">ログイン画面へ</button>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -60,22 +72,21 @@ import { User, Lock } from '@element-plus/icons-vue';
 
 const username = ref('');
 const password = ref('');
-const confirmPassword = ref(''); // 🆕 新增确认密码
+const confirmPassword = ref('');
 const isLoading = ref(false);
+const showSuccessModal = ref(false); // 🆕 控制成功弹窗
 const router = useRouter();
 
-// 🆕 实时计算两次密码是否不一致
+// 实时计算两次密码是否不一致
 const passwordMismatch = computed(() => {
   return confirmPassword.value.length > 0 && password.value !== confirmPassword.value;
 });
 
 const register = async () => {
-  // 1. 基础空值校验 (纯日文)
   if (!username.value || !password.value || !confirmPassword.value) {
     return ElMessage.warning('すべての項目を入力してください');
   }
 
-  // 2. 长度限制校验 (纯日文)
   if (username.value.length < 3) {
     return ElMessage.warning('ユーザー名は3文字以上で入力してください');
   }
@@ -83,7 +94,6 @@ const register = async () => {
     return ElMessage.warning('パスワードは6文字以上で入力してください');
   }
 
-  // 3. 密码一致性校验 (纯日文)
   if (password.value !== confirmPassword.value) {
     return ElMessage.error('パスワードが一致しません');
   }
@@ -96,16 +106,21 @@ const register = async () => {
     });
     
     if (res.data.success) {
-      ElMessage.success('登録が完了しました。ログインしてください。');
-      router.push('/login');
+      // 🆕 注册成功后，不再直接跳转，而是打开成功弹窗
+      showSuccessModal.value = true;
     }
   } catch (error) {
-    // 🆕 精确捕获后端报错（如：用户名已存在），全部兜底为日文提示
     const errorMsg = error.response?.data?.error || '登録に失敗しました。もう一度お試しください。';
     ElMessage.error(errorMsg);
   } finally {
     isLoading.value = false;
   }
+};
+
+// 🆕 点击弹窗按钮后，再去登录页
+const goToLogin = () => {
+  showSuccessModal.value = false;
+  router.push('/login');
 };
 </script>
 
@@ -162,7 +177,7 @@ const register = async () => {
 .input-wrapper input { flex: 1; border: none; outline: none; background: transparent; font-size: 15px; color: white; }
 .input-wrapper input::placeholder { color: #475569; }
 
-/* 🆕 错误提示文字 */
+/* 错误提示文字 */
 .error-text { color: #ef4444; font-size: 12px; margin-top: 6px; padding-left: 4px; }
 
 /* 注册按钮 */
@@ -183,5 +198,87 @@ const register = async () => {
   .register-wrapper { min-height: 100vh; border-radius: 0; border: none; background: transparent; backdrop-filter: none; box-shadow: none; }
   .form-section { padding: 20px; }
   .register-card { padding: 20px; }
+}
+
+/* 🆕 注册成功弹窗样式 */
+.success-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.success-modal-card {
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 40px 30px;
+  border-radius: 24px;
+  width: 90%;
+  max-width: 360px;
+  text-align: center;
+  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.6), 0 0 40px rgba(232, 56, 98, 0.2);
+}
+
+.success-icon {
+  font-size: 60px;
+  margin-bottom: 20px;
+  animation: bounce 1s infinite alternate;
+}
+
+@keyframes bounce {
+  from { transform: translateY(0); }
+  to { transform: translateY(-10px); }
+}
+
+.success-modal-card h3 {
+  margin: 0 0 15px 0;
+  font-size: 22px;
+  font-weight: 900;
+  color: #f8fafc;
+}
+
+.success-modal-card p {
+  margin: 0 0 30px 0;
+  font-size: 14px;
+  color: #94a3b8;
+  line-height: 1.6;
+}
+
+.success-confirm-btn {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, #e83862, #f43f5e);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(232, 56, 98, 0.4);
+  transition: 0.3s;
+}
+
+.success-confirm-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 25px rgba(232, 56, 98, 0.6);
+}
+
+/* 弹窗动画 */
+.modal-enter-active, .modal-leave-active {
+  transition: opacity 0.3s ease;
+}
+.modal-enter-from, .modal-leave-to {
+  opacity: 0;
+}
+.modal-enter-active .success-modal-card {
+  animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+@keyframes popIn {
+  0% { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
 }
 </style>
