@@ -138,7 +138,7 @@
 
               <!-- 装饰贴纸区 -->
               <div class="machine-stickers">
-                <div class="sticker warning">100円</div>
+                <div class="sticker warning">500円</div>
                 <div class="sticker instructions">カプセルを取り出してください</div>
               </div>
 
