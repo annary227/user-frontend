@@ -1,3 +1,4 @@
+<!-- src/views/Profile.vue -->
 <template>
   <div class="profile-container">
     <header class="page-header">
@@ -9,11 +10,8 @@
     <main class="content">
       <!-- 1. 顶部横幅 -->
       <div class="account-banner">
-        <!-- 🆕 核心修复：只有拿到真实数据后才渲染，防止闪烁 -->
         <div v-if="!isLoadingUser" class="banner-top">
           <span class="username">{{ userInfo.username }} 様</span>
-          
-          <!-- 精准的状态判断 -->
           <span v-if="verifyStatus === 0" class="verify-btn" @click="startKyc">本人確認へ</span>
           <span v-else-if="verifyStatus === 1" class="status-badge pending">審査中</span>
           <span v-else-if="verifyStatus === 2" class="status-badge verified">本人確認済み</span>
@@ -25,18 +23,26 @@
         </div>
       </div>
 
-      <!-- 2. 核心拦截操作：出金 -->
+      <!-- 2. 出金按钮 -->
       <div class="quick-actions">
         <button class="action-btn primary" @click="handleWithdrawClick">出金を申請する</button>
       </div>
 
-      <!-- 3. 极简菜单列表 -->
+      <!-- 3. 菜单列表 -->
       <div class="menu-list">
         <div class="menu-item" @click="showDepositModal = true">
           <span>入金履歴</span><span class="arrow">›</span>
         </div>
         <div class="menu-item" @click="showWithdrawHistoryModal = true">
           <span>出金履歴</span><span class="arrow">›</span>
+        </div>
+        <!-- 🆕 游戏记录入口 -->
+        <div class="menu-item" @click="showGameHistoryModal = true">
+          <span>ゲーム購入履歴</span><span class="arrow">›</span>
+        </div>
+        <!-- 🆕 棒球记录入口 -->
+        <div class="menu-item" @click="showMlbHistoryModal = true">
+          <span>MLB ベッティング履歴</span><span class="arrow">›</span>
         </div>
         <div class="menu-item" @click="showPasswordModal = true">
           <span>パスワード変更</span><span class="arrow">›</span>
@@ -49,26 +55,22 @@
         </div>
       </div>
 
-      <!-- 🆕 防白嫖提示横幅 -->
+      <!-- 出金提示 -->
       <div class="deposit-notice-card">
         <div class="notice-icon">💡</div>
         <div class="notice-content">
           <h4>出金に関する重要なお知らせ</h4>
-          <p>
-            不正利用防止のため、<strong>キャンペーンや毎日ログイン（チェックイン）等で獲得したボーナス残高のみ</strong>でプレイされた場合、初回のご入金（デポジット）が完了するまで出金申請を行うことができません。あらかじめご了承ください。
-          </p>
+          <p>不正利用防止のため、<strong>キャンペーンや毎日ログイン（チェックイン）等で獲得したボーナス残高のみ</strong>でプレイされた場合、初回のご入金（デポジット）が完了するまで出金申請を行うことができません。あらかじめご了承ください。</p>
         </div>
       </div>
     </main>
 
-    <!-- ================= 弹窗 1：两步认证 ================= -->
+    <!-- ================= 弹窗：两步认证 ================= -->
     <Transition name="modal">
       <div v-if="showKycModal" class="modal-overlay">
         <div class="modal-card">
           <h3>本人確認の申請</h3>
           <p class="sub">申請の審査には1〜2営業日かかる場合がございます。</p>
-          
-          <!-- 第一步：身份信息 -->
           <div v-if="kycStep === 1">
             <div class="form-group">
               <label>証明書の種類</label>
@@ -78,44 +80,21 @@
                 <option value="passport">パスポート</option>
               </select>
             </div>
-            <div class="form-group">
-              <label>本名</label>
-              <input v-model="kycForm.name" type="text" />
-            </div>
-            <div class="form-group">
-              <label>証明書番号</label>
-              <input v-model="kycForm.idNumber" type="text" />
-            </div>
+            <div class="form-group"><label>本名</label><input v-model="kycForm.name" type="text" /></div>
+            <div class="form-group"><label>証明書番号</label><input v-model="kycForm.idNumber" type="text" /></div>
             <div class="modal-actions">
               <button class="cancel" @click="showKycModal = false">キャンセル</button>
               <button class="confirm blue-btn" :disabled="!kycForm.name || !kycForm.idNumber" @click="kycStep = 2">次へ</button>
             </div>
           </div>
-
-          <!-- 第二步：银行信息 -->
           <div v-if="kycStep === 2">
-            <div class="form-group">
-              <label>金融機関名</label>
-              <input v-model="kycBankForm.bankName" type="text" />
-            </div>
+            <div class="form-group"><label>金融機関名</label><input v-model="kycBankForm.bankName" type="text" /></div>
             <div class="form-row">
-              <div class="form-group half">
-                <label>支店名</label>
-                <input v-model="kycBankForm.branchName" type="text" />
-              </div>
-              <div class="form-group half">
-                <label>支店コード</label>
-                <input v-model="kycBankForm.branchCode" type="text" maxlength="3" />
-              </div>
+              <div class="form-group half"><label>支店名</label><input v-model="kycBankForm.branchName" type="text" /></div>
+              <div class="form-group half"><label>支店コード</label><input v-model="kycBankForm.branchCode" type="text" maxlength="3" /></div>
             </div>
-            <div class="form-group">
-              <label>口座番号</label>
-              <input v-model="kycBankForm.accountNumber" type="text" maxlength="7" />
-            </div>
-            <div class="form-group">
-              <label>口座名義</label>
-              <input v-model="kycBankForm.accountName" type="text" />
-            </div>
+            <div class="form-group"><label>口座番号</label><input v-model="kycBankForm.accountNumber" type="text" maxlength="7" /></div>
+            <div class="form-group"><label>口座名義</label><input v-model="kycBankForm.accountName" type="text" /></div>
             <div class="modal-actions">
               <button class="cancel" @click="kycStep = 1">戻る</button>
               <button class="confirm blue-btn" :disabled="isSubmittingKyc" @click="submitKycAll">申請する</button>
@@ -125,7 +104,7 @@
       </div>
     </Transition>
 
-    <!-- ================= 弹窗 2：出金申请 ================= -->
+    <!-- ================= 弹窗：出金申请 ================= -->
     <Transition name="modal">
       <div v-if="showWithdrawModal" class="modal-overlay">
         <div class="modal-card">
@@ -141,7 +120,7 @@
       </div>
     </Transition>
 
-    <!-- ================= 弹窗 3：入金履历 ================= -->
+    <!-- ================= 弹窗：入金履历 ================= -->
     <Transition name="modal">
       <div v-if="showDepositModal" class="modal-overlay">
         <div class="modal-card">
@@ -161,7 +140,7 @@
       </div>
     </Transition>
 
-    <!-- ================= 弹窗 4：出金履历 ================= -->
+    <!-- ================= 弹窗：出金履历 ================= -->
     <Transition name="modal">
       <div v-if="showWithdrawHistoryModal" class="modal-overlay">
         <div class="modal-card">
@@ -184,15 +163,68 @@
       </div>
     </Transition>
 
-    <!-- ================= 弹窗 5：修改密码 ================= -->
+    <!-- ================= 🆕 弹窗：游戏购买履历 ================= -->
+    <Transition name="modal">
+      <div v-if="showGameHistoryModal" class="modal-overlay">
+        <div class="modal-card">
+          <h3>ゲーム購入履歴</h3>
+          <div class="history-list">
+            <div v-if="gameRecords.length === 0" class="empty">履歴はありません</div>
+            <div v-for="record in gameRecords" :key="'g_'+record.id" class="history-item">
+              <div>
+                <p class="h-title">{{ record.title }}</p>
+                <p class="h-time">{{ formatTime(record.created_at) }}</p>
+              </div>
+              <div style="text-align: right;">
+                <span class="h-amount" :class="record.prize_value > 0 ? 'text-green' : 'text-red'">
+                  {{ record.prize_value > 0 ? `+ ¥${record.prize_value.toLocaleString()}` : `- ¥${record.amount.toLocaleString()}` }}
+                </span>
+                <p class="h-status" style="color:#94a3b8;">{{ record.result }}</p>
+              </div>
+            </div>
+          </div>
+          <button class="confirm blue-btn full-btn" @click="showGameHistoryModal = false">閉じる</button>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- ================= 🆕 弹窗：棒球预测履历 ================= -->
+    <Transition name="modal">
+      <div v-if="showMlbHistoryModal" class="modal-overlay">
+        <div class="modal-card">
+          <h3>MLB ベッティング履歴</h3>
+          <div class="history-list">
+            <div v-if="mlbRecords.length === 0" class="empty">履歴はありません</div>
+            <div v-for="record in mlbRecords" :key="'m_'+record.id" class="history-item" style="flex-direction: column; align-items: stretch; gap: 10px;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                  <p class="h-title">{{ record.title }}</p>
+                  <p class="h-time">{{ formatTime(record.created_at) }}</p>
+                </div>
+                <span class="h-amount" :class="record.result === 'won' ? 'text-green' : (record.result === 'lost' ? 'text-red' : 'text-orange')">
+                  <template v-if="record.result === 'won'">+ ¥{{ record.payout.toLocaleString() }}</template>
+                  <template v-else-if="record.result === 'lost'">- ¥{{ record.amount.toLocaleString() }}</template>
+                  <template v-else>結果待ち</template>
+                </span>
+              </div>
+              <!-- 比分对比区 -->
+              <div style="display: flex; gap: 15px; background: #f8fafc; padding: 8px 12px; border-radius: 8px; font-size: 13px;">
+                <span style="color: #64748b;">予想: <strong style="color: #ef4444;">{{ record.bet_selection }}</strong></span>
+                <span style="color: #64748b;">最終: <strong style="color: #3b82f6;">{{ record.actual_score }}</strong></span>
+              </div>
+            </div>
+          </div>
+          <button class="confirm blue-btn full-btn" @click="showMlbHistoryModal = false">閉じる</button>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- ================= 弹窗：修改密码 ================= -->
     <Transition name="modal">
       <div v-if="showPasswordModal" class="modal-overlay">
         <div class="modal-card">
           <h3>パスワード変更</h3>
-          <div class="form-group">
-            <label>新パスワード</label>
-            <input v-model="newPassword" type="password" />
-          </div>
+          <div class="form-group"><label>新パスワード</label><input v-model="newPassword" type="password" /></div>
           <div class="modal-actions">
             <button class="cancel" @click="showPasswordModal = false">キャンセル</button>
             <button class="confirm blue-btn" :disabled="isChangingPwd" @click="submitPassword">変更する</button>
@@ -201,7 +233,7 @@
       </div>
     </Transition>
 
-    <!-- ================= 弹窗 6：联系客服 ================= -->
+    <!-- ================= 弹窗：联系客服 ================= -->
     <Transition name="modal">
       <div v-if="showServiceModal" class="modal-overlay">
         <div class="modal-card">
@@ -226,7 +258,6 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import request from '../api/request';
-// 🆕 引入 Element Plus 弹窗
 import { ElMessage, ElMessageBox } from 'element-plus';
 
 const router = useRouter();
@@ -235,7 +266,7 @@ const verifyStatus = ref(0);
 const bankStatus = ref(0);
 const isLoadingUser = ref(true); 
 
-// 弹窗状态
+// 弹窗控制
 const showKycModal = ref(false);
 const kycStep = ref(1);
 const showWithdrawModal = ref(false);
@@ -244,7 +275,11 @@ const showWithdrawHistoryModal = ref(false);
 const showPasswordModal = ref(false);
 const showServiceModal = ref(false);
 
-// 表单数据
+// 🆕 新增记录弹窗
+const showGameHistoryModal = ref(false);
+const showMlbHistoryModal = ref(false);
+
+// 状态及表单
 const isSubmittingKyc = ref(false);
 const isWithdrawing = ref(false);
 const isChangingPwd = ref(false);
@@ -255,7 +290,10 @@ const newPassword = ref('');
 const deposits = ref([]);
 const withdrawals = ref([]);
 
-// 获取用户信息
+// 🆕 新增记录容器
+const gameRecords = ref([]);
+const mlbRecords = ref([]);
+
 const fetchUserInfo = async () => {
   const storedUser = localStorage.getItem('user');
   if (!storedUser) return router.push('/login');
@@ -267,18 +305,13 @@ const fetchUserInfo = async () => {
       userInfo.value = res.data.user;
       verifyStatus.value = res.data.user.verify_status;
       bankStatus.value = res.data.user.bank_name ? 1 : 0;
-
       const merged = { ...cached, ...res.data.user };
       localStorage.setItem('user', JSON.stringify(merged));
     }
-  } catch (error) { 
-    console.error(error); 
-  } finally {
-    isLoadingUser.value = false; 
-  }
+  } catch (error) { console.error(error); } 
+  finally { isLoadingUser.value = false; }
 };
 
-// 获取流水记录
 const fetchHistory = async () => {
   const user = JSON.parse(localStorage.getItem('user'));
   if (!user) return;
@@ -287,32 +320,33 @@ const fetchHistory = async () => {
     if (dep.data.success) deposits.value = dep.data.records;
     const wit = await request.get(`/user/withdrawals/${user.id}`);
     if (wit.data.success) withdrawals.value = wit.data.records;
+
+    // 🆕 获取分离的购彩记录
+    const rec = await request.get(`/user/all-records/${user.id}`);
+    if (rec.data.success) {
+      gameRecords.value = rec.data.gameRecords || [];
+      mlbRecords.value = rec.data.mlbRecords || [];
+    }
   } catch (e) { console.error(e); }
 };
 
-// 开启认证
 const startKyc = () => {
   kycStep.value = verifyStatus.value === 2 ? 2 : 1;
   showKycModal.value = true;
 };
 
-// 拦截出金
 const handleWithdrawClick = () => {
   if (verifyStatus.value === 0 || verifyStatus.value === 3) {
-    kycStep.value = 1;
-    showKycModal.value = true;
+    kycStep.value = 1; showKycModal.value = true;
   } else if (verifyStatus.value === 1) {
     ElMessage.warning('本人確認は現在審査中です。結果をお待ちください。');
   } else if (bankStatus.value !== 1) {
-    kycStep.value = 2;
-    showKycModal.value = true;
+    kycStep.value = 2; showKycModal.value = true;
   } else {
-    withdrawAmount.value = null;
-    showWithdrawModal.value = true;
+    withdrawAmount.value = null; showWithdrawModal.value = true;
   }
 };
 
-// 提交两步认证
 const submitKycAll = async () => {
   isSubmittingKyc.value = true;
   try {
@@ -329,18 +363,12 @@ const submitKycAll = async () => {
     ElMessage.success('申請が完了しました。審査結果をお待ちください。');
     showKycModal.value = false;
     await fetchUserInfo();
-  } catch (error) { 
-    ElMessage.error(error.response?.data?.error || '申請に失敗しました。'); 
-  }
+  } catch (error) { ElMessage.error(error.response?.data?.error || '申請に失敗しました。'); } 
   finally { isSubmittingKyc.value = false; }
 };
 
-// 提交提现
 const submitWithdraw = async () => {
-  if (!withdrawAmount.value || withdrawAmount.value < 100) {
-    return ElMessage.warning('最低出金金額は 100円 です。');
-  }
-  
+  if (!withdrawAmount.value || withdrawAmount.value < 100) return ElMessage.warning('最低出金金額は 100円 です。');
   isWithdrawing.value = true;
   try {
     const res = await request.post(`/user/withdraw/${userInfo.value.id}`, { amount: withdrawAmount.value });
@@ -350,13 +378,10 @@ const submitWithdraw = async () => {
       fetchUserInfo();
       fetchHistory();
     }
-  } catch (error) { 
-    ElMessage.error(error.response?.data?.error || '申請に失敗しました。'); 
-  }
+  } catch (error) { ElMessage.error(error.response?.data?.error || '申請に失敗しました。'); } 
   finally { isWithdrawing.value = false; }
 };
 
-// 提交改密
 const submitPassword = async () => {
   if (!newPassword.value) return ElMessage.warning('新しいパスワードを入力してください。');
   isChangingPwd.value = true;
@@ -365,13 +390,10 @@ const submitPassword = async () => {
     ElMessage.success('パスワードが変更されました。');
     showPasswordModal.value = false;
     newPassword.value = '';
-  } catch (error) { 
-    ElMessage.error('変更に失敗しました。'); 
-  }
+  } catch (error) { ElMessage.error('変更に失敗しました。'); } 
   finally { isChangingPwd.value = false; }
 };
 
-// 登出（改为高级确认框）
 const handleLogout = () => {
   ElMessageBox.confirm('ログアウトしますか？', '確認', {
     confirmButtonText: '確定',
@@ -383,7 +405,6 @@ const handleLogout = () => {
   }).catch(() => {});
 };
 
-// 工具函数
 const formatTime = (timeStr) => {
   if (!timeStr) return '';
   const d = new Date(timeStr);
@@ -407,7 +428,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* 样式保持你原本的一模一样，没有任何删减，只在最后加了提示框样式 */
+/* 样式完全保留并新增了注单颜色标识 */
 .profile-container { min-height: 100vh; background: #f1f5f9; font-family: 'Noto Sans JP', sans-serif; }
 .page-header { background: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eaeaea; }
 .back-btn { background: none; border: none; font-size: 16px; color: #1e293b; cursor: pointer; font-weight: bold; }
@@ -463,11 +484,10 @@ onMounted(() => {
 .modal-enter-active, .modal-leave-active { transition: opacity 0.3s; }
 .modal-enter-from, .modal-leave-to { opacity: 0; }
 
-/* 🆕 防白嫖提示横幅样式 */
 .deposit-notice-card {
   margin-top: 20px;
-  background: #fffbeb; /* 柔和的淡黄色背景，代表提示 */
-  border: 1px solid #fde68a; /* 黄色边框 */
+  background: #fffbeb;
+  border: 1px solid #fde68a;
   border-radius: 16px;
   padding: 16px 20px;
   display: flex;
@@ -475,28 +495,8 @@ onMounted(() => {
   gap: 12px;
   box-shadow: 0 4px 15px rgba(245, 158, 11, 0.05);
 }
-
-.notice-icon {
-  font-size: 20px;
-  line-height: 1.5;
-}
-
-.notice-content h4 {
-  margin: 0 0 6px 0;
-  font-size: 14px;
-  color: #b45309; /* 深黄色标题 */
-  font-weight: 800;
-}
-
-.notice-content p {
-  margin: 0;
-  font-size: 12px;
-  color: #78350f; /* 暗棕色正文 */
-  line-height: 1.6;
-}
-
-.notice-content strong {
-  font-weight: 900;
-  color: #b45309;
-}
+.notice-icon { font-size: 20px; line-height: 1.5; }
+.notice-content h4 { margin: 0 0 6px 0; font-size: 14px; color: #b45309; font-weight: 800; }
+.notice-content p { margin: 0; font-size: 12px; color: #78350f; line-height: 1.6; }
+.notice-content strong { font-weight: 900; color: #b45309; }
 </style>
