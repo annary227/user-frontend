@@ -20,7 +20,8 @@
         >
           <!-- 状态栏 -->
           <div class="status-bar" :class="game.status.toLowerCase()">
-            <span v-if="game.status === 'Preview'">試合前 (準備中)</span>
+            <!-- 🆕 仅修改此处：加上了日本时间 -->
+            <span v-if="game.status === 'Preview'">試合前 ({{ formatJST(game.game_date) }} JST)</span>
             <span v-else-if="game.status === 'Live'" class="live-text">
               <span class="live-dot"></span> 試合中 ({{ game.inning_half === 'Top' ? '表' : '裏' }} 第{{ game.current_inning }}回)
             </span>
@@ -83,6 +84,18 @@ const showToast = (msg) => {
   toast.msg = msg;
   toast.show = true;
   setTimeout(() => { toast.show = false; }, 2000);
+};
+
+// 🆕 新增：格式化日本时间函数
+const formatJST = (dateString) => {
+  if (!dateString) return '--:--';
+  const date = new Date(dateString);
+  return date.toLocaleString('ja-JP', { 
+    month: '2-digit', 
+    day: '2-digit', 
+    hour: '2-digit', 
+    minute: '2-digit' 
+  });
 };
 
 // 获取比赛列表
