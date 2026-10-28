@@ -49,14 +49,25 @@
       </div>
 
       <div v-else class="empty-state">
-        <p>現在、試合データを取得しています...</p>
+        <p style="font-size: 24px; margin-bottom: 10px;">🏟️</p>
+        <p>本日の試合はありません。</p>
+        <p style="font-size: 13px; margin-top: 10px; color: #64748b;">
+          現在、新しい試合データを取得しています。しばらくお待ちください。
+        </p>
       </div>
     </main>
+
+    <!-- 🆕 替换 alert 的高颜值日文 Toast 提示 -->
+    <transition name="fade">
+      <div v-if="toast.show" class="custom-toast">
+        {{ toast.msg }}
+      </div>
+    </transition>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import request from '../api/request'; 
 import AppHeader from '../components/AppHeader.vue';
@@ -65,6 +76,14 @@ const router = useRouter();
 const games = ref([]);
 const userBalance = ref(0);
 let pollTimer = null;
+
+// 🆕 新增：Toast 提示状态
+const toast = reactive({ show: false, msg: '' });
+const showToast = (msg) => {
+  toast.msg = msg;
+  toast.show = true;
+  setTimeout(() => { toast.show = false; }, 2000);
+};
 
 // 获取比赛列表
 const fetchGames = async () => {
@@ -76,6 +95,8 @@ const fetchGames = async () => {
       games.value = res.data.data;
     } else if (Array.isArray(res.data)) {
       games.value = res.data;
+    } else {
+      games.value = []; // 如果明确没有比赛，清空列表
     }
   } catch (error) {
     console.error("取得失敗", error);
@@ -106,7 +127,7 @@ const fetchBalance = async () => {
 // 进入比赛房间
 const goToMatchRoom = (game) => {
   if (game.status === 'Final') {
-    alert('この試合は終了しました。');
+    showToast('この試合は終了しました。'); // 🆕 替换了 alert
     return;
   }
   // 跳转到房间详情页，带上比赛ID
@@ -163,6 +184,16 @@ onUnmounted(() => {
 .action-btn { background: #ef4444; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; }
 
 .empty-state { text-align: center; padding: 50px; color: #64748b; background: #1e293b; border-radius: 12px; border: 1px dashed #334155; }
+
+/* 🆕 新增 Toast 提示样式 */
+.custom-toast {
+  position: fixed; top: 30px; left: 50%; transform: translateX(-50%);
+  padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: bold;
+  z-index: 10000; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  background: #ef4444; color: white; text-align: center; pointer-events: none;
+}
+.fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease, transform 0.3s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; transform: translate(-50%, -20px); }
 
 @media (max-width: 768px) {
   .games-container { grid-template-columns: 1fr; }
