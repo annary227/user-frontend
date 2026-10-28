@@ -29,9 +29,9 @@
           <span v-else>試合前</span>
         </div>
 
-        <!-- 🆕 显示开赛时间 -->
+        <!-- 显示开赛时间 -->
         <div class="game-time" v-if="game.game_date">
-          🕒 開始予定: {{ formatJST(game.game_date) }}
+          🕒 開始予定: {{ formatJST(game.game_date) }} (JST)
         </div>
       </div>
 
@@ -52,11 +52,30 @@
         </div>
       </div>
 
-      <!-- 3. 单局比分竞猜盘口 (9局) -->
+      <!-- 3. 🆕 整场胜负预测盘口 (仅赛前显示) -->
+      <div class="betting-board pregame-board" v-if="game.status === 'Preview'">
+        <div class="board-header">
+          <h3>🏆 勝敗予想</h3>
+          <span class="balance">残高: {{ userBalance.toLocaleString() }} pt</span>
+        </div>
+        <div class="pregame-grid">
+          <button class="pregame-btn away-btn" @click="openPregameBet('away')">
+            <span class="team-name">{{ game.away_team }}</span>
+            <span class="odds">2.0x</span>
+          </button>
+          <button class="pregame-btn home-btn" @click="openPregameBet('home')">
+            <span class="team-name">{{ game.home_team }}</span>
+            <span class="odds">1.8x</span>
+          </button>
+        </div>
+        <p class="bet-hint">※試合開始までいつでも購入可能</p>
+      </div>
+
+      <!-- 4. 单局比分竞猜盘口 (9局) -->
       <div class="betting-board">
         <div class="board-header">
           <h3>🎯 イニングスコア予想</h3>
-          <span class="balance">残高: {{ userBalance.toLocaleString() }} pt</span>
+          <span class="balance" v-if="game.status !== 'Preview'">残高: {{ userBalance.toLocaleString() }} pt</span>
         </div>
         
         <div class="innings-list">
@@ -64,7 +83,6 @@
             <div class="inning-title">
               <span class="inning-num">{{ inning }}回</span>
               <span v-if="inning === game.current_inning" class="current-badge">現在</span>
-              <!-- 🆕 如果该局正在下注，显示封盘倒计时（可选，如果有需要可以在后端返回） -->
             </div>
 
             <!-- 判断条件：未结束才显示按钮 -->
@@ -97,13 +115,13 @@
         <h3>ベット内容の確認</h3>
         <div class="bet-detail">
           <p><strong>試合:</strong> {{ game.away_team }} vs {{ game.home_team }}</p>
-          <p><strong>対象:</strong> 第 {{ selectedBet.inning }} 回</p>
+          <p><strong>対象:</strong> {{ selectedBet.typeLabel }}</p>
           <p><strong>選択:</strong> {{ selectedBet.label }}</p>
           <p><strong>オッズ:</strong> {{ selectedBet.odds }}x</p>
         </div>
         <div class="input-group">
           <label>ベット額 (pt):</label>
-          <input type="number" v-model="betAmount" min="100" step="100" placeholder="最低 100 pt" />
+          <input type="number" v-model="betAmount" min="30000" step="1000" placeholder="最低 30,000 pt" />
         </div>
         <p class="potential-win">的中時の払戻: <strong>{{ potentialWin }} pt</strong></p>
         
@@ -150,8 +168,16 @@ const scoreOptions = ref([
 ]);
 
 const showBetModal = ref(false);
-const selectedBet = ref({ inning: null, label: '', odds: 0, key: '' });
-const betAmount = ref(1000);
+// 🆕 统一管理：增加 betType、selection、typeLabel 来兼容整场盘和单局盘
+const selectedBet = ref({ 
+  betType: 'inning', 
+  inning: null, 
+  label: '', 
+  odds: 0, 
+  key: '',
+  typeLabel: '' 
+});
+const betAmount = ref(30000); 
 const isBetting = ref(false);
 
 // Toast 状态
@@ -164,11 +190,11 @@ const showToast = (msg, type = 'error') => {
 };
 
 const potentialWin = computed(() => {
-  if (!betAmount.value || betAmount.value < 100) return 0;
+  if (!betAmount.value || betAmount.value < 30000) return 0;
   return Math.floor(betAmount.value * selectedBet.value.odds);
 });
 
-// 🆕 格式化日本时间
+// 格式化日本时间
 const formatJST = (dateString) => {
   if (!dateString) return '';
   const date = new Date(dateString);
@@ -201,7 +227,7 @@ const fetchGameDetail = async () => {
       status: 'Live',
       current_inning: 5,
       inning_half: 'Top',
-      game_date: new Date().toISOString() // 假数据给个时间
+      game_date: new Date().toISOString() 
     };
     liveMessages.value = [
       { time: '14:25', text: '5回表、ヤンキース 1番打者がヒットで出塁！', highlight: false }
@@ -218,6 +244,31 @@ const fetchBalance = async () => {
   } catch (error) {}
 };
 
+// 🆕 发起整场胜负下注
+const openPregameBet = (selection) => {
+  const user = localStorage.getItem('user');
+  if (!user) {
+    showToast('ベットするにはログインが必要です。');
+    setTimeout(() => router.push('/login'), 1500);
+    return;
+  }
+  const isAway = selection === 'away';
+  const odds = isAway ? 2.0 : 1.8;
+  const label = isAway ? `${game.value.away_team} の勝利` : `${game.value.home_team} の勝利`;
+
+  selectedBet.value = { 
+    betType: 'pregame', 
+    inning: null, 
+    label: label, 
+    odds: odds, 
+    key: selection,
+    typeLabel: '試合結果 (勝敗)' 
+  };
+  betAmount.value = 30000;
+  showBetModal.value = true;
+};
+
+// 🆕 发起单局比分下注
 const placeBet = (inning, key) => {
   const user = localStorage.getItem('user');
   if (!user) {
@@ -226,14 +277,16 @@ const placeBet = (inning, key) => {
     return;
   }
 
-  if (game.value.status === 'Preview') {
-    showToast('試合開始までお待ちください。現在ベットできません。');
-    return;
-  }
-
   const odd = scoreOptions.value.find(o => o.key === key);
-  selectedBet.value = { inning, label: odd.label, odds: odd.odds, key: key };
-  betAmount.value = 1000;
+  selectedBet.value = { 
+    betType: 'inning', 
+    inning: inning, 
+    label: odd.label, 
+    odds: odd.odds, 
+    key: key,
+    typeLabel: `第 ${inning} 回 スコア`
+  };
+  betAmount.value = 30000; 
   showBetModal.value = true;
 };
 
@@ -242,8 +295,8 @@ const closeModal = () => {
 };
 
 const confirmBet = async () => {
-  if (betAmount.value < 100) {
-    showToast('最低ベット額は 100 pt です。');
+  if (betAmount.value < 30000) {
+    showToast('最低ベット額は 30,000 pt です。');
     return;
   }
   if (betAmount.value > userBalance.value) {
@@ -257,7 +310,7 @@ const confirmBet = async () => {
     const res = await request.post('/mlb/bet', {
       user_id: storedUser.id,
       game_pk: gameId,
-      bet_type: 'inning',
+      bet_type: selectedBet.value.betType, // 动态传入 pregame 或 inning
       target_inning: selectedBet.value.inning,
       selection: selectedBet.value.key,
       amount: betAmount.value,
@@ -291,6 +344,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* ---------------- 以下全部是您原来的样式，仅新增了胜负盘的少量样式 ---------------- */
 .mlb-match-detail {
   font-family: 'Noto Sans JP', sans-serif;
   background: #0b1120;
@@ -326,7 +380,7 @@ onUnmounted(() => {
 .live-badge { background: rgba(239, 68, 68, 0.2); color: #ef4444; padding: 4px 12px; border-radius: 20px; font-weight: bold; display: inline-flex; align-items: center; gap: 6px; }
 .dot { width: 6px; height: 6px; background: #ef4444; border-radius: 50%; animation: pulse 1s infinite alternate; }
 
-/* 🆕 开赛时间显示 */
+/* 开赛时间显示 */
 .game-time {
   text-align: center;
   margin-top: 12px;
@@ -353,6 +407,26 @@ onUnmounted(() => {
 .time { color: #64748b; font-weight: bold; }
 .text { color: #cbd5e1; flex: 1; }
 .text.highlight { color: #fbbf24; font-weight: bold; }
+
+/* 🆕 新增：整场胜负盘样式 */
+.pregame-board { 
+  margin-bottom: 20px; 
+  background: #1e293b; 
+  border-radius: 16px; 
+  border: 1px solid #334155; 
+  padding: 20px; 
+}
+.pregame-board h3 { color: #fbbf24; }
+.pregame-grid { display: flex; gap: 15px; margin-top: 15px; }
+.pregame-btn { 
+  flex: 1; display: flex; justify-content: space-between; align-items: center; 
+  padding: 15px 20px; border-radius: 12px; border: 1px solid #334155; 
+  background: #0f172a; color: white; font-weight: bold; cursor: pointer; transition: all 0.2s; 
+}
+.pregame-btn:hover { border-color: #fbbf24; background: #334155; }
+.away-btn .odds { color: #3b82f6; font-size: 20px; }
+.home-btn .odds { color: #ef4444; font-size: 20px; }
+.bet-hint { text-align: center; font-size: 12px; color: #64748b; margin-top: 15px; margin-bottom: 0; }
 
 /* 3. 单局竞猜盘口 */
 .betting-board { background: #1e293b; border-radius: 16px; border: 1px solid #334155; padding: 20px; }
@@ -405,6 +479,7 @@ onUnmounted(() => {
   .team.away .score, .team.home .score { font-size: 24px; }
   .odds-grid { grid-template-columns: repeat(2, 1fr); }
   .game-time { position: static; margin-top: 15px; }
+  .pregame-grid { flex-direction: column; }
 }
 
 /* Toast 样式 */
