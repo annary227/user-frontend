@@ -36,11 +36,11 @@
         <div class="menu-item" @click="showWithdrawHistoryModal = true">
           <span>出金履歴</span><span class="arrow">›</span>
         </div>
-        <!-- 🆕 游戏记录入口 -->
+        <!-- 游戏记录入口 -->
         <div class="menu-item" @click="showGameHistoryModal = true">
           <span>ゲーム購入履歴</span><span class="arrow">›</span>
         </div>
-        <!-- 🆕 棒球记录入口 -->
+        <!-- 棒球记录入口 -->
         <div class="menu-item" @click="showMlbHistoryModal = true">
           <span>MLB ベッティング履歴</span><span class="arrow">›</span>
         </div>
@@ -163,7 +163,7 @@
       </div>
     </Transition>
 
-    <!-- ================= 🆕 弹窗：游戏购买履历 ================= -->
+    <!-- ================= 弹窗：游戏购买履历 ================= -->
     <Transition name="modal">
       <div v-if="showGameHistoryModal" class="modal-overlay">
         <div class="modal-card">
@@ -195,24 +195,61 @@
           <h3>MLB ベッティング履歴</h3>
           <div class="history-list">
             <div v-if="mlbRecords.length === 0" class="empty">履歴はありません</div>
+            
+            <!-- 核心修改区：分别处理胜负盘和比分盘 -->
             <div v-for="record in mlbRecords" :key="'m_'+record.id" class="history-item" style="flex-direction: column; align-items: stretch; gap: 10px;">
+              
               <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                 <div>
                   <p class="h-title">{{ record.title }}</p>
                   <p class="h-time">{{ formatTime(record.created_at) }}</p>
                 </div>
                 <span class="h-amount" :class="record.result === 'won' ? 'text-green' : (record.result === 'lost' ? 'text-red' : 'text-orange')">
-                  <template v-if="record.result === 'won'">+ ¥{{ record.payout.toLocaleString() }}</template>
+                  <template v-if="record.result === 'won'">+ ¥{{ Math.floor(record.payout).toLocaleString() }}</template>
                   <template v-else-if="record.result === 'lost'">- ¥{{ record.amount.toLocaleString() }}</template>
                   <template v-else>結果待ち</template>
                 </span>
               </div>
+
               <!-- 比分对比区 -->
-              <div style="display: flex; gap: 15px; background: #f8fafc; padding: 8px 12px; border-radius: 8px; font-size: 13px;">
-                <span style="color: #64748b;">予想: <strong style="color: #ef4444;">{{ record.bet_selection }}</strong></span>
-                <span style="color: #64748b;">最終: <strong style="color: #3b82f6;">{{ record.actual_score }}</strong></span>
+              <div style="display: flex; gap: 15px; background: #f8fafc; padding: 8px 12px; border-radius: 8px; font-size: 13px; align-items: center;">
+                
+                <!-- 情况 1：买胜负 -->
+                <template v-if="record.bet_selection === 'home' || record.bet_selection === 'away'">
+                  <span style="color: #64748b;">
+                    予想: 
+                    <strong style="color: #ef4444;">
+                      {{ record.bet_selection === 'home' ? '主隊勝利' : '客隊勝利' }}
+                    </strong>
+                  </span>
+                  <span style="color: #64748b;">
+                    最終: 
+                    <strong v-if="record.actual_score === '-'" style="color: #f59e0b;">結果待ち</strong>
+                    <strong v-else style="color: #3b82f6;">{{ record.actual_score }}</strong>
+                  </span>
+                </template>
+
+                <!-- 情况 2：买比分 -->
+                <template v-else>
+                  <span style="color: #64748b;">
+                    予想: 
+                    <strong style="color: #ef4444;">
+                      {{ record.bet_selection === 'other' ? 'その他 (Other)' : record.bet_selection }}
+                    </strong>
+                  </span>
+                  <span style="color: #64748b;">
+                    <template v-if="record.actual_score === '-'">
+                      結果: <strong style="color: #f59e0b;">結果待ち</strong>
+                    </template>
+                    <template v-else>
+                      最終: <strong style="color: #3b82f6;">{{ record.actual_score }}</strong>
+                    </template>
+                  </span>
+                </template>
+
               </div>
             </div>
+            
           </div>
           <button class="confirm blue-btn full-btn" @click="showMlbHistoryModal = false">閉じる</button>
         </div>
@@ -275,7 +312,7 @@ const showWithdrawHistoryModal = ref(false);
 const showPasswordModal = ref(false);
 const showServiceModal = ref(false);
 
-// 🆕 新增记录弹窗
+// 新增记录弹窗
 const showGameHistoryModal = ref(false);
 const showMlbHistoryModal = ref(false);
 
@@ -290,7 +327,7 @@ const newPassword = ref('');
 const deposits = ref([]);
 const withdrawals = ref([]);
 
-// 🆕 新增记录容器
+// 新增记录容器
 const gameRecords = ref([]);
 const mlbRecords = ref([]);
 
@@ -321,7 +358,6 @@ const fetchHistory = async () => {
     const wit = await request.get(`/user/withdrawals/${user.id}`);
     if (wit.data.success) withdrawals.value = wit.data.records;
 
-    // 🆕 获取分离的购彩记录
     const rec = await request.get(`/user/all-records/${user.id}`);
     if (rec.data.success) {
       gameRecords.value = rec.data.gameRecords || [];
