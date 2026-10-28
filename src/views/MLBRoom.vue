@@ -31,7 +31,7 @@
         </div>
       </Transition>
 
-      <!-- ================= 🆕 顶部主计分板 ================= -->
+      <!-- 顶部主计分板 -->
       <div class="score-board">
         <div class="status-bar">
           <span class="live-tag" v-if="mlbGame.status === 'Live'">🔴 LIVE</span>
@@ -53,7 +53,8 @@
       </div>
 
       <!-- ================= 🆕 九宫格单局比分表 (Linescore) ================= -->
-      <div class="linescore-board" v-if="liveData.innings && liveData.innings.length > 0">
+      <!-- 只要比赛开打，就强制显示这个框，哪怕数据还没拉回来 -->
+      <div class="linescore-board" v-if="mlbGame.status === 'Live' || mlbGame.status === 'Final'">
         <table>
           <thead>
             <tr>
@@ -75,11 +76,14 @@
       </div>
 
       <!-- ================= 🆕 实时文字直播 ================= -->
-      <div class="live-commentary" v-if="liveData.latestPlay">
+      <div class="live-commentary" v-if="mlbGame.status === 'Live' || mlbGame.status === 'Final'">
         <div class="commentary-header">📻 実況中継</div>
         <div class="commentary-text">
-          <span class="inning-badge">第{{ liveData.latestPlay.inning }}回{{ liveData.latestPlay.half }}</span>
-          {{ translateCommentary(liveData.latestPlay.description) }}
+          <span class="inning-badge" v-if="liveData.latestPlay">
+            第{{ liveData.latestPlay.inning }}回{{ liveData.latestPlay.half }}
+          </span>
+          <!-- 如果有真实数据就显示真实的，没有就显示占位提示 -->
+          {{ liveData.latestPlay ? translateCommentary(liveData.latestPlay.description) : '試合が進行中です。次のプレーを待っています...' }}
         </div>
       </div>
 
@@ -96,7 +100,7 @@
         </div>
       </div>
 
-      <!-- ================= 🆕 豪华版单局比分盘 ================= -->
+      <!-- 豪华版单局比分盘 -->
       <div v-if="mlbGame.inningOpen || mlbGame.status === 'Live'" class="bet-section">
         <div class="section-header">
           <h3>【第 {{ mlbGame.currentInning + 1 }} 局】スコア予想</h3>
@@ -145,6 +149,7 @@ import { ElMessageBox } from 'element-plus';
 
 const router = useRouter();
 const mlbGame = ref(null);
+// 🆕 如果为了测试，可以初始化一个假数据
 const liveData = ref({ innings: [], latestPlay: null });
 const loading = ref(true);
 
@@ -164,7 +169,6 @@ const formatTime = (sec) => {
   return `${m}:${s}`;
 };
 
-// 球队字典
 const teamDictionary = {
   "Milwaukee Brewers": "ミルウォーキー・ブリュワーズ",
   "Tampa Bay Rays": "タンパベイ・レイズ",
@@ -202,14 +206,12 @@ const getJapaneseTeamName = (englishName) => {
   return teamDictionary[englishName] || englishName;
 };
 
-// 获取单局得分
 const getInningScore = (team, inningNum) => {
   const inning = liveData.value.innings.find(i => i.num === inningNum);
   if (!inning) return '-';
   return team === 'away' ? inning.awayRuns : inning.homeRuns;
 };
 
-// 简单翻译实况文字
 const translateCommentary = (text) => {
   if (!text) return '';
   let t = text;
@@ -234,6 +236,7 @@ const fetchMLBStatus = async () => {
         showToast('⚾ 第 ' + (mlbGame.value.currentInning + 1) + ' 局の予想が開始されました！', 'success');
       }
       
+      // 只要状态是 Live 或 Final，就去请求详细数据
       if (mlbGame.value.status === 'Live' || mlbGame.value.status === 'Final') {
         fetchLiveData(mlbGame.value.gamePk);
       }
@@ -247,13 +250,12 @@ const fetchMLBStatus = async () => {
   }
 };
 
-// 获取单局比分和直播
 const fetchLiveData = async (gamePk) => {
   try {
     const res = await request.get(`/mlb/live/${gamePk}`);
     if (res.data.success) {
       liveData.value = {
-        innings: res.data.innings,
+        innings: res.data.innings || [],
         latestPlay: res.data.latestPlay
       };
     }
@@ -332,21 +334,12 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* ================= 华丽背景 ================= */
+/* 华丽背景 */
 .mlb-room-container {
   min-height: 100vh;
-  background: 
-    linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(2, 6, 23, 1) 100%),
-    repeating-linear-gradient(45deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 2px, transparent 2px, transparent 20px);
-  background-size: cover;
-  color: white;
-  padding: 60px 20px 40px;
-  font-family: 'Noto Sans JP', sans-serif;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  position: relative;
-  overflow: hidden;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(2, 6, 23, 1) 100%), repeating-linear-gradient(45deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 2px, transparent 2px, transparent 20px);
+  background-size: cover; color: white; padding: 60px 20px 40px; font-family: 'Noto Sans JP', sans-serif;
+  display: flex; flex-direction: column; align-items: center; position: relative; overflow: hidden;
 }
 
 .mlb-room-container::before {
@@ -355,30 +348,11 @@ onUnmounted(() => {
   pointer-events: none; z-index: 0;
 }
 
-.floating-back-btn {
-  position: fixed; top: 20px; left: 20px; z-index: 999;
-  background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255,255,255,0.2);
-  padding: 8px 16px; border-radius: 20px; color: white; cursor: pointer;
-  backdrop-filter: blur(5px);
-}
-
+.floating-back-btn { position: fixed; top: 20px; left: 20px; z-index: 999; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; color: white; cursor: pointer; backdrop-filter: blur(5px); }
 .room-header { margin-bottom: 30px; text-align: center; z-index: 1; }
 .room-header .title { font-size: 24px; font-weight: 900; text-shadow: 0 2px 10px rgba(0,0,0,0.8); }
 
-.loading-state, .empty-state { margin-top: 100px; text-align: center; color: #94a3b8; z-index: 1; }
-.spinner { width: 40px; height: 40px; border: 4px solid #334155; border-top-color: #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px; }
-@keyframes spin { 100% { transform: rotate(360deg); } }
-
-.betting-panel {
-  width: 100%; max-width: 600px;
-  background: rgba(30, 41, 59, 0.85);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 24px;
-  padding: 24px; 
-  box-shadow: 0 20px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1);
-  position: relative; z-index: 1;
-}
+.betting-panel { width: 100%; max-width: 600px; background: rgba(30, 41, 59, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1); position: relative; z-index: 1; }
 
 /* 计分板 */
 .score-board { background: linear-gradient(180deg, #0b1120 0%, #1e293b 100%); border-radius: 16px; padding: 20px; margin-bottom: 24px; text-align: center; border: 1px solid rgba(255,255,255,0.05); box-shadow: inset 0 2px 10px rgba(0,0,0,0.5); }
@@ -416,44 +390,19 @@ onUnmounted(() => {
 .bet-btn { flex: 1; padding: 16px; border-radius: 12px; border: none; background: #334155; color: white; font-size: 15px; font-weight: bold; cursor: pointer; transition: all 0.2s; border: 1px solid rgba(255, 255, 255, 0.1); }
 .bet-btn:hover { background: #3b82f6; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(59, 130, 246, 0.4); }
 
-/* 🆕 豪华版比分下注按钮网格 */
-.grid-options { 
-  display: grid; 
-  grid-template-columns: repeat(3, 1fr); /* 每行 3 个 */
-  gap: 12px; 
-}
-.score-btn { 
-  padding: 16px 10px; border-radius: 12px; border: none; 
-  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
-  color: white; font-size: 16px; font-weight: 900; 
-  cursor: pointer; transition: all 0.2s; 
-  display: flex; flex-direction: column; align-items: center; 
-  border: 1px solid #334155;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
-}
-.score-btn:hover { 
-  background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%); 
-  transform: translateY(-2px); 
-  box-shadow: 0 5px 15px rgba(59, 130, 246, 0.4); 
-  border-color: #60a5fa;
-}
+/* 豪华版比分下注按钮网格 */
+.grid-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.score-btn { padding: 16px 10px; border-radius: 12px; border: none; background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); color: white; font-size: 16px; font-weight: 900; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; border: 1px solid #334155; box-shadow: inset 0 1px 0 rgba(255,255,255,0.1); }
+.score-btn:hover { background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(59, 130, 246, 0.4); border-color: #60a5fa; }
 .score-btn span { font-size: 12px; color: #fbbf24; margin-top: 6px; font-family: monospace; }
 
 /* 特殊的高赔率按钮（如“其它”） */
-.score-btn.other-btn {
-  grid-column: span 2; /* 占两列宽 */
-  background: linear-gradient(180deg, #450a0a 0%, #7f1d1d 100%);
-  border-color: #ef4444;
-}
-.score-btn.other-btn:hover {
-  background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%);
-  box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
-}
+.score-btn.other-btn { grid-column: span 2; background: linear-gradient(180deg, #450a0a 0%, #7f1d1d 100%); border-color: #ef4444; }
+.score-btn.other-btn:hover { background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%); box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4); }
 
 .disabled-options .score-btn { opacity: 0.4; pointer-events: none; filter: grayscale(100%); }
 
 .closed-state { text-align: center; padding: 30px; background: #0f172a; border-radius: 12px; color: #64748b; border: 1px solid #334155; }
-
 .global-toast { position: absolute; top: -50px; left: 50%; transform: translateX(-50%); padding: 10px 24px; border-radius: 20px; font-weight: 900; color: white; white-space: nowrap; box-shadow: 0 5px 15px rgba(0,0,0,0.3); z-index: 100; }
 .global-toast.success { background: #10b981; } .global-toast.warning { background: #f59e0b; } .global-toast.error { background: #ef4444; }
 .slide-down-enter-active, .slide-down-leave-active { transition: all 0.3s ease; }
