@@ -20,12 +20,33 @@
         <!-- 文件夹标题/入口按钮 (点击这里展开/收起) -->
         <div class="folder-header" @click="toggleFolder">
           <div class="title-left">
-            <span class="folder-icon">{{ isFolderOpen ? '📂' : '📁' }}</span>
+            <!-- 🆕 自定义现代感转盘 SVG 图标 -->
+            <svg class="roulette-icon" :class="{ 'is-spinning': isFolderOpen }" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <!-- 外圈渐变 -->
+              <circle cx="12" cy="12" r="11" fill="url(#grad1)" stroke="#cbd5e1" stroke-width="1"/>
+              <!-- 内部刻度线 -->
+              <path d="M12 2V6 M12 18V22 M2 12H6 M18 12H22 M5 5L8 8 M16 16L19 19 M5 19L8 16 M16 8L19 5" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
+              <!-- 中心圆点 -->
+              <circle cx="12" cy="12" r="4" fill="#fff" />
+              <!-- 中心指针 -->
+              <path d="M12 8L14 12H10L12 8Z" fill="#ef4444" />
+              <!-- 渐变色定义 -->
+              <defs>
+                <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#fbbf24" />
+                  <stop offset="100%" stop-color="#ef4444" />
+                </linearGradient>
+              </defs>
+            </svg>
             <h3>ルーレットポイントゲーム</h3>
           </div>
+          
           <div class="header-right">
             <span class="count-badge">全8種類</span>
-            <span class="toggle-arrow">{{ isFolderOpen ? '▲ 閉じる' : '▼ 開く' }}</span>
+            <!-- 🆕 换成更现代的箭头 -->
+            <svg class="toggle-arrow" :class="{ 'is-up': isFolderOpen }" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
           </div>
         </div>
 
@@ -292,26 +313,26 @@ onMounted(async () => {
 .title-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
-.folder-icon {
-  font-size: 26px;
-  transition: transform 0.3s;
+
+/* 🆕 自定义 SVG 转盘图标样式 */
+.roulette-icon {
+  width: 32px;
+  height: 32px;
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  filter: drop-shadow(0 2px 4px rgba(239, 68, 68, 0.2));
 }
-.section-title h3, .folder-header h3 { 
+.roulette-icon.is-spinning {
+  transform: rotate(180deg);
+}
+
+.folder-header h3 { 
   margin: 0; 
   font-size: 20px; 
   color: #1e293b; 
   font-weight: 800;
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
   transition: color 0.2s;
-}
-.sub-title {
-  font-size: 14px;
-  color: #64748b;
-  font-weight: normal;
 }
 .header-right {
   display: flex;
@@ -327,13 +348,20 @@ onMounted(async () => {
   font-weight: bold;
   border: 1px solid #e2e8f0;
 }
+
+/* 🆕 自定义 SVG 展开箭头样式 */
 .toggle-arrow {
-  font-size: 13px;
+  width: 24px;
+  height: 24px;
   color: #e83862;
-  font-weight: bold;
   background: #ffe4e6;
-  padding: 4px 10px;
-  border-radius: 12px;
+  border-radius: 50%;
+  padding: 4px;
+  transition: transform 0.3s ease, background 0.3s;
+}
+.toggle-arrow.is-up {
+  transform: rotate(180deg);
+  background: #fecdd3;
 }
 
 /* 内部内容区 (展开部分) */
@@ -549,7 +577,7 @@ onMounted(async () => {
   .category-folder { padding: 15px; border-radius: 16px; }
   .folder-header { flex-direction: row; align-items: center; }
   .header-right { gap: 8px; }
-  .section-title h3, .folder-header h3 { font-size: 16px; }
+  .folder-header h3 { font-size: 17px; }
   .game-grid { grid-template-columns: 1fr; gap: 15px; }
 
   .history-section { padding: 15px; border-radius: 12px; }
