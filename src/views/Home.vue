@@ -14,57 +14,68 @@
         <button class="banner-btn">今すぐチャレンジ ↓</button>
       </div>
 
-      <div class="section-title">
-        <h3>🎮 ゲームラインナップ</h3>
-        <span>全9種類</span>
-      </div>
-
-      <div class="game-grid">
-        <!-- 循环渲染原有的 8 个卡片组件 -->
-        <GameCard 
-          v-for="game in games" 
-          :key="game.title"
-          :title="game.title"
-          :desc="game.desc"
-          :price="game.price"
-          :maxPrize="game.maxPrize"
-          :icon="game.icon"
-          :color="game.color"
-          :btnColor="game.color"
-          @play="$router.push({ 
-            path: '/gacha', 
-            query: { 
-              name: game.title, 
-              price: game.price, 
-              icon: game.icon,
-              balance: userBalance
-            } 
-          })"
-        />
-
-        <!-- ================= 🆕 MLB 竞猜专属卡片 (已修改为待开发禁用状态) ================= -->
-        <div class="mlb-game-card is-disabled" @click="handleMlbClick">
-          <!-- 红色角标：已改为 準備中 -->
-          <div class="mlb-live-badge">
-            <span class="dot"></span> 準備中
+      <!-- ================= 🆕 快开彩 文件夹容器 (仅包含8个游戏) ================= -->
+      <div class="category-folder">
+        <!-- 文件夹标题 -->
+        <div class="section-title">
+          <div class="title-left">
+            <span class="folder-icon">📁</span>
+            <h3>快開彩 <span class="sub-title">(スピードくじ)</span></h3>
           </div>
-          
-          <div class="mlb-icon">⚾</div>
-          
-          <div class="mlb-info">
-            <div class="mlb-title-row">
-              <h4>MLB リアルタイム予想</h4>
-            </div>
-            <p class="mlb-desc">メジャーリーグのリアルタイムスコアで高配当を狙え！</p>
-            <div class="mlb-bottom-row">
-              <span class="mlb-price">最低 30,000 pt</span>
-              <!-- 按钮已加 disabled 属性 -->
-              <button class="mlb-btn" disabled>準備中</button>
-            </div>
-          </div>
+          <span class="count-badge">全8種類</span>
         </div>
 
+        <!-- 卡片网格区 -->
+        <div class="game-grid">
+          <!-- 循环渲染原有的 8 个卡片组件 -->
+          <GameCard 
+            v-for="game in games" 
+            :key="game.title"
+            :title="game.title"
+            :desc="game.desc"
+            :price="game.price"
+            :maxPrize="game.maxPrize"
+            :icon="game.icon"
+            :color="game.color"
+            :btnColor="game.color"
+            @play="$router.push({ 
+              path: '/gacha', 
+              query: { 
+                name: game.title, 
+                price: game.price, 
+                icon: game.icon,
+                balance: userBalance
+              } 
+            })"
+          />
+        </div>
       </div>
+      <!-- ================= 快开彩 文件夹容器结束 ================= -->
+
+
+      <!-- ================= 🆕 MLB 竞猜专属卡片 (独立放在外面) ================= -->
+      <div class="mlb-game-card is-disabled" @click="handleMlbClick">
+        <!-- 红色角标：已改为 準備中 -->
+        <div class="mlb-live-badge">
+          <span class="dot"></span> 準備中
+        </div>
+        
+        <div class="mlb-icon">⚾</div>
+        
+        <div class="mlb-info">
+          <div class="mlb-title-row">
+            <h4>MLB リアルタイム予想</h4>
+          </div>
+          <p class="mlb-desc">メジャーリーグのリアルタイムスコアで高配当を狙え！</p>
+          <div class="mlb-bottom-row">
+            <span class="mlb-price">最低 30,000 pt</span>
+            <!-- 按钮已加 disabled 属性 -->
+            <button class="mlb-btn" disabled>準備中</button>
+          </div>
+        </div>
+      </div>
+      <!-- ================= MLB 竞猜专属卡片结束 ================= -->
+
 
       <!-- 底部历史记录 -->
       <div class="history-section">
@@ -242,13 +253,62 @@ onMounted(async () => {
 .banner p { margin: 0; font-size: 14px; opacity: 0.9; }
 .banner-btn { background: white; color: #e83862; border: none; padding: 12px 25px; border-radius: 25px; font-weight: bold; font-size: 14px; cursor: pointer; white-space: nowrap; }
 
-/* 游戏列表 */
-.section-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-.section-title h3 { margin: 0; font-size: 18px; color: #e83862; }
-.section-title span { font-size: 12px; color: #888; }
-.game-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 30px; }
+/* ================= 🆕 文件夹分类容器样式 ================= */
+.category-folder {
+  background: rgba(255, 255, 255, 0.6); /* 半透明白色背景，像文件夹的封皮 */
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 20px;
+  padding: 25px;
+  margin-bottom: 25px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
+  backdrop-filter: blur(10px); /* 磨砂玻璃质感 */
+}
 
-/* ================= 🆕 MLB 竞猜专属卡片样式 ================= */
+/* 标题区域 */
+.section-title { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  margin-bottom: 20px; 
+  padding-bottom: 12px;
+  border-bottom: 2px dashed #e2e8f0; /* 虚线分割，增加文件夹感觉 */
+}
+.title-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.folder-icon {
+  font-size: 24px;
+}
+.section-title h3 { 
+  margin: 0; 
+  font-size: 20px; 
+  color: #1e293b; 
+  font-weight: 800;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.sub-title {
+  font-size: 14px;
+  color: #64748b;
+  font-weight: normal;
+}
+.count-badge {
+  background: #f1f5f9;
+  color: #64748b;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: bold;
+  border: 1px solid #e2e8f0;
+}
+
+/* 游戏列表网格 */
+.game-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+/* ================= 🆕 MLB 竞猜专属卡片样式 (独立在外) ================= */
 .mlb-game-card {
   background: #0f172a;
   border-radius: 16px;
@@ -261,6 +321,7 @@ onMounted(async () => {
   border: 2px solid #ef4444;
   transition: all 0.3s ease;
   overflow: hidden;
+  margin-bottom: 30px; /* 与下方历史记录隔开 */
 }
 
 .mlb-game-card:hover {
@@ -269,15 +330,15 @@ onMounted(async () => {
   border-color: #f87171;
 }
 
-/* 🆕 禁用状态：取消鼠标小手，取消悬浮动画和发光 */
+/* 禁用状态 */
 .mlb-game-card.is-disabled {
-  cursor: not-allowed; /* 显示禁止点击的鼠标样式 */
-  opacity: 0.7; /* 整体稍微变暗一点提示不可用 */
+  cursor: not-allowed;
+  opacity: 0.75; 
 }
 
 .mlb-game-card.is-disabled:hover {
-  transform: none; /* 取消上浮 */
-  box-shadow: 0 10px 25px rgba(239, 68, 68, 0.15); /* 恢复原本阴影，取消悬浮高亮 */
+  transform: none; 
+  box-shadow: 0 10px 25px rgba(239, 68, 68, 0.15); 
   border-color: #ef4444;
 }
 
@@ -370,15 +431,15 @@ onMounted(async () => {
   box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
 }
 
-/* 🆕 禁用状态的按钮样式 */
+/* 禁用状态的按钮样式 */
 .mlb-btn:disabled {
-  background: #64748b; /* 变成灰色 */
+  background: #64748b; 
   cursor: not-allowed;
 }
 
 .mlb-game-card.is-disabled:hover .mlb-btn {
-  background: #64748b; /* 鼠标悬浮也不变色 */
-  box-shadow: none; /* 取消按钮发光 */
+  background: #64748b; 
+  box-shadow: none; 
 }
 
 /* 底部历史记录 (桌面端) */
@@ -414,7 +475,7 @@ onMounted(async () => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: rgba(15, 23, 42, 0.95); /* 深色背景 */
+  background: rgba(15, 23, 42, 0.95); 
   color: #fff;
   padding: 16px 24px;
   border-radius: 12px;
@@ -424,7 +485,7 @@ onMounted(async () => {
   border: 1px solid rgba(255, 255, 255, 0.1);
   z-index: 9999;
   text-align: center;
-  pointer-events: none; /* 防止遮挡点击 */
+  pointer-events: none; 
   white-space: nowrap;
 }
 
@@ -445,7 +506,12 @@ onMounted(async () => {
   .banner { flex-direction: column; text-align: center; gap: 15px; padding: 20px 15px; }
   .banner h2 { font-size: 18px; }
   .banner-btn { width: 100%; padding: 14px; font-size: 15px; }
+  
+  /* 手机端文件夹容器适配 */
+  .category-folder { padding: 15px; border-radius: 16px; }
+  .section-title h3 { font-size: 18px; }
   .game-grid { grid-template-columns: 1fr; gap: 15px; }
+
   .history-section { padding: 15px; border-radius: 12px; }
   .history-table-header { display: none; }
   .history-row { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 15px; margin-bottom: 12px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; text-align: left; }
@@ -459,7 +525,6 @@ onMounted(async () => {
   .music-toggle { bottom: 20px; right: 20px; width: 50px; height: 50px; }
   .music-inner { font-size: 22px; }
   
-  /* 手机端提示框稍微缩小一点 */
   .custom-toast {
     font-size: 13px;
     padding: 12px 18px;
