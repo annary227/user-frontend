@@ -183,7 +183,7 @@ const gameId = route.params.id;
 const game = ref(null);
 const userBalance = ref(0);
 const liveMessages = ref([]);
-const inningsData = ref([]); // 🆕 存储每一局比分
+const inningsData = ref([]); // 存储每一局比分
 let pollTimer = null;
 
 const scoreOptions = ref([
@@ -220,7 +220,9 @@ const formatJST = (dateString) => {
 const getInningScore = (inningNum, team) => {
   const data = inningsData.value.find(i => i.num === inningNum);
   if (!data) return '-';
-  return team === 'away' ? data.awayRuns : data.homeRuns;
+  // 如果是 0 分，也返回 0；如果是 undefined，返回 -
+  const score = team === 'away' ? data.awayRuns : data.homeRuns;
+  return score !== undefined ? score : '-';
 };
 
 const fetchGameDetail = async () => {
@@ -229,7 +231,7 @@ const fetchGameDetail = async () => {
     if (res.data.success) {
       game.value = res.data.game;
       if (res.data.commentary) liveMessages.value = res.data.commentary;
-      if (res.data.innings) inningsData.value = res.data.innings; // 🆕 保存局比分
+      if (res.data.innings) inningsData.value = res.data.innings;
     }
   } catch (error) { console.error("詳細取得失敗", error); }
 };
@@ -297,7 +299,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 </script>
 
 <style scoped>
-/* ---------------- 以下全部是您原来的样式，仅新增了 Linescore 局比分看板样式 ---------------- */
+/* ---------------- 以下全部是您原来的样式，未作任何删减 ---------------- */
 .mlb-match-detail { font-family: 'Noto Sans JP', sans-serif; background: #0b1120; min-height: 100vh; color: #f8fafc; }
 .main-content { max-width: 800px; margin: 0 auto; padding: 20px; }
 
