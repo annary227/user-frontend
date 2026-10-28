@@ -42,11 +42,11 @@
           })"
         />
 
-        <!-- ================= 🆕 MLB 竞猜专属卡片 ================= -->
-        <div class="mlb-game-card" @click="$router.push('/mlb')">
-          <!-- 红色 LIVE 角标 -->
+        <!-- ================= 🆕 MLB 竞猜专属卡片 (已修改为待开发禁用状态) ================= -->
+        <div class="mlb-game-card is-disabled" @click="handleMlbClick">
+          <!-- 红色角标：已改为 準備中 -->
           <div class="mlb-live-badge">
-            <span class="dot"></span> LIVE
+            <span class="dot"></span> 準備中
           </div>
           
           <div class="mlb-icon">⚾</div>
@@ -58,7 +58,8 @@
             <p class="mlb-desc">メジャーリーグのリアルタイムスコアで高配当を狙え！</p>
             <div class="mlb-bottom-row">
               <span class="mlb-price">最低 30,000 pt</span>
-              <button class="mlb-btn">挑戦する ></button>
+              <!-- 按钮已加 disabled 属性 -->
+              <button class="mlb-btn" disabled>準備中</button>
             </div>
           </div>
         </div>
@@ -177,6 +178,11 @@ const formatTime = (timeStr) => {
   return date.toLocaleString('ja-JP', { hour12: false });
 };
 
+// 🆕 MLB 卡片点击拦截提示方法
+const handleMlbClick = () => {
+  alert('该功能正在开发中，敬请期待！(準備中)');
+};
+
 onMounted(async () => {
   const storedUser = localStorage.getItem('user');
   if (!storedUser) {
@@ -251,7 +257,19 @@ onMounted(async () => {
   border-color: #f87171;
 }
 
-/* 红色 LIVE 角标 */
+/* 🆕 禁用状态：取消鼠标小手，取消悬浮动画和发光 */
+.mlb-game-card.is-disabled {
+  cursor: not-allowed; /* 显示禁止点击的鼠标样式 */
+  opacity: 0.7; /* 整体稍微变暗一点提示不可用 */
+}
+
+.mlb-game-card.is-disabled:hover {
+  transform: none; /* 取消上浮 */
+  box-shadow: 0 10px 25px rgba(239, 68, 68, 0.15); /* 恢复原本阴影，取消悬浮高亮 */
+  border-color: #ef4444;
+}
+
+/* 红色 角标 */
 .mlb-live-badge {
   position: absolute;
   top: 0;
@@ -338,6 +356,17 @@ onMounted(async () => {
 .mlb-game-card:hover .mlb-btn {
   background: #dc2626;
   box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
+}
+
+/* 🆕 禁用状态的按钮样式 */
+.mlb-btn:disabled {
+  background: #64748b; /* 变成灰色 */
+  cursor: not-allowed;
+}
+
+.mlb-game-card.is-disabled:hover .mlb-btn {
+  background: #64748b; /* 鼠标悬浮也不变色 */
+  box-shadow: none; /* 取消按钮发光 */
 }
 
 /* 底部历史记录 (桌面端) */
