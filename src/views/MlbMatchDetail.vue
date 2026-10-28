@@ -25,7 +25,13 @@
           <span v-if="game.status === 'Live'" class="live-badge">
             <span class="dot"></span> {{ game.inning_half === 'Top' ? '表' : '裏' }} 第{{ game.current_inning }}回
           </span>
+          <span v-else-if="game.status === 'Final'" style="color: #ef4444; font-weight: bold;">試合終了</span>
           <span v-else>試合前</span>
+        </div>
+
+        <!-- 🆕 显示开赛时间 -->
+        <div class="game-time" v-if="game.game_date">
+          🕒 開始予定: {{ formatJST(game.game_date) }}
         </div>
       </div>
 
@@ -33,10 +39,9 @@
       <div class="live-commentary">
         <div class="commentary-header">
           <h3>📻 実況テキスト速報</h3>
-          <span class="live-pulse">LIVE</span>
+          <span class="live-pulse" v-if="game.status === 'Live'">LIVE</span>
         </div>
         <div class="commentary-box">
-          <!-- 滚动展示最近播报 -->
           <div v-for="(msg, index) in liveMessages" :key="index" class="msg-item">
             <span class="time">{{ msg.time }}</span>
             <span class="text" :class="{ 'highlight': msg.highlight }">{{ msg.text }}</span>
@@ -55,15 +60,15 @@
         </div>
         
         <div class="innings-list">
-          <!-- 循环渲染 1 到 9 局 -->
           <div v-for="inning in 9" :key="inning" class="inning-row" :class="{ 'is-past': inning < game.current_inning }">
             <div class="inning-title">
               <span class="inning-num">{{ inning }}回</span>
               <span v-if="inning === game.current_inning" class="current-badge">現在</span>
+              <!-- 🆕 如果该局正在下注，显示封盘倒计时（可选，如果有需要可以在后端返回） -->
             </div>
 
-            <!-- 如果当前局已结束，显示结果；如果没结束，显示下注按钮 -->
-            <div class="odds-grid" v-if="inning >= game.current_inning">
+            <!-- 判断条件：未结束才显示按钮 -->
+            <div class="odds-grid" v-if="inning >= game.current_inning && game.status !== 'Final'">
               <button 
                 v-for="odd in scoreOptions" 
                 :key="odd.key"
@@ -75,7 +80,7 @@
               </button>
             </div>
             <div class="result-display" v-else>
-              <span class="result-text">結果: 0 - 0</span>
+              <span class="result-text">{{ inning < game.current_inning ? '結果: 0 - 0' : '試合終了' }}</span>
             </div>
           </div>
         </div>
@@ -110,11 +115,18 @@
         </div>
       </div>
     </div>
+
+    <!-- 纯日语优雅提示 (Toast) -->
+    <transition name="fade">
+      <div v-if="toast.show" class="custom-toast" :class="toast.type">
+        {{ toast.msg }}
+      </div>
+    </transition>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import request from '../api/request';
 import AppHeader from '../components/AppHeader.vue';
@@ -142,10 +154,31 @@ const selectedBet = ref({ inning: null, label: '', odds: 0, key: '' });
 const betAmount = ref(1000);
 const isBetting = ref(false);
 
+// Toast 状态
+const toast = reactive({ show: false, msg: '', type: 'error' });
+const showToast = (msg, type = 'error') => {
+  toast.msg = msg;
+  toast.type = type;
+  toast.show = true;
+  setTimeout(() => { toast.show = false; }, 3000);
+};
+
 const potentialWin = computed(() => {
   if (!betAmount.value || betAmount.value < 100) return 0;
   return Math.floor(betAmount.value * selectedBet.value.odds);
 });
+
+// 🆕 格式化日本时间
+const formatJST = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleString('ja-JP', { 
+    month: '2-digit', 
+    day: '2-digit', 
+    hour: '2-digit', 
+    minute: '2-digit' 
+  });
+};
 
 const fetchGameDetail = async () => {
   try {
@@ -158,6 +191,7 @@ const fetchGameDetail = async () => {
     }
   } catch (error) {
     console.error("詳細取得失敗", error);
+    // 假数据兜底
     game.value = {
       game_pk: gameId,
       away_team: 'ヤンキース',
@@ -166,7 +200,8 @@ const fetchGameDetail = async () => {
       home_score: 3,
       status: 'Live',
       current_inning: 5,
-      inning_half: 'Top'
+      inning_half: 'Top',
+      game_date: new Date().toISOString() // 假数据给个时间
     };
     liveMessages.value = [
       { time: '14:25', text: '5回表、ヤンキース 1番打者がヒットで出塁！', highlight: false }
@@ -186,10 +221,16 @@ const fetchBalance = async () => {
 const placeBet = (inning, key) => {
   const user = localStorage.getItem('user');
   if (!user) {
-    alert('ベットするにはログインが必要です。');
-    router.push('/login');
+    showToast('ベットするにはログインが必要です。');
+    setTimeout(() => router.push('/login'), 1500);
     return;
   }
+
+  if (game.value.status === 'Preview') {
+    showToast('試合開始までお待ちください。現在ベットできません。');
+    return;
+  }
+
   const odd = scoreOptions.value.find(o => o.key === key);
   selectedBet.value = { inning, label: odd.label, odds: odd.odds, key: key };
   betAmount.value = 1000;
@@ -202,11 +243,11 @@ const closeModal = () => {
 
 const confirmBet = async () => {
   if (betAmount.value < 100) {
-    alert('最低ベット額は 100 pt です。');
+    showToast('最低ベット額は 100 pt です。');
     return;
   }
   if (betAmount.value > userBalance.value) {
-    alert('残高が不足しています。');
+    showToast('残高が不足しています。');
     return;
   }
 
@@ -224,15 +265,15 @@ const confirmBet = async () => {
     });
 
     if (res.data.success) {
-      alert('ベットが完了しました！');
+      showToast('ベットが完了しました！', 'success');
       userBalance.value -= betAmount.value;
       showBetModal.value = false;
     } else {
-      alert(res.data.msg || 'ベットに失敗しました。');
+      showToast(res.data.msg || 'ベットに失敗しました。');
     }
   } catch (error) {
     console.error('ベットエラー', error);
-    alert(error.response?.data?.msg || 'ベットに失敗しました。');
+    showToast(error.response?.data?.msg || 'ベットに失敗しました。');
   } finally {
     isBetting.value = false;
   }
@@ -258,7 +299,7 @@ onUnmounted(() => {
 }
 .main-content { max-width: 800px; margin: 0 auto; padding: 20px; }
 
-/* 1. 顶部比分牌 (竖排优化) */
+/* 1. 顶部比分牌 */
 .scoreboard {
   background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
   border: 1px solid #334155;
@@ -271,42 +312,38 @@ onUnmounted(() => {
   background: transparent; color: #94a3b8; border: 1px solid #334155;
   padding: 5px 12px; border-radius: 20px; cursor: pointer; position: absolute; top: 20px; left: 20px;
 }
-
 .teams-score { 
-  display: flex; 
-  flex-direction: column; /* 强制竖排 */
-  align-items: center; 
-  gap: 10px; 
-  margin-top: 30px; 
-  width: 100%;
+  display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 30px; width: 100%;
 }
-
 .team { 
-  display: flex; 
-  justify-content: space-between; 
-  align-items: center;
-  width: 80%; 
-  font-size: 20px; 
-  font-weight: bold; 
-  padding: 10px 20px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
+  display: flex; justify-content: space-between; align-items: center;
+  width: 80%; font-size: 20px; font-weight: bold; padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.05); border-radius: 12px;
 }
-
 .team.away .score { color: #3b82f6; font-size: 32px; font-weight: 900;}
 .team.home .score { color: #ef4444; font-size: 32px; font-weight: 900;}
-
 .status { text-align: center; margin-top: 15px; font-size: 14px; }
 .live-badge { background: rgba(239, 68, 68, 0.2); color: #ef4444; padding: 4px 12px; border-radius: 20px; font-weight: bold; display: inline-flex; align-items: center; gap: 6px; }
 .dot { width: 6px; height: 6px; background: #ef4444; border-radius: 50%; animation: pulse 1s infinite alternate; }
 
+/* 🆕 开赛时间显示 */
+.game-time {
+  text-align: center;
+  margin-top: 12px;
+  font-size: 13px;
+  color: #94a3b8;
+  background: #0f172a;
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  position: absolute;
+  right: 20px;
+  top: 20px;
+}
+
 /* 2. 实况文字播报 */
 .live-commentary {
-  background: #1e293b;
-  border-radius: 16px;
-  border: 1px solid #334155;
-  padding: 20px;
-  margin-bottom: 20px;
+  background: #1e293b; border-radius: 16px; border: 1px solid #334155; padding: 20px; margin-bottom: 20px;
 }
 .commentary-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #334155; padding-bottom: 10px; }
 .commentary-header h3 { margin: 0; font-size: 16px; color: #e2e8f0; }
@@ -318,23 +355,16 @@ onUnmounted(() => {
 .text.highlight { color: #fbbf24; font-weight: bold; }
 
 /* 3. 单局竞猜盘口 */
-.betting-board {
-  background: #1e293b;
-  border-radius: 16px;
-  border: 1px solid #334155;
-  padding: 20px;
-}
+.betting-board { background: #1e293b; border-radius: 16px; border: 1px solid #334155; padding: 20px; }
 .board-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 .board-header h3 { margin: 0; font-size: 18px; color: #ef4444; }
 .balance { background: #0f172a; padding: 6px 12px; border-radius: 8px; color: #fbbf24; font-weight: bold; font-size: 14px; }
-
 .innings-list { display: flex; flex-direction: column; gap: 15px; }
 .inning-row { background: #0f172a; border-radius: 12px; padding: 15px; display: flex; flex-direction: column; gap: 12px; border: 1px solid #1e293b; }
 .inning-row.is-past { opacity: 0.5; }
 .inning-title { display: flex; align-items: center; gap: 10px; font-weight: bold; color: #94a3b8; }
 .inning-num { font-size: 16px; color: #f8fafc; }
 .current-badge { background: #ef4444; color: white; font-size: 11px; padding: 2px 8px; border-radius: 4px; }
-
 .odds-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .odd-btn {
   background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 10px;
@@ -344,7 +374,6 @@ onUnmounted(() => {
 .odd-btn:hover { background: #334155; border-color: #ef4444; }
 .odds-label { font-weight: bold; color: #cbd5e1; }
 .odds-value { color: #fbbf24; font-size: 12px; background: rgba(251, 191, 36, 0.1); padding: 2px 6px; border-radius: 4px; }
-
 .result-display { text-align: center; padding: 10px; background: #1e293b; border-radius: 8px; color: #64748b; font-size: 14px; font-weight: bold; }
 
 /* 弹窗样式 */
@@ -360,7 +389,6 @@ onUnmounted(() => {
 .input-group input:focus { border-color: #ef4444; }
 .potential-win { text-align: right; color: #94a3b8; font-size: 14px; margin-bottom: 20px; }
 .potential-win strong { color: #fbbf24; font-size: 18px; }
-
 .modal-actions { display: flex; gap: 10px; }
 .modal-actions button { flex: 1; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; transition: all 0.2s; }
 .cancel-btn { background: #334155; color: #cbd5e1; }
@@ -376,5 +404,18 @@ onUnmounted(() => {
   .team { width: 100%; font-size: 16px; padding: 10px; }
   .team.away .score, .team.home .score { font-size: 24px; }
   .odds-grid { grid-template-columns: repeat(2, 1fr); }
+  .game-time { position: static; margin-top: 15px; }
 }
+
+/* Toast 样式 */
+.custom-toast {
+  position: fixed; top: 30px; left: 50%; transform: translateX(-50%);
+  padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: bold;
+  z-index: 10000; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  color: white; text-align: center; pointer-events: none;
+}
+.custom-toast.error { background: #ef4444; }
+.custom-toast.success { background: #10b981; }
+.fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease, transform 0.3s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; transform: translate(-50%, -20px); }
 </style>
