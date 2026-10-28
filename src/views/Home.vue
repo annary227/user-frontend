@@ -14,43 +14,48 @@
         <button class="banner-btn">今すぐチャレンジ ↓</button>
       </div>
 
-      <!-- ================= 🆕 快开彩 文件夹容器 (仅包含8个游戏) ================= -->
-      <div class="category-folder">
-        <!-- 文件夹标题 -->
-        <div class="section-title">
+      <!-- ================= 🆕 转盘积分游戏 折叠文件夹容器 ================= -->
+      <div class="category-folder" :class="{ 'is-open': isFolderOpen }">
+        
+        <!-- 文件夹标题/入口按钮 (点击这里展开/收起) -->
+        <div class="folder-header" @click="toggleFolder">
           <div class="title-left">
-            <span class="folder-icon">📁</span>
-            <h3>快開彩 <span class="sub-title">(スピードくじ)</span></h3>
+            <span class="folder-icon">{{ isFolderOpen ? '📂' : '📁' }}</span>
+            <h3>ルーレットポイントゲーム</h3>
           </div>
-          <span class="count-badge">全8種類</span>
+          <div class="header-right">
+            <span class="count-badge">全8種類</span>
+            <span class="toggle-arrow">{{ isFolderOpen ? '▲ 閉じる' : '▼ 開く' }}</span>
+          </div>
         </div>
 
-        <!-- 卡片网格区 -->
-        <div class="game-grid">
-          <!-- 循环渲染原有的 8 个卡片组件 -->
-          <GameCard 
-            v-for="game in games" 
-            :key="game.title"
-            :title="game.title"
-            :desc="game.desc"
-            :price="game.price"
-            :maxPrize="game.maxPrize"
-            :icon="game.icon"
-            :color="game.color"
-            :btnColor="game.color"
-            @play="$router.push({ 
-              path: '/gacha', 
-              query: { 
-                name: game.title, 
-                price: game.price, 
-                icon: game.icon,
-                balance: userBalance
-              } 
-            })"
-          />
+        <!-- 游戏列表 (只有展开时才显示) -->
+        <div class="folder-content" v-show="isFolderOpen">
+          <div class="game-grid">
+            <GameCard 
+              v-for="game in games" 
+              :key="game.title"
+              :title="game.title"
+              :desc="game.desc"
+              :price="game.price"
+              :maxPrize="game.maxPrize"
+              :icon="game.icon"
+              :color="game.color"
+              :btnColor="game.color"
+              @play="$router.push({ 
+                path: '/gacha', 
+                query: { 
+                  name: game.title, 
+                  price: game.price, 
+                  icon: game.icon,
+                  balance: userBalance
+                } 
+              })"
+            />
+          </div>
         </div>
       </div>
-      <!-- ================= 快开彩 文件夹容器结束 ================= -->
+      <!-- ================= 转盘积分游戏 文件夹容器结束 ================= -->
 
 
       <!-- ================= 🆕 MLB 竞猜专属卡片 (独立放在外面) ================= -->
@@ -69,7 +74,6 @@
           <p class="mlb-desc">メジャーリーグのリアルタイムスコアで高配当を狙え！</p>
           <div class="mlb-bottom-row">
             <span class="mlb-price">最低 30,000 pt</span>
-            <!-- 按钮已加 disabled 属性 -->
             <button class="mlb-btn" disabled>準備中</button>
           </div>
         </div>
@@ -148,7 +152,13 @@ import AppHeader from '../components/AppHeader.vue';
 const router = useRouter();
 const records = ref([]);
 const userBalance = ref(0);
-const showToast = ref(false); // 🆕 控制提示框显示
+const showToast = ref(false); 
+const isFolderOpen = ref(false); // 🆕 控制文件夹是否展开 (默认关闭)
+
+// 🆕 切换文件夹展开/收起
+const toggleFolder = () => {
+  isFolderOpen.value = !isFolderOpen.value;
+};
 
 // ==========================================
 // 🆕 游戏厅纯音乐系统
@@ -170,7 +180,6 @@ const toggleMusic = () => {
   }
 };
 
-// 离开页面时自动暂停音乐
 onUnmounted(() => {
   if (audioPlayer.value) {
     audioPlayer.value.pause();
@@ -197,10 +206,8 @@ const formatTime = (timeStr) => {
   return date.toLocaleString('ja-JP', { hour12: false });
 };
 
-// 🆕 MLB 卡片点击拦截提示方法 (纯日文 + 自定义 UI)
 const handleMlbClick = () => {
   showToast.value = true;
-  // 2秒后自动消失
   setTimeout(() => {
     showToast.value = false;
   }, 2000);
@@ -255,23 +262,32 @@ onMounted(async () => {
 
 /* ================= 🆕 文件夹分类容器样式 ================= */
 .category-folder {
-  background: rgba(255, 255, 255, 0.6); /* 半透明白色背景，像文件夹的封皮 */
-  border: 1px solid rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.9);
   border-radius: 20px;
-  padding: 25px;
+  padding: 20px;
   margin-bottom: 25px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
-  backdrop-filter: blur(10px); /* 磨砂玻璃质感 */
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
 }
 
-/* 标题区域 */
-.section-title { 
+/* 展开时的背景略微加深 */
+.category-folder.is-open {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(10px);
+}
+
+/* 标题区域/点击开关 */
+.folder-header { 
   display: flex; 
   justify-content: space-between; 
   align-items: center; 
-  margin-bottom: 20px; 
-  padding-bottom: 12px;
-  border-bottom: 2px dashed #e2e8f0; /* 虚线分割，增加文件夹感觉 */
+  padding: 10px 5px;
+  cursor: pointer; /* 变成小手，提示可以点击 */
+  user-select: none;
+}
+.folder-header:hover .title-left h3 {
+  color: #e83862;
 }
 .title-left {
   display: flex;
@@ -279,9 +295,10 @@ onMounted(async () => {
   gap: 10px;
 }
 .folder-icon {
-  font-size: 24px;
+  font-size: 26px;
+  transition: transform 0.3s;
 }
-.section-title h3 { 
+.section-title h3, .folder-header h3 { 
   margin: 0; 
   font-size: 20px; 
   color: #1e293b; 
@@ -289,11 +306,17 @@ onMounted(async () => {
   display: flex;
   align-items: baseline;
   gap: 8px;
+  transition: color 0.2s;
 }
 .sub-title {
   font-size: 14px;
   color: #64748b;
   font-weight: normal;
+}
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
 }
 .count-badge {
   background: #f1f5f9;
@@ -303,6 +326,21 @@ onMounted(async () => {
   font-size: 12px;
   font-weight: bold;
   border: 1px solid #e2e8f0;
+}
+.toggle-arrow {
+  font-size: 13px;
+  color: #e83862;
+  font-weight: bold;
+  background: #ffe4e6;
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+
+/* 内部内容区 (展开部分) */
+.folder-content {
+  padding-top: 15px;
+  border-top: 2px dashed #e2e8f0;
+  margin-top: 10px;
 }
 
 /* 游戏列表网格 */
@@ -321,7 +359,7 @@ onMounted(async () => {
   border: 2px solid #ef4444;
   transition: all 0.3s ease;
   overflow: hidden;
-  margin-bottom: 30px; /* 与下方历史记录隔开 */
+  margin-bottom: 30px; 
 }
 
 .mlb-game-card:hover {
@@ -509,7 +547,9 @@ onMounted(async () => {
   
   /* 手机端文件夹容器适配 */
   .category-folder { padding: 15px; border-radius: 16px; }
-  .section-title h3 { font-size: 18px; }
+  .folder-header { flex-direction: row; align-items: center; }
+  .header-right { gap: 8px; }
+  .section-title h3, .folder-header h3 { font-size: 16px; }
   .game-grid { grid-template-columns: 1fr; gap: 15px; }
 
   .history-section { padding: 15px; border-radius: 12px; }
