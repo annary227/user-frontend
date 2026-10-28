@@ -65,26 +65,28 @@
         </div>
       </div>
 
-      <!-- 单局盘 (带倒计时) -->
-      <div v-if="mlbGame.inningOpen" class="bet-section">
+      <!-- ================= 🆕 单局盘 (带倒计时) ================= -->
+      <!-- 如果 inningOpen 为 true，或者我们想让它无论如何都显示预览 -->
+      <div v-if="mlbGame.inningOpen || mlbGame.status === 'Live'" class="bet-section">
         <div class="section-header">
           <h3>【第 {{ mlbGame.currentInning + 1 }} 局】スコア予想</h3>
-          <span class="countdown">⏱ {{ formatTime(mlbGame.countdown) }}</span>
+          <span class="countdown" v-if="mlbGame.inningOpen">⏱ {{ formatTime(mlbGame.countdown) }}</span>
+          <span class="countdown" v-else style="color: #94a3b8; background: transparent;">受付停止中</span>
         </div>
-        <div class="grid-options">
-          <button class="score-btn" @click="handleBet('inning', '0:0', 1.8)">0:0 <span>1.8x</span></button>
-          <button class="score-btn" @click="handleBet('inning', '1:0', 2.5)">1:0 <span>2.5x</span></button>
-          <button class="score-btn" @click="handleBet('inning', '0:1', 2.5)">0:1 <span>2.5x</span></button>
-          <button class="score-btn" @click="handleBet('inning', '2:0', 4.0)">2:0 <span>4.0x</span></button>
-          <button class="score-btn" @click="handleBet('inning', '0:2', 4.0)">0:2 <span>4.0x</span></button>
-          <button class="score-btn" @click="handleBet('inning', 'other', 10.0)">その他 <span>10x</span></button>
+        <div class="grid-options" :class="{ 'disabled-options': !mlbGame.inningOpen }">
+          <button class="score-btn" @click="mlbGame.inningOpen && handleBet('inning', '0:0', 1.8)">0:0 <span>1.8x</span></button>
+          <button class="score-btn" @click="mlbGame.inningOpen && handleBet('inning', '1:0', 2.5)">1:0 <span>2.5x</span></button>
+          <button class="score-btn" @click="mlbGame.inningOpen && handleBet('inning', '0:1', 2.5)">0:1 <span>2.5x</span></button>
+          <button class="score-btn" @click="mlbGame.inningOpen && handleBet('inning', '2:0', 4.0)">2:0 <span>4.0x</span></button>
+          <button class="score-btn" @click="mlbGame.inningOpen && handleBet('inning', '0:2', 4.0)">0:2 <span>4.0x</span></button>
+          <button class="score-btn" @click="mlbGame.inningOpen && handleBet('inning', 'other', 10.0)">その他 <span>10x</span></button>
         </div>
       </div>
 
-      <!-- 封盘状态 -->
-      <div v-if="!mlbGame.pregameOpen && !mlbGame.inningOpen" class="closed-state">
-        <h3>🔒 現在、予想受付を停止しています</h3>
-        <p>試合の進行状況をお待ちください。</p>
+      <!-- 封盘状态 (如果既不能买赛前，也不能买单局) -->
+      <div v-if="!mlbGame.pregameOpen && !mlbGame.inningOpen && mlbGame.status === 'Final'" class="closed-state">
+        <h3>🔒 試合は終了しました</h3>
+        <p>ご参加ありがとうございました。</p>
       </div>
 
     </div>
@@ -95,6 +97,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import request from '../api/request';
+import { ElMessageBox } from 'element-plus'; // 引入 Element Plus 的弹窗组件
 
 const router = useRouter();
 const mlbGame = ref(null);
@@ -124,13 +127,13 @@ const fetchMLBStatus = async () => {
       mlbGame.value = res.data.data;
 
       if (mlbGame.value.inningOpen && !prevOpen) {
-        showToast('⚾ 第 ' + (mlbGame.value.currentInning + 1) + ' 局竞猜开启！', 'success');
+        showToast('⚾ 第 ' + (mlbGame.value.currentInning + 1) + ' 局の予想が開始されました！', 'success');
       }
     } else {
       mlbGame.value = null;
     }
   } catch (err) {
-    console.error('获取 MLB 数据失败', err);
+    console.error('MLBデータ取得失敗', err);
   } finally {
     loading.value = false;
   }
@@ -140,16 +143,27 @@ const handleBet = async (betType, selection, odds = 1.5) => {
   const user = JSON.parse(localStorage.getItem('user'));
   if (!user) return router.push('/login');
 
-  const amountStr = prompt(`【${betType === 'pregame' ? '胜负' : '单局比分'}】\n选择：${selection}\n赔率：${odds}x\n\n请输入下注金额 (最低 30,000):`, '30000');
-  if (!amountStr) return;
-  
-  const amount = Number(amountStr);
-  if (amount < 30000) {
-    showToast('最低下注 30,000 积分', 'error');
-    return;
-  }
-
   try {
+    // 🆕 使用 Element Plus 弹窗代替原生 prompt，完美支持日语，且样式更好看
+    const { value: amountStr } = await ElMessageBox.prompt(
+      `予想：${selection}\nオッズ：${odds}x\n\nベットするポイントを入力してください（最低 30,000）:`,
+      betType === 'pregame' ? '勝敗予想' : 'スコア予想',
+      {
+        confirmButtonText: 'ベットする',
+        cancelButtonText: 'キャンセル',
+        inputValue: '30000',
+        inputPattern: /^\d+$/,
+        inputErrorMessage: '半角数字で入力してください',
+      }
+    );
+
+    const amount = Number(amountStr);
+    if (amount < 30000) {
+      showToast('最低ベット額は 30,000 ポイントです。', 'error');
+      return;
+    }
+
+    // 发起下注
     const res = await request.post('/mlb/bet', {
       userId: user.id,
       gamePk: mlbGame.value.gamePk,
@@ -160,12 +174,14 @@ const handleBet = async (betType, selection, odds = 1.5) => {
     });
 
     if (res.data.success) {
-      showToast('下注成功！', 'success');
+      showToast('ベットが完了しました！', 'success');
       user.balance -= amount;
       localStorage.setItem('user', JSON.stringify(user));
     }
   } catch (err) {
-    showToast(err.response?.data?.msg || '下注失败', 'error');
+    // 如果用户点了取消，会进入 catch（报错 'cancel'），直接忽略即可
+    if (err === 'cancel' || err === 'close') return;
+    showToast(err.response?.data?.msg || 'ベットに失敗しました', 'error');
   }
 };
 
@@ -178,7 +194,7 @@ onMounted(() => {
       mlbGame.value.countdown--;
       if (mlbGame.value.countdown === 0) {
         mlbGame.value.inningOpen = false;
-        showToast('🔒 下注已封盘', 'warning');
+        showToast('🔒 ベットの受付が終了しました', 'warning');
       }
     }
   }, 1000);
@@ -191,6 +207,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* 之前的样式全部保留，只修改排版对齐 */
 .mlb-room-container {
   min-height: 100vh;
   background: #0f172a;
@@ -245,13 +262,41 @@ onUnmounted(() => {
 .preview-tag { background: #64748b; padding: 4px 10px; border-radius: 10px; }
 .inning-info { color: #94a3b8; }
 
+/* 比分排版对齐 */
 .match-teams {
-  display: flex; justify-content: space-around; align-items: center;
+  display: flex; 
+  justify-content: space-around; 
+  align-items: center;
 }
-.team { display: flex; flex-direction: column; gap: 8px; }
-.team .name { font-size: 18px; font-weight: bold; color: #e2e8f0; }
-.team .score { font-size: 42px; font-weight: 900; color: #fbbf24; font-family: monospace; }
-.vs { font-size: 20px; font-weight: 900; color: #475569; }
+.team { 
+  display: flex; 
+  flex-direction: column; 
+  align-items: center;
+  gap: 8px; 
+  width: 40%;
+}
+.team .name { 
+  font-size: 18px; 
+  font-weight: bold; 
+  color: #e2e8f0; 
+  text-align: center;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+}
+.team .score { 
+  font-size: 42px; 
+  font-weight: 900; 
+  color: #fbbf24; 
+  font-family: monospace; 
+  line-height: 1;
+}
+.vs { 
+  font-size: 20px; 
+  font-weight: 900; 
+  color: #475569; 
+  margin-top: 20px; 
+}
 
 .bet-section { margin-bottom: 24px; }
 .bet-section h3 { font-size: 16px; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; }
@@ -274,6 +319,14 @@ onUnmounted(() => {
 }
 .score-btn:hover { background: #3b82f6; transform: translateY(-2px); }
 .score-btn span { font-size: 12px; color: #fbbf24; margin-top: 4px; }
+
+/* 🆕 增加禁用状态的样式，如果是 Live 但未到局间，按钮变灰不可点 */
+.disabled-options .score-btn {
+  opacity: 0.5;
+  pointer-events: none;
+  background: #1e293b;
+  border: 1px solid #334155;
+}
 
 .closed-state { text-align: center; padding: 30px; background: #0f172a; border-radius: 12px; color: #64748b; }
 
