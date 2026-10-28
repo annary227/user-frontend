@@ -196,7 +196,6 @@
           <div class="history-list">
             <div v-if="mlbRecords.length === 0" class="empty">履歴はありません</div>
             
-            <!-- 核心修改区：分别处理胜负盘和比分盘 -->
             <div v-for="record in mlbRecords" :key="'m_'+record.id" class="history-item" style="flex-direction: column; align-items: stretch; gap: 10px;">
               
               <div style="display: flex; justify-content: space-between; align-items: flex-start;">
@@ -224,7 +223,8 @@
                   </span>
                   <span style="color: #64748b;">
                     最終: 
-                    <strong v-if="record.actual_score === '-'" style="color: #f59e0b;">結果待ち</strong>
+                    <!-- 🆕 绝对护盾：只要没结果、或者比分是 0:0，统统按死显示“等待结果” -->
+                    <strong v-if="record.result === 'pending' || !record.actual_score || record.actual_score === '-' || record.actual_score === '0:0'" style="color: #f59e0b;">結果待ち</strong>
                     <strong v-else style="color: #3b82f6;">{{ record.actual_score }}</strong>
                   </span>
                 </template>
@@ -238,7 +238,7 @@
                     </strong>
                   </span>
                   <span style="color: #64748b;">
-                    <template v-if="record.actual_score === '-'">
+                    <template v-if="record.result === 'pending' || !record.actual_score || record.actual_score === '-' || record.actual_score === '0:0'">
                       結果: <strong style="color: #f59e0b;">結果待ち</strong>
                     </template>
                     <template v-else>
