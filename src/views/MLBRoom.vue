@@ -20,7 +20,6 @@
         >
           <!-- 状态栏 -->
           <div class="status-bar" :class="game.status.toLowerCase()">
-            <!-- 🆕 仅修改此处：加上了日本时间 -->
             <span v-if="game.status === 'Preview'">試合前 ({{ formatJST(game.game_date) }} JST)</span>
             <span v-else-if="game.status === 'Live'" class="live-text">
               <span class="live-dot"></span> 試合中 ({{ game.inning_half === 'Top' ? '表' : '裏' }} 第{{ game.current_inning }}回)
@@ -58,7 +57,7 @@
       </div>
     </main>
 
-    <!-- 🆕 替换 alert 的高颜值日文 Toast 提示 -->
+    <!-- 替换 alert 的高颜值日文 Toast 提示 -->
     <transition name="fade">
       <div v-if="toast.show" class="custom-toast">
         {{ toast.msg }}
@@ -78,7 +77,7 @@ const games = ref([]);
 const userBalance = ref(0);
 let pollTimer = null;
 
-// 🆕 新增：Toast 提示状态
+// Toast 提示状态
 const toast = reactive({ show: false, msg: '' });
 const showToast = (msg) => {
   toast.msg = msg;
@@ -86,7 +85,7 @@ const showToast = (msg) => {
   setTimeout(() => { toast.show = false; }, 2000);
 };
 
-// 🆕 新增：格式化日本时间函数
+// 格式化日本时间函数
 const formatJST = (dateString) => {
   if (!dateString) return '--:--';
   const date = new Date(dateString);
@@ -113,17 +112,9 @@ const fetchGames = async () => {
     }
   } catch (error) {
     console.error("取得失敗", error);
-    // 🆕 假数据测试：为了让你马上看到 7 场比赛的效果
+    // 🆕 去掉了假数据兜底，出错时保持现状或清空
     if (games.value.length === 0) {
-      games.value = [
-        { game_pk: 101, away_team: 'ヤンキース', home_team: 'レッドソックス', away_score: 2, home_score: 3, status: 'Live', current_inning: 5, inning_half: 'Top' },
-        { game_pk: 102, away_team: 'ドジャース', home_team: 'ジャイアンツ', away_score: 0, home_score: 0, status: 'Preview', current_inning: 1, inning_half: 'Top' },
-        { game_pk: 103, away_team: 'カブス', home_team: 'ホワイトソックス', away_score: 1, home_score: 1, status: 'Live', current_inning: 3, inning_half: 'Bottom' },
-        { game_pk: 104, away_team: 'メッツ', home_team: 'ブレーブス', away_score: 4, home_score: 2, status: 'Live', current_inning: 7, inning_half: 'Top' },
-        { game_pk: 105, away_team: 'パドレス', home_team: 'フィリーズ', away_score: 0, home_score: 0, status: 'Preview', current_inning: 1, inning_half: 'Top' },
-        { game_pk: 106, away_team: 'アストロズ', home_team: 'マリナーズ', away_score: 5, home_score: 4, status: 'Live', current_inning: 8, inning_half: 'Top' },
-        { game_pk: 107, away_team: 'エンゼルス', home_team: 'アスレチックス', away_score: 2, home_score: 6, status: 'Final', current_inning: 9, inning_half: 'Bottom' }
-      ];
+        games.value = [];
     }
   }
 };
@@ -198,7 +189,7 @@ onUnmounted(() => {
 
 .empty-state { text-align: center; padding: 50px; color: #64748b; background: #1e293b; border-radius: 12px; border: 1px dashed #334155; }
 
-/* 🆕 新增 Toast 提示样式 */
+/* 新增 Toast 提示样式 */
 .custom-toast {
   position: fixed; top: 30px; left: 50%; transform: translateX(-50%);
   padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: bold;
