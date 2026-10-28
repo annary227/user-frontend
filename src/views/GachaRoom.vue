@@ -1,3 +1,4 @@
+<!-- 请从这里开始全选复制，直到最底部的 </style> 结束 -->
 <template>
   <div class="room-container" :class="`theme-${gameType}`">
     
@@ -13,6 +14,13 @@
       </div>
       <div class="floor-reflection"></div>
     </div>
+
+    <!-- 全局提示 Toast -->
+    <Transition name="slide-down">
+      <div v-if="toast.show" class="global-toast" :class="toast.type">
+        {{ toast.msg }}
+      </div>
+    </Transition>
 
     <!-- 返回按钮 -->
     <button class="floating-back-btn" @click="$router.push('/')">
@@ -136,27 +144,16 @@
              </div>
           </div>
 
-          <!-- 6. 轮盘 (球体优化+极速旋转) -->
+          <!-- 6. 轮盘 -->
           <div v-else-if="gameType === 'roulette'" class="roulette-scene">
-            
-            <!-- 顶部固定滚珠指针 -->
             <div class="roulette-ball-pointer">⚪</div>
-
-            <!-- 转盘主体 -->
             <div class="wheel-3d-container">
-              <!-- 旋转层 (CSS Animation 驱动，确保稳定旋转) -->
               <div 
                 class="wheel-rotating-layer" 
-                :class="{ 
-                  'is-spinning': isDrawing, 
-                  'is-settling': !isDrawing && result 
-                }"
+                :class="{ 'is-spinning': isDrawing, 'is-settling': !isDrawing && result }"
                 :style="wheelStyle"
               >
-                <!-- 动态 12 宫格背景色块 -->
                 <div class="wheel-blocks" :style="dynamicConicGradient"></div>
-                
-                <!-- 动态 12 个金额标签 (拉近半径，强制白字黑边) -->
                 <div 
                   v-for="(prize, index) in displayPrizes12" 
                   :key="index"
@@ -166,11 +163,7 @@
                   {{ formatPrize(prize.value) }}
                 </div>
               </div>
-
-              <!-- 立体球体高光遮罩（静态） -->
               <div class="wheel-3d-sphere-overlay"></div>
-              
-              <!-- 中心固定塔楼 (CASINO) -->
               <div class="wheel-center-tower">
                 <div class="tower-top">CASINO</div>
                 <div class="tower-cross">
@@ -179,11 +172,7 @@
                 </div>
               </div>
             </div>
-
-            <!-- 中奖光效 -->
             <div class="win-glow" v-if="!isDrawing && result && result.value > 0"></div>
-
-            <!-- 结果标签 -->
             <div class="prize-tag roulette-prize" :class="result && result.value > 0 ? 'is-win' : 'is-lose'" v-if="!isDrawing && result">
               <span v-if="result.value > 0">+ ¥{{ result.value.toLocaleString() }}</span>
               <span v-else>残念...</span>
@@ -273,6 +262,61 @@
         <span class="btn-text">{{ isDrawing ? '抽選中...' : `¥${gameCost} で挑戦する` }}</span>
         <span class="btn-shine" v-if="!isDrawing"></span>
       </button>
+
+      <!-- ================= 🏆 MLB 实时竞猜面板 ================= -->
+      <div class="mlb-panel" v-if="mlbGame">
+        <div class="mlb-header">
+          <span class="live-tag" v-if="mlbGame.status === 'Live'">🔴 LIVE</span>
+          <span class="preview-tag" v-else>待機中</span>
+          <span class="inning-info" v-if="mlbGame.currentInning > 0">第 {{ mlbGame.currentInning }} 局</span>
+        </div>
+        
+        <div class="match-info">
+          <div class="team">
+            <span class="name">{{ mlbGame.awayTeam }}</span>
+            <span class="score">{{ mlbGame.awayScore }}</span>
+          </div>
+          <div class="vs">VS</div>
+          <div class="team">
+            <span class="score">{{ mlbGame.homeScore }}</span>
+            <span class="name">{{ mlbGame.homeTeam }}</span>
+          </div>
+        </div>
+
+        <!-- 下注区域 -->
+        <div class="betting-area">
+          <!-- 赛前盘 -->
+          <div v-if="mlbGame.pregameOpen && mlbGame.status === 'Preview'" class="pregame-bet">
+            <div class="bet-title">【試合前】勝敗予想 (1.5x)</div>
+            <div class="btn-group">
+              <button class="mlb-btn" @click="handleBet('pregame', 'away')">{{ mlbGame.awayTeam }} 勝利</button>
+              <button class="mlb-btn" @click="handleBet('pregame', 'home')">{{ mlbGame.homeTeam }} 勝利</button>
+            </div>
+          </div>
+
+          <!-- 单局盘 (带倒计时) -->
+          <div v-if="mlbGame.inningOpen" class="inning-bet">
+            <div class="bet-title">
+              【第 {{ mlbGame.currentInning + 1 }} 局】スコア予想
+              <span class="countdown">⏱ {{ formatTime(mlbGame.countdown) }}</span>
+            </div>
+            <div class="grid-3x2">
+              <button class="mlb-btn score-btn" @click="handleBet('inning', '0:0', 1.8)">0:0 <span>1.8x</span></button>
+              <button class="mlb-btn score-btn" @click="handleBet('inning', '1:0', 2.5)">1:0 <span>2.5x</span></button>
+              <button class="mlb-btn score-btn" @click="handleBet('inning', '0:1', 2.5)">0:1 <span>2.5x</span></button>
+              <button class="mlb-btn score-btn" @click="handleBet('inning', '2:0', 4.0)">2:0 <span>4.0x</span></button>
+              <button class="mlb-btn score-btn" @click="handleBet('inning', '0:2', 4.0)">0:2 <span>4.0x</span></button>
+              <button class="mlb-btn score-btn" @click="handleBet('inning', 'other', 10.0)">その他 <span>10x</span></button>
+            </div>
+          </div>
+
+          <!-- 封盘提示 -->
+          <div v-if="!mlbGame.pregameOpen && !mlbGame.inningOpen" class="closed-tip">
+            🔒 現在、予想受付を停止しています。
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <!-- 购买确认弹窗 -->
@@ -368,10 +412,87 @@ const marqueePrizes = ref([]);
 const currentMarqueeIndex = ref(0);
 let marqueeTimer = null;
 
-// ================= 🎯 轮盘核心逻辑 =================
-const targetDeg = ref(0); // 计算最终停下的角度
+// ================= 🏆 MLB 竞猜相关状态 =================
+const mlbGame = ref(null);
+let mlbPollTimer = null;
+let mlbCountdownTimer = null;
 
-// 处理奖品数组，严格限制 12 个位置
+// 全局 Toast 提示
+const toast = ref({ show: false, msg: '', type: 'info' });
+const showToast = (msg, type = 'info') => {
+  toast.value = { show: true, msg, type };
+  setTimeout(() => { toast.value.show = false; }, 3000);
+};
+
+// 格式化时间
+const formatTime = (sec) => {
+  if (sec <= 0) return '00:00';
+  const m = Math.floor(sec / 60).toString().padStart(2, '0');
+  const s = (sec % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+};
+
+// 轮询获取 MLB 状态
+const fetchMLBStatus = async () => {
+  try {
+    const res = await request.get('/mlb/current');
+    if (res.data.success) {
+      const prevOpen = mlbGame.value?.inningOpen;
+      mlbGame.value = res.data.data;
+
+      // 如果之前没开，现在开了，弹提示
+      if (mlbGame.value.inningOpen && !prevOpen) {
+        showToast('⚾ 第 ' + (mlbGame.value.currentInning + 1) + ' 局竞猜开启！', 'success');
+      }
+    } else {
+      mlbGame.value = null;
+    }
+  } catch (err) {
+    console.error('获取 MLB 数据失败', err);
+  }
+};
+
+// 处理下注
+const handleBet = async (betType, selection, odds = 1.5) => {
+  if (!userId.value) return;
+  
+  // 直接弹窗输入下注金额（你可以替换成漂亮的 UI）
+  const amountStr = prompt(`【${betType === 'pregame' ? '胜负' : '单局比分'}】\n选择：${selection}\n赔率：${odds}x\n\n请输入下注金额 (最低 30,000):`, '30000');
+  
+  if (!amountStr) return;
+  const amount = Number(amountStr);
+
+  if (amount < 30000) {
+    showToast('最低下注 30,000 积分', 'error');
+    return;
+  }
+
+  try {
+    const res = await request.post('/mlb/bet', {
+      userId: userId.value,
+      gamePk: mlbGame.value.gamePk,
+      betType,
+      targetInning: betType === 'inning' ? mlbGame.value.currentInning + 1 : null,
+      selection,
+      amount
+    });
+
+    if (res.data.success) {
+      showToast('下注成功！', 'success');
+      // 更新余额
+      currentBalance.value -= amount;
+      const user = JSON.parse(localStorage.getItem('user'));
+      user.balance = currentBalance.value;
+      localStorage.setItem('user', JSON.stringify(user));
+    }
+  } catch (err) {
+    showToast(err.response?.data?.msg || '下注失败', 'error');
+  }
+};
+
+// ================= 🎯 轮盘核心逻辑 =================
+const targetDeg = ref(0); 
+
 const displayPrizes12 = computed(() => {
   let list = [];
   if (marqueePrizes.value.length > 0) {
@@ -389,7 +510,6 @@ const displayPrizes12 = computed(() => {
   return list.slice(0, 12);
 });
 
-// 简化金额格式
 const formatPrize = (val) => {
   if (!val || val === 0) return '0円';
   if (val >= 10000) {
@@ -399,21 +519,18 @@ const formatPrize = (val) => {
   return val.toLocaleString();
 };
 
-// 生成动态背景色
 const dynamicConicGradient = computed(() => {
   let gradient = 'conic-gradient(';
-  const step = 30; // 12等分，每格30度
+  const step = 30; 
   displayPrizes12.value.forEach((prize, index) => {
-    // 偏移 15 度让第 0 格中心对准顶部
     const startDeg = index * step - 15; 
     const endDeg = (index + 1) * step - 15;
-    const color = prize.value > 0 ? '#dc2626' : '#0f172a'; // 红或黑
+    const color = prize.value > 0 ? '#dc2626' : '#0f172a'; 
     gradient += `${color} ${startDeg}deg ${endDeg}deg, `;
   });
   return { background: gradient.slice(0, -2) + ')' };
 });
 
-// 计算文字位置 (稍微拉近，防止贴近边缘被遮挡)
 const getLabelStyle12 = (index) => {
   const angle = index * 30;
   return {
@@ -421,28 +538,21 @@ const getLabelStyle12 = (index) => {
   };
 };
 
-// 核心旋转动画逻辑
 const wheelStyle = computed(() => {
-  // 如果还没抽或者正在转，不添加内联 transform，让 CSS 动画接管
   if (isDrawing.value || !result.value) {
     return {};
   }
-  
-  // 抽奖结束，计算最终停下的角度
   const targetIdx = displayPrizes12.value.findIndex(p => p.value === result.value.value);
-  const safeIdx = targetIdx !== -1 ? targetIdx : 1; // 找不到就停在未中奖
-  
+  const safeIdx = targetIdx !== -1 ? targetIdx : 1; 
   const anglePerBlock = 30;
-  // 转 5 圈(1800度) + 让目标格子对准顶部
   const finalDeg = 1800 + (360 - safeIdx * anglePerBlock);
   
   return {
     transform: `rotate(${finalDeg}deg)`,
-    transition: 'transform 4.5s cubic-bezier(0.15, 0.9, 0.25, 1)' // 完美缓停
+    transition: 'transform 4.5s cubic-bezier(0.15, 0.9, 0.25, 1)'
   };
 });
 
-// 中文拦截
 const translateName = (name) => {
   if (!name) return 'ハズレ';
   if (name === '不中奖' || name === '未中奖' || name === '没中奖' || name === '谢谢参与') {
@@ -451,7 +561,7 @@ const translateName = (name) => {
   return name;
 };
 
-// 音效引擎 (保持不变)
+// 音效引擎
 let audioCtx = null;
 let spinInterval = null;
 const initAudio = () => {
@@ -502,6 +612,7 @@ onMounted(async () => {
   userId.value = user.id;
   if (route.query.balance) currentBalance.value = Number(route.query.balance);
 
+  // 获取用户余额
   try {
     const infoRes = await request.get(`/user/info/${user.id}`);
     if (infoRes.data.success) {
@@ -519,12 +630,29 @@ onMounted(async () => {
   } catch (error) {
     console.warn('ユーザー情報の取得に失敗しました', error);
   }
+
+  // 初始化 MLB 数据
+  fetchMLBStatus();
+  mlbPollTimer = setInterval(fetchMLBStatus, 30000); // 每30秒拉取一次后端
+  
+  // 前端本地倒计时器 (每秒减1)
+  mlbCountdownTimer = setInterval(() => {
+    if (mlbGame.value && mlbGame.value.inningOpen && mlbGame.value.countdown > 0) {
+      mlbGame.value.countdown--;
+      if (mlbGame.value.countdown === 0) {
+        mlbGame.value.inningOpen = false;
+        showToast('🔒 第 ' + (mlbGame.value.currentInning + 1) + ' 局下注已封盘', 'warning');
+      }
+    }
+  }, 1000);
 });
 
 onUnmounted(() => {
   if (spinInterval) clearInterval(spinInterval);
   if (marqueeTimer) clearInterval(marqueeTimer);
   if (audioCtx) audioCtx.close();
+  if (mlbPollTimer) clearInterval(mlbPollTimer);
+  if (mlbCountdownTimer) clearInterval(mlbCountdownTimer);
 });
 
 const checkAuth = () => {
@@ -540,7 +668,7 @@ const executeDraw = async () => {
   initAudio(); 
   showConfirm.value = false;
   isDrawing.value = true;
-  result.value = null; // 清空上次结果
+  result.value = null;
   showTicket.value = false;
   playSpinSound();
   
@@ -561,7 +689,6 @@ const executeDraw = async () => {
         setTimeout(() => {
           if (spinInterval) clearInterval(spinInterval);
           
-          // 停止旋转（触发 computed 计算最终角度）
           isDrawing.value = false; 
           
           const targetIndexMarquee = marqueePrizes.value.findIndex(p => p.name === result.value.prize || (result.value.value === 0 && p.value === 0));
@@ -570,7 +697,6 @@ const executeDraw = async () => {
             currentMarqueeIndex.value = targetIndexMarquee; 
           }
           
-          // 4.5秒后动画结束，弹出结算
           setTimeout(() => {
             if (result.value.value > 0) playWinSound(); else playLoseSound();
             setTimeout(() => {
@@ -595,185 +721,59 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 <style scoped>
 /* ================= 核心布局调整 ================= */
 .stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; width: 100%; box-sizing: border-box; }
-
 .machine-body { background: #ffffff; border-radius: 30px; padding: 20px; box-shadow: 0 30px 60px rgba(0,0,0,0.5), 0 0 40px rgba(255,255,255,0.1); margin-bottom: 40px; transition: all 0.5s; width: 100%; max-width: 400px; display: flex; flex-direction: column; align-items: center; box-sizing: border-box; }
 .machine-body.is-win-glow { box-shadow: 0 30px 60px rgba(0,0,0,0.5), 0 0 80px rgba(255, 215, 0, 0.6); transform: scale(1.02); }
-
-/* 3D 舞台自适应 */
 .game-stage-3d { width: 100%; max-width: 320px; aspect-ratio: 1 / 1; background: radial-gradient(circle at center, #ffffff 0%, #e2e8f0 100%); border-radius: 20px; position: relative; overflow: hidden; box-shadow: inset 0 15px 30px rgba(0,0,0,0.1); display: flex; justify-content: center; align-items: center; perspective: 1000px; }
 
-/* ================= 6. 轮盘 (终极修复版) ================= */
-.roulette-scene {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
+/* ================= 🏆 MLB 竞猜面板样式 ================= */
+.mlb-panel { width: 100%; max-width: 400px; background: #0f172a; border-radius: 20px; padding: 15px; margin-top: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #334155; box-sizing: border-box; }
+.mlb-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+.live-tag { background: #ef4444; color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 900; animation: pulse-live 1s infinite alternate; }
+@keyframes pulse-live { 0% { opacity: 0.7; } 100% { opacity: 1; } }
+.preview-tag { background: #64748b; color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 900; }
+.inning-info { color: #94a3b8; font-size: 13px; font-weight: bold; }
+.match-info { display: flex; justify-content: space-between; align-items: center; background: #1e293b; border-radius: 12px; padding: 15px 20px; margin-bottom: 15px; }
+.match-info .team { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.match-info .name { color: #e2e8f0; font-size: 14px; font-weight: bold; text-align: center; }
+.match-info .score { color: #fbbf24; font-size: 28px; font-weight: 900; font-family: monospace; }
+.match-info .vs { color: #475569; font-weight: 900; font-size: 14px; }
+.betting-area { display: flex; flex-direction: column; gap: 12px; }
+.bet-title { color: #e2e8f0; font-size: 13px; font-weight: bold; margin-bottom: 8px; display: flex; justify-content: space-between; }
+.countdown { color: #ef4444; font-family: monospace; background: #450a0a; padding: 2px 6px; border-radius: 4px; }
+.btn-group { display: flex; gap: 10px; }
+.mlb-btn { flex: 1; background: #1e293b; border: 1px solid #334155; color: white; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: all 0.2s; }
+.mlb-btn:hover { background: #334155; border-color: #3b82f6; }
+.grid-3x2 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.score-btn { font-size: 13px; padding: 10px 5px; display: flex; flex-direction: column; align-items: center; }
+.score-btn span { font-size: 11px; color: #fbbf24; margin-top: 4px; }
+.closed-tip { text-align: center; color: #64748b; font-size: 13px; font-weight: bold; padding: 15px; background: #1e293b; border-radius: 8px; }
+.global-toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); padding: 10px 24px; border-radius: 20px; font-weight: 900; color: white; z-index: 10000; white-space: nowrap; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+.global-toast.success { background: #10b981; }
+.global-toast.warning { background: #f59e0b; }
+.global-toast.error { background: #ef4444; }
+.slide-down-enter-active, .slide-down-leave-active { transition: all 0.3s ease; }
+.slide-down-enter-from, .slide-down-leave-to { transform: translate(-50%, -50px); opacity: 0; }
 
-/* 顶部固定滚珠指针 */
-.roulette-ball-pointer {
-  position: absolute;
-  top: 2%;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 24px;
-  color: #fff;
-  text-shadow: 0 4px 10px rgba(0,0,0,0.8), 0 0 10px rgba(255,255,255,0.8);
-  z-index: 50;
-  animation: bounce-ball 1.5s infinite alternate ease-in-out;
-}
-@keyframes bounce-ball {
-  0% { transform: translateX(-50%) translateY(0) scale(1); }
-  100% { transform: translateX(-50%) translateY(-5px) scale(1.1); }
-}
-
-/* 轮盘主体容器 */
-.wheel-3d-container {
-  width: 260px;
-  height: 260px;
-  position: relative;
-  border-radius: 50%;
-  box-shadow: 
-    0 30px 40px rgba(0,0,0,0.7), 
-    0 0 0 8px #111827, 
-    0 0 0 10px #475569, 
-    inset 0 0 30px rgba(0,0,0,0.9);
-  background: #0f172a;
-  transform-style: preserve-3d;
-}
-
-/* 旋转层 */
-.wheel-rotating-layer {
-  position: absolute;
-  inset: 12px;
-  border-radius: 50%;
-  will-change: transform;
-}
-
-/* 正在抽奖时，疯狂旋转！ */
-.wheel-rotating-layer.is-spinning {
-  animation: spin-fast 0.6s linear infinite;
-}
-@keyframes spin-fast {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* 动态区块背景 */
-.wheel-blocks {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
-}
-
-/* 金额标签文字 (加重描边，保证任何底色下都能看清) */
-.wheel-label {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 44px;
-  height: 20px;
-  margin: -10px -22px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 900;
-  font-family: monospace, sans-serif;
-  /* 强效黑色描边和投影，解决文字被遮挡看不见的问题 */
-  text-shadow: 
-    -1px -1px 0 #000,  
-     1px -1px 0 #000,
-    -1px  1px 0 #000,
-     1px  1px 0 #000,
-     0px  2px 4px rgba(0,0,0,0.9);
-  z-index: 5;
-}
-
-/* 立体高光层 (保持静止) */
-.wheel-3d-sphere-overlay {
-  position: absolute;
-  inset: 12px;
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: 8;
-  background: 
-    radial-gradient(circle at 30% 30%, rgba(255,255,255,0.2) 0%, transparent 40%),
-    radial-gradient(circle at center, transparent 40%, rgba(0,0,0,0.7) 100%);
-  box-shadow: inset 0 10px 20px rgba(255,255,255,0.1), inset 0 -10px 30px rgba(0,0,0,0.9);
-}
-
-/* 中心 CASINO 塔楼 */
-.wheel-center-tower {
-  position: absolute;
-  inset: 60px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 40% 30%, #475569 0%, #0f172a 80%);
-  box-shadow: 
-    inset 0 8px 15px rgba(255,255,255,0.2), 
-    inset 0 -8px 20px rgba(0,0,0,0.9),
-    0 10px 20px rgba(0,0,0,0.8),
-    0 0 0 4px #1e293b;
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  border: 2px solid #64748b;
-}
-
-.tower-top {
-  color: #fbbf24;
-  font-size: 22px;
-  font-weight: 900;
-  letter-spacing: 2px;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.8);
-  font-family: serif;
-}
-
-.tower-cross {
-  position: relative;
-  width: 50px;
-  height: 50px;
-  margin-top: 5px;
-}
-.cross-bar {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 100%;
-  height: 4px;
-  background: linear-gradient(180deg, #fef08a, #ca8a04);
-  border-radius: 2px;
-  transform: translate(-50%, -50%);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
-}
-.cross-bar:nth-child(2) {
-  transform: translate(-50%, -50%) rotate(90deg);
-}
-
-/* 中奖光效 */
-.win-glow {
-  position: absolute;
-  inset: -15px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(253, 224, 71, 0.5) 0%, transparent 70%);
-  animation: pulse-glow 1.5s infinite alternate;
-  z-index: 1;
-  pointer-events: none;
-}
-@keyframes pulse-glow {
-  0% { transform: scale(0.9); opacity: 0.5; }
-  100% { transform: scale(1.1); opacity: 1; }
-}
-
+/* ================= 以下为其它游戏机的样式 (已全部包含) ================= */
+.roulette-scene { position: relative; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
+.roulette-ball-pointer { position: absolute; top: 2%; left: 50%; transform: translateX(-50%); font-size: 24px; color: #fff; text-shadow: 0 4px 10px rgba(0,0,0,0.8), 0 0 10px rgba(255,255,255,0.8); z-index: 50; animation: bounce-ball 1.5s infinite alternate ease-in-out; }
+@keyframes bounce-ball { 0% { transform: translateX(-50%) translateY(0) scale(1); } 100% { transform: translateX(-50%) translateY(-5px) scale(1.1); } }
+.wheel-3d-container { width: 260px; height: 260px; position: relative; border-radius: 50%; box-shadow: 0 30px 40px rgba(0,0,0,0.7), 0 0 0 8px #111827, 0 0 0 10px #475569, inset 0 0 30px rgba(0,0,0,0.9); background: #0f172a; transform-style: preserve-3d; }
+.wheel-rotating-layer { position: absolute; inset: 12px; border-radius: 50%; will-change: transform; }
+.wheel-rotating-layer.is-spinning { animation: spin-fast 0.6s linear infinite; }
+@keyframes spin-fast { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.wheel-blocks { position: absolute; inset: 0; border-radius: 50%; box-shadow: inset 0 0 20px rgba(0,0,0,0.8); }
+.wheel-label { position: absolute; top: 50%; left: 50%; width: 44px; height: 20px; margin: -10px -22px; display: flex; justify-content: center; align-items: center; color: #fff; font-size: 13px; font-weight: 900; font-family: monospace, sans-serif; text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0px 2px 4px rgba(0,0,0,0.9); z-index: 5; }
+.wheel-3d-sphere-overlay { position: absolute; inset: 12px; border-radius: 50%; pointer-events: none; z-index: 8; background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.2) 0%, transparent 40%), radial-gradient(circle at center, transparent 40%, rgba(0,0,0,0.7) 100%); box-shadow: inset 0 10px 20px rgba(255,255,255,0.1), inset 0 -10px 30px rgba(0,0,0,0.9); }
+.wheel-center-tower { position: absolute; inset: 60px; border-radius: 50%; background: radial-gradient(circle at 40% 30%, #475569 0%, #0f172a 80%); box-shadow: inset 0 8px 15px rgba(255,255,255,0.2), inset 0 -8px 20px rgba(0,0,0,0.9), 0 10px 20px rgba(0,0,0,0.8), 0 0 0 4px #1e293b; z-index: 10; display: flex; flex-direction: column; justify-content: center; align-items: center; border: 2px solid #64748b; }
+.tower-top { color: #fbbf24; font-size: 22px; font-weight: 900; letter-spacing: 2px; text-shadow: 0 2px 4px rgba(0,0,0,0.8); font-family: serif; }
+.tower-cross { position: relative; width: 50px; height: 50px; margin-top: 5px; }
+.cross-bar { position: absolute; top: 50%; left: 50%; width: 100%; height: 4px; background: linear-gradient(180deg, #fef08a, #ca8a04); border-radius: 2px; transform: translate(-50%, -50%); box-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+.cross-bar:nth-child(2) { transform: translate(-50%, -50%) rotate(90deg); }
+.win-glow { position: absolute; inset: -15px; border-radius: 50%; background: radial-gradient(circle, rgba(253, 224, 71, 0.5) 0%, transparent 70%); animation: pulse-glow 1.5s infinite alternate; z-index: 1; pointer-events: none; }
+@keyframes pulse-glow { 0% { transform: scale(0.9); opacity: 0.5; } 100% { transform: scale(1.1); opacity: 1; } }
 .roulette-prize { top: 15%; left: 50%; transform: translateX(-50%); animation-delay: 4.5s; z-index: 60; }
 
-/* ================= 以下为其他保留的动画样式 ================= */
 .bandai-gacha-machine { width: 260px; height: 300px; background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%); border-radius: 40px 40px 20px 20px; position: relative; display: flex; flex-direction: column; align-items: center; box-shadow: inset 0 5px 10px rgba(255,255,255,1), inset 0 -10px 20px rgba(0,0,0,0.1), 0 20px 40px rgba(0,0,0,0.2); border: 2px solid #cbd5e1; transform-style: preserve-3d; }
 .machine-brand { width: 100%; display: flex; justify-content: space-between; padding: 10px 20px; box-sizing: border-box; position: absolute; top: 0; z-index: 10; }
 .logo-red { background: #ef4444; color: white; font-weight: 900; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-family: sans-serif; }
@@ -827,7 +827,6 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .sticker.warning { background: #fef08a; color: #854d0e; border: 1px solid #ca8a04; font-size: 12px; letter-spacing: 1px; }
 .sticker.instructions { background: #e0f2fe; color: #0369a1; font-size: 9px; line-height: 1.2; display: flex; flex-direction: column; align-items: center; padding: 4px; width: 54px; }
 
-/* 其他背景、按钮、弹窗等通用样式（保留精简） */
 .room-container { position: relative; min-height: 100vh; display: flex; flex-direction: column; overflow: hidden; background: #050508; font-family: 'Noto Sans JP', sans-serif; }
 .hologram-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
 .aurora { position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.5; mix-blend-mode: screen; animation: aurora-flow 15s infinite alternate ease-in-out; }
@@ -857,6 +856,7 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .prize-tag.is-win { background: linear-gradient(135deg, #fde047, #eab308); color: #b45309; border: 2px solid #fff; }
 .prize-tag.is-lose { background: #64748b; color: #fff; border: 2px solid #475569; }
 @keyframes pop-out { 0% { transform: scale(0) translateY(20px); opacity: 0; } 100% { transform: scale(1) translateY(0); opacity: 1; } }
+
 .fish-bowl { width: 260px; height: 260px; border-radius: 50%; background: radial-gradient(circle at 50% 20%, #bae6fd, #38bdf8); position: relative; box-shadow: inset 0 20px 40px rgba(0,0,0,0.2), 0 10px 20px rgba(0,0,0,0.1); overflow: hidden; border: 4px solid #e2e8f0; }
 .water { position: absolute; bottom: 0; width: 100%; height: 70%; background: rgba(255,255,255,0.2); transition: 0.3s; }
 .water.is-rippling { animation: ripple 0.3s linear infinite; }
@@ -875,6 +875,7 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .splash-effect { position: absolute; bottom: 140px; left: 50%; transform: translateX(-50%); font-size: 50px; animation: splash 0.8s ease-out forwards; }
 @keyframes splash { 0% { transform: translate(-50%, 0) scale(0.5); opacity: 1; } 100% { transform: translate(-50%, -60px) scale(1.5); opacity: 0; } }
 .fish-prize { top: 30%; left: 50%; transform: translateX(-50%); animation-delay: 0.8s; }
+
 .dart-board { width: 220px; height: 220px; border-radius: 50%; background: conic-gradient(#ef4444 0deg 20deg, #f1f5f9 20deg 40deg, #3b82f6 40deg 60deg, #f1f5f9 60deg 80deg, #ef4444 80deg 100deg, #f1f5f9 100deg 120deg, #3b82f6 120deg 140deg, #f1f5f9 140deg 160deg, #ef4444 160deg 180deg, #f1f5f9 180deg 200deg, #3b82f6 200deg 220deg, #f1f5f9 220deg 240deg, #ef4444 240deg 260deg, #f1f5f9 260deg 280deg, #3b82f6 280deg 300deg, #f1f5f9 300deg 320deg, #ef4444 320deg 340deg, #f1f5f9 340deg 360deg); position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.2); border: 8px solid #334155; }
 .board-rings { position: absolute; inset: 20%; border-radius: 50%; border: 4px solid #334155; background: #fff; }
 .dart { position: absolute; top: -20%; left: 50%; font-size: 40px; transform: translateX(-50%); transition: 0.3s; }
@@ -882,6 +883,7 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .dart.is-hit { top: 45%; animation: none; transform: translateX(-50%) scale(0.8); }
 @keyframes throw-dart { 0% { top: -20%; transform: translateX(-50%) scale(1); } 100% { top: 45%; transform: translateX(-50%) scale(0.8); } }
 .dart-prize { top: 10%; left: 50%; transform: translateX(-50%); animation-delay: 1s; }
+
 .crane-scene { width: 100%; height: 100%; position: relative; perspective: 800px; }
 .crane-rail { position: absolute; top: 10%; width: 100%; height: 15px; background: linear-gradient(180deg, #94a3b8, #64748b); transform: rotateX(60deg); }
 .claw-3d { position: absolute; top: 10%; left: 50%; transform: translateX(-50%) translateZ(50px); transition: top 1.5s ease-in-out; transform-style: preserve-3d; display: flex; flex-direction: column; align-items: center; }
@@ -903,6 +905,7 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .coin-drop { position: absolute; bottom: 30%; left: 50%; transform: translateX(-50%); z-index: 20; }
 .coin { padding: 10px 20px; border-radius: 30px; background: radial-gradient(circle, #fde047, #ca8a04); font-size: 20px; font-weight: 900; color: #fff; box-shadow: 0 10px 20px rgba(0,0,0,0.5); animation: drop-coin 1s cubic-bezier(0.25, 1, 0.5, 1) forwards; animation-delay: 1.8s; opacity: 0; border: 4px dashed #fef08a; }
 @keyframes drop-coin { 0% { transform: translateY(-100px) scale(0.5); opacity: 0; } 60% { transform: translateY(0) scale(1.1); opacity: 1; } 80% { transform: translateY(-20px) scale(1); } 100% { transform: translateY(0) scale(1); opacity: 1; } }
+
 .scratch-scene { display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; position: relative; }
 .scratch-card { width: 200px; height: 200px; background: #fff; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); position: relative; overflow: hidden; }
 .scratch-content { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; font-size: 80px; background: #f8fafc; }
@@ -911,6 +914,7 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 @keyframes scratch-action { 0% { transform: translate(0, 0) rotate(0); } 100% { transform: translate(10px, 10px) rotate(5deg); } }
 .scratch-card.is-scratched .scratch-cover { transform: translateY(-100%); }
 .scratch-prize { position: absolute; top: 30%; z-index: 20; animation-delay: 0.5s; }
+
 .treasure-chest { width: 200px; height: 150px; position: relative; perspective: 500px; }
 .chest-base { position: absolute; bottom: 0; width: 100%; height: 60%; background: #78350f; border-radius: 10px; border: 4px solid #451a03; }
 .chest-lid { position: absolute; top: 0; width: 100%; height: 40%; background: #92400e; border-radius: 50% 50% 0 0; border: 4px solid #451a03; transform-origin: bottom; transition: transform 0.5s; }
@@ -925,6 +929,7 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 @keyframes fly1 { 0% { transform: translate(0, 0); opacity: 1; } 100% { transform: translate(-40px, -50px) scale(0.5); opacity: 0; } }
 @keyframes fly2 { 0% { transform: translate(0, 0); opacity: 1; } 100% { transform: translate(40px, -60px) scale(0.5); opacity: 0; } }
 @keyframes pop-coin { 0% { opacity: 0; transform: translateX(-50%) scale(0.5); top: -20px; } 100% { opacity: 1; transform: translateX(-50%) scale(1); top: -40px; } }
+
 .slot-machine-3d { display: flex; gap: 20px; position: relative; perspective: 800px; }
 .reel-container { position: relative; width: 80px; height: 200px; background: #111827; border-radius: 10px; overflow: hidden; box-shadow: inset 0 0 20px rgba(0,0,0,0.9), 0 10px 20px rgba(0,0,0,0.5); border: 3px solid #475569; }
 .reel-3d { width: 100%; height: 100%; position: absolute; transform-style: preserve-3d; transform: rotateX(-120deg); }
@@ -942,6 +947,7 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .symbol.win-symbol { color: #ef4444; font-size: 55px; text-shadow: 0 0 15px #ef4444, 0 0 30px #b91c1c; background: linear-gradient(180deg, #fff 0%, #f1f5f9 100%); }
 .cylinder-gloss { position: absolute; inset: 0; pointer-events: none; border-radius: 8px; background: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.85) 100%), linear-gradient(90deg, rgba(0,0,0,0.6) 0%, rgba(255,255,255,0.2) 15%, transparent 50%, rgba(255,255,255,0.2) 85%, rgba(0,0,0,0.6) 100%); z-index: 10; }
 .slot-machine-glass { position: absolute; inset: -15px; border-radius: 15px; background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, transparent 40%, transparent 60%, rgba(255,255,255,0.05) 100%); pointer-events: none; z-index: 20; }
+
 .control-panel { margin-top: 20px; text-align: center; width: 100%; }
 .desc { font-size: 13px; color: #64748b; margin-bottom: 15px; font-weight: bold; }
 .balance-display { background: #0f172a; border-radius: 12px; padding: 12px 24px; display: inline-flex; flex-direction: column; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5); }
@@ -952,6 +958,7 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .heavy-btn:disabled { background: #94a3b8 !important; cursor: not-allowed; transform: none; box-shadow: none; }
 .btn-shine { position: absolute; top: 0; left: -100%; width: 50%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent); transform: skewX(-20deg); animation: shine 3s infinite; }
 @keyframes shine { 100% { left: 200%; } }
+
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); display: flex; justify-content: center; align-items: center; z-index: 1000; }
 .modal-card { background: white; padding: 30px; border-radius: 24px; width: 85%; max-width: 320px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
 .modal-icon { font-size: 40px; margin-bottom: 10px; }
@@ -962,6 +969,7 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .modal-actions button { flex: 1; padding: 14px; border-radius: 16px; border: none; font-weight: bold; font-size: 15px; cursor: pointer; }
 .btn-cancel { background: #f1f5f9; color: #64748b; }
 .btn-confirm { color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+
 .ticket-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); display: flex; justify-content: center; align-items: center; z-index: 2000; }
 .ticket-wrapper { width: 85%; max-width: 340px; background: #fff; border-radius: 16px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); overflow: hidden; position: relative; }
 .ticket-top { padding: 20px; display: flex; justify-content: space-between; align-items: center; color: white; }
@@ -994,6 +1002,7 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .ticket-leave-active { transition: opacity 0.3s; }
 .ticket-leave-to { opacity: 0; }
 @keyframes ticketDrop { 0% { transform: translateY(-50px) scale(0.9); opacity: 0; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
+
 .marquee-board { width: 100%; margin-top: 15px; padding: 10px; background: rgba(0, 0, 0, 0.3); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); overflow: hidden; box-sizing: border-box; }
 .marquee-scroll { display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto; padding-bottom: 5px; }
 .marquee-scroll::-webkit-scrollbar { height: 4px; }
@@ -1003,6 +1012,7 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .marquee-item.is-active.is-win { background: linear-gradient(135deg, #fde047, #eab308); color: #b45309; border-color: #fff; box-shadow: 0 0 20px rgba(253, 224, 71, 1); animation: win-pulse 1.5s infinite alternate; }
 .marquee-item.is-active.is-lose { background: #64748b; color: white; border-color: #cbd5e1; }
 @keyframes win-pulse { 0% { transform: scale(1.1); } 100% { transform: scale(1.15); } }
+
 @media (max-width: 768px) {
   .floating-back-btn { top: 50px; left: 15px; padding: 6px 12px; font-size: 13px; }
   .room-header { padding: 10px 15px; }
