@@ -117,6 +117,13 @@
         <source src="/bgm.mp3" type="audio/mpeg" />
       </audio>
     </div>
+
+    <!-- 🆕 自定义日文提示框 (Toast) -->
+    <transition name="fade">
+      <div v-if="showToast" class="custom-toast">
+        🚧 この機能は現在準備中です。今しばらくお待ちください！
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -130,6 +137,7 @@ import AppHeader from '../components/AppHeader.vue';
 const router = useRouter();
 const records = ref([]);
 const userBalance = ref(0);
+const showToast = ref(false); // 🆕 控制提示框显示
 
 // ==========================================
 // 🆕 游戏厅纯音乐系统
@@ -178,9 +186,13 @@ const formatTime = (timeStr) => {
   return date.toLocaleString('ja-JP', { hour12: false });
 };
 
-// 🆕 MLB 卡片点击拦截提示方法
+// 🆕 MLB 卡片点击拦截提示方法 (纯日文 + 自定义 UI)
 const handleMlbClick = () => {
-  alert('该功能正在开发中，敬请期待！(準備中)');
+  showToast.value = true;
+  // 2秒后自动消失
+  setTimeout(() => {
+    showToast.value = false;
+  }, 2000);
 };
 
 onMounted(async () => {
@@ -396,6 +408,37 @@ onMounted(async () => {
 .pulse-ring { position: absolute; inset: 0; border-radius: 50%; border: 2px solid #e83862; animation: pulse 1.5s infinite; }
 @keyframes pulse { 0% { transform: scale(1); opacity: 0.8; } 100% { transform: scale(1.6); opacity: 0; } }
 
+/* 🆕 自定义日文提示框 (Toast) 样式 */
+.custom-toast {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(15, 23, 42, 0.95); /* 深色背景 */
+  color: #fff;
+  padding: 16px 24px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: bold;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 9999;
+  text-align: center;
+  pointer-events: none; /* 防止遮挡点击 */
+  white-space: nowrap;
+}
+
+/* 提示框淡入淡出动画 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translate(-50%, -40%);
+}
+
 /* 手机端适配 */
 @media (max-width: 768px) {
   .main-content { padding: 12px; }
@@ -415,5 +458,13 @@ onMounted(async () => {
   .social-inner { font-size: 22px; }
   .music-toggle { bottom: 20px; right: 20px; width: 50px; height: 50px; }
   .music-inner { font-size: 22px; }
+  
+  /* 手机端提示框稍微缩小一点 */
+  .custom-toast {
+    font-size: 13px;
+    padding: 12px 18px;
+    width: 85%;
+    white-space: normal;
+  }
 }
 </style>
