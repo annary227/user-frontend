@@ -52,9 +52,8 @@
         </div>
       </div>
 
-      <!-- ================= 🆕 九宫格单局比分表 (Linescore) ================= -->
-      <!-- 只要比赛开打，就强制显示这个框，哪怕数据还没拉回来 -->
-      <div class="linescore-board" v-if="mlbGame.status === 'Live' || mlbGame.status === 'Final'">
+      <!-- ================= 🆕 九宫格单局比分表 (强制显示) ================= -->
+      <div class="linescore-board">
         <table>
           <thead>
             <tr>
@@ -75,15 +74,14 @@
         </table>
       </div>
 
-      <!-- ================= 🆕 实时文字直播 ================= -->
-      <div class="live-commentary" v-if="mlbGame.status === 'Live' || mlbGame.status === 'Final'">
+      <!-- ================= 🆕 实时文字直播 (强制显示) ================= -->
+      <div class="live-commentary">
         <div class="commentary-header">📻 実況中継</div>
         <div class="commentary-text">
           <span class="inning-badge" v-if="liveData.latestPlay">
             第{{ liveData.latestPlay.inning }}回{{ liveData.latestPlay.half }}
           </span>
-          <!-- 如果有真实数据就显示真实的，没有就显示占位提示 -->
-          {{ liveData.latestPlay ? translateCommentary(liveData.latestPlay.description) : '試合が進行中です。次のプレーを待っています...' }}
+          {{ liveData.latestPlay ? translateCommentary(liveData.latestPlay.description) : '試合開始前です。プレイボールをお待ちください。' }}
         </div>
       </div>
 
@@ -149,7 +147,6 @@ import { ElMessageBox } from 'element-plus';
 
 const router = useRouter();
 const mlbGame = ref(null);
-// 🆕 如果为了测试，可以初始化一个假数据
 const liveData = ref({ innings: [], latestPlay: null });
 const loading = ref(true);
 
@@ -236,10 +233,9 @@ const fetchMLBStatus = async () => {
         showToast('⚾ 第 ' + (mlbGame.value.currentInning + 1) + ' 局の予想が開始されました！', 'success');
       }
       
-      // 只要状态是 Live 或 Final，就去请求详细数据
-      if (mlbGame.value.status === 'Live' || mlbGame.value.status === 'Final') {
-        fetchLiveData(mlbGame.value.gamePk);
-      }
+      // 🆕 无论什么状态，都强制去拿一次 live 数据，看看官方有没有返回
+      fetchLiveData(mlbGame.value.gamePk);
+      
     } else {
       mlbGame.value = null;
     }
@@ -250,10 +246,12 @@ const fetchMLBStatus = async () => {
   }
 };
 
+// 获取单局比分和直播
 const fetchLiveData = async (gamePk) => {
   try {
     const res = await request.get(`/mlb/live/${gamePk}`);
     if (res.data.success) {
+      // 即使数据是空数组，也要赋值，防止报错
       liveData.value = {
         innings: res.data.innings || [],
         latestPlay: res.data.latestPlay
