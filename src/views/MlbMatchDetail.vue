@@ -7,17 +7,20 @@
       <!-- 1. 顶部比分牌 -->
       <div class="scoreboard">
         <button class="back-btn" @click="$router.push('/mlb')">＜ 戻る</button>
+        
         <div class="teams-score">
+          <!-- 客队 (上) -->
           <div class="team away">
             <span class="name">{{ game.away_team }}</span>
             <span class="score">{{ game.away_score }}</span>
           </div>
-          <div class="vs">-</div>
+          <!-- 主队 (下) -->
           <div class="team home">
-            <span class="score">{{ game.home_score }}</span>
             <span class="name">{{ game.home_team }}</span>
+            <span class="score">{{ game.home_score }}</span>
           </div>
         </div>
+
         <div class="status">
           <span v-if="game.status === 'Live'" class="live-badge">
             <span class="dot"></span> {{ game.inning_half === 'Top' ? '表' : '裏' }} 第{{ game.current_inning }}回
@@ -33,7 +36,7 @@
           <span class="live-pulse">LIVE</span>
         </div>
         <div class="commentary-box">
-          <!-- 滚动展示最近3条播报 -->
+          <!-- 滚动展示最近播报 -->
           <div v-for="(msg, index) in liveMessages" :key="index" class="msg-item">
             <span class="time">{{ msg.time }}</span>
             <span class="text" :class="{ 'highlight': msg.highlight }">{{ msg.text }}</span>
@@ -72,7 +75,6 @@
               </button>
             </div>
             <div class="result-display" v-else>
-              <!-- 假设这里从数据库读取该局的实际比分，如果是假数据就默认显示 0:0 -->
               <span class="result-text">結果: 0 - 0</span>
             </div>
           </div>
@@ -84,7 +86,7 @@
       試合データを読み込み中...
     </div>
 
-    <!-- 🆕 自定义下注弹窗 -->
+    <!-- 自定义下注弹窗 -->
     <div class="modal-overlay" v-if="showBetModal" @click.self="closeModal">
       <div class="modal-content">
         <h3>ベット内容の確認</h3>
@@ -126,7 +128,6 @@ const userBalance = ref(0);
 const liveMessages = ref([]);
 let pollTimer = null;
 
-// 比分盘口赔率配置
 const scoreOptions = ref([
   { key: '0:0', label: '0 - 0', odds: 2.5 },
   { key: '1:0', label: '1 - 0', odds: 3.0 },
@@ -136,7 +137,6 @@ const scoreOptions = ref([
   { key: '1:1', label: '1 - 1', odds: 4.5 }
 ]);
 
-// 弹窗状态
 const showBetModal = ref(false);
 const selectedBet = ref({ inning: null, label: '', odds: 0, key: '' });
 const betAmount = ref(1000);
@@ -147,20 +147,17 @@ const potentialWin = computed(() => {
   return Math.floor(betAmount.value * selectedBet.value.odds);
 });
 
-// 获取比赛详情
 const fetchGameDetail = async () => {
   try {
     const res = await request.get(`/mlb/detail/${gameId}`);
     if (res.data.success) {
       game.value = res.data.game;
-      // 如果后端有返回实况数据，就渲染出来
       if (res.data.commentary) {
         liveMessages.value = res.data.commentary;
       }
     }
   } catch (error) {
     console.error("詳細取得失敗", error);
-    // 🆕 假数据兜底，让你看看效果
     game.value = {
       game_pk: gameId,
       away_team: 'ヤンキース',
@@ -172,14 +169,11 @@ const fetchGameDetail = async () => {
       inning_half: 'Top'
     };
     liveMessages.value = [
-      { time: '14:25', text: '5回表、ヤンキース 1番打者がヒットで出塁！', highlight: false },
-      { time: '14:28', text: '2番打者、見事な送りバントで1死2塁！', highlight: false },
-      { time: '14:30', text: '3番打者、レフト前ヒット！ランナーが生還し1点追加！', highlight: true },
+      { time: '14:25', text: '5回表、ヤンキース 1番打者がヒットで出塁！', highlight: false }
     ];
   }
 };
 
-// 获取用户余额
 const fetchBalance = async () => {
   const storedUser = localStorage.getItem('user');
   if (!storedUser) return;
@@ -189,7 +183,6 @@ const fetchBalance = async () => {
   } catch (error) {}
 };
 
-// 点击赔率按钮
 const placeBet = (inning, key) => {
   const user = localStorage.getItem('user');
   if (!user) {
@@ -197,10 +190,9 @@ const placeBet = (inning, key) => {
     router.push('/login');
     return;
   }
-
   const odd = scoreOptions.value.find(o => o.key === key);
   selectedBet.value = { inning, label: odd.label, odds: odd.odds, key: key };
-  betAmount.value = 1000; // 默认下注 1000
+  betAmount.value = 1000;
   showBetModal.value = true;
 };
 
@@ -208,7 +200,6 @@ const closeModal = () => {
   showBetModal.value = false;
 };
 
-// 确认下注
 const confirmBet = async () => {
   if (betAmount.value < 100) {
     alert('最低ベット額は 100 pt です。');
@@ -234,17 +225,14 @@ const confirmBet = async () => {
 
     if (res.data.success) {
       alert('ベットが完了しました！');
-      userBalance.value = res.data.newBalance;
+      userBalance.value -= betAmount.value;
       showBetModal.value = false;
     } else {
-      alert(res.data.message || 'ベットに失敗しました。');
+      alert(res.data.msg || 'ベットに失敗しました。');
     }
   } catch (error) {
     console.error('ベットエラー', error);
-    // 假测试：如果后端接口没通，前端假装扣款成功
-    alert('テストモード: ベットが完了しました！(バックエンド未接続)');
-    userBalance.value -= betAmount.value;
-    showBetModal.value = false;
+    alert(error.response?.data?.msg || 'ベットに失敗しました。');
   } finally {
     isBetting.value = false;
   }
@@ -253,7 +241,7 @@ const confirmBet = async () => {
 onMounted(() => {
   fetchGameDetail();
   fetchBalance();
-  pollTimer = setInterval(fetchGameDetail, 15000); // 每15秒刷新详情
+  pollTimer = setInterval(fetchGameDetail, 15000);
 });
 
 onUnmounted(() => {
@@ -270,7 +258,7 @@ onUnmounted(() => {
 }
 .main-content { max-width: 800px; margin: 0 auto; padding: 20px; }
 
-/* 1. 顶部比分牌 */
+/* 1. 顶部比分牌 (竖排优化) */
 .scoreboard {
   background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
   border: 1px solid #334155;
@@ -283,12 +271,31 @@ onUnmounted(() => {
   background: transparent; color: #94a3b8; border: 1px solid #334155;
   padding: 5px 12px; border-radius: 20px; cursor: pointer; position: absolute; top: 20px; left: 20px;
 }
-.teams-score { display: flex; justify-content: center; align-items: center; gap: 30px; margin-top: 10px; }
-.team { display: flex; flex-direction: column; align-items: center; gap: 10px; font-size: 20px; font-weight: bold; }
-.team.away .score { color: #3b82f6; }
-.team.home .score { color: #ef4444; }
-.score { font-size: 48px; font-weight: 900; text-shadow: 0 0 20px rgba(255,255,255,0.1); }
-.vs { font-size: 24px; color: #64748b; }
+
+.teams-score { 
+  display: flex; 
+  flex-direction: column; /* 强制竖排 */
+  align-items: center; 
+  gap: 10px; 
+  margin-top: 30px; 
+  width: 100%;
+}
+
+.team { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center;
+  width: 80%; 
+  font-size: 20px; 
+  font-weight: bold; 
+  padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+}
+
+.team.away .score { color: #3b82f6; font-size: 32px; font-weight: 900;}
+.team.home .score { color: #ef4444; font-size: 32px; font-weight: 900;}
+
 .status { text-align: center; margin-top: 15px; font-size: 14px; }
 .live-badge { background: rgba(239, 68, 68, 0.2); color: #ef4444; padding: 4px 12px; border-radius: 20px; font-weight: bold; display: inline-flex; align-items: center; gap: 6px; }
 .dot { width: 6px; height: 6px; background: #ef4444; border-radius: 50%; animation: pulse 1s infinite alternate; }
@@ -366,8 +373,8 @@ onUnmounted(() => {
 @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 1; } }
 
 @media (max-width: 768px) {
-  .teams-score { gap: 15px; }
-  .score { font-size: 36px; }
+  .team { width: 100%; font-size: 16px; padding: 10px; }
+  .team.away .score, .team.home .score { font-size: 24px; }
   .odds-grid { grid-template-columns: repeat(2, 1fr); }
 }
 </style>
