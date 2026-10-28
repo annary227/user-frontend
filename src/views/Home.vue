@@ -16,11 +16,11 @@
 
       <div class="section-title">
         <h3>🎮 ゲームラインナップ</h3>
-        <span>全8種類</span>
+        <span>全9種類</span>
       </div>
 
       <div class="game-grid">
-        <!-- 循环渲染卡片组件 -->
+        <!-- 循环渲染原有的 8 个卡片组件 -->
         <GameCard 
           v-for="game in games" 
           :key="game.title"
@@ -37,10 +37,32 @@
               name: game.title, 
               price: game.price, 
               icon: game.icon,
-              balance: userBalance // 🆕 把当前余额传给抽奖页，实现秒显
+              balance: userBalance
             } 
           })"
         />
+
+        <!-- ================= 🆕 MLB 竞猜专属卡片 ================= -->
+        <div class="mlb-game-card" @click="$router.push('/mlb')">
+          <!-- 红色 LIVE 角标 -->
+          <div class="mlb-live-badge">
+            <span class="dot"></span> LIVE
+          </div>
+          
+          <div class="mlb-icon">⚾</div>
+          
+          <div class="mlb-info">
+            <div class="mlb-title-row">
+              <h4>MLB リアルタイム予想</h4>
+            </div>
+            <p class="mlb-desc">メジャーリーグのリアルタイムスコアで高配当を狙え！</p>
+            <div class="mlb-bottom-row">
+              <span class="mlb-price">最低 30,000 pt</span>
+              <button class="mlb-btn">挑戦する ></button>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <!-- 底部历史记录 -->
@@ -208,6 +230,116 @@ onMounted(async () => {
 .section-title span { font-size: 12px; color: #888; }
 .game-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 30px; }
 
+/* ================= 🆕 MLB 竞猜专属卡片样式 ================= */
+.mlb-game-card {
+  background: #0f172a;
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  gap: 15px;
+  position: relative;
+  cursor: pointer;
+  box-shadow: 0 10px 25px rgba(239, 68, 68, 0.15);
+  border: 2px solid #ef4444;
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.mlb-game-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 35px rgba(239, 68, 68, 0.3);
+  border-color: #f87171;
+}
+
+/* 红色 LIVE 角标 */
+.mlb-live-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: #ef4444;
+  color: white;
+  padding: 4px 12px;
+  border-bottom-left-radius: 12px;
+  font-size: 12px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.mlb-live-badge .dot {
+  width: 6px;
+  height: 6px;
+  background: white;
+  border-radius: 50%;
+  animation: pulse-dot 1s infinite alternate;
+}
+@keyframes pulse-dot {
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0.5; transform: scale(1.5); }
+}
+
+.mlb-icon {
+  width: 60px;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 32px;
+  flex-shrink: 0;
+}
+
+.mlb-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.mlb-title-row h4 {
+  margin: 0 0 5px;
+  color: #f8fafc;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.mlb-desc {
+  color: #94a3b8;
+  font-size: 12px;
+  margin: 0 0 15px;
+  line-height: 1.4;
+}
+
+.mlb-bottom-row {
+  margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mlb-price {
+  color: #fbbf24;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.mlb-btn {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mlb-game-card:hover .mlb-btn {
+  background: #dc2626;
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
+}
+
 /* 底部历史记录 (桌面端) */
 .history-section { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #f0f0f0; }
 .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
@@ -220,97 +352,20 @@ onMounted(async () => {
 .lose-text { color: #999; }
 .history-empty { text-align: center; padding: 40px; color: #aaa; font-size: 14px; }
 
-/* =========================================
-   🆕 悬浮私聊大厅按钮
-   ========================================= */
-.social-toggle {
-  position: fixed;
-  bottom: 105px; /* 放在音乐按钮上方 */
-  right: 30px;
-  width: 60px;
-  height: 60px;
-  background: #3b82f6; /* 科技蓝，区别于音乐的红色 */
-  border: 1px solid #60a5fa;
-  border-radius: 50%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: pointer;
-  box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
-  z-index: 999;
-  transition: all 0.3s;
-}
+/* 悬浮私聊大厅按钮 */
+.social-toggle { position: fixed; bottom: 105px; right: 30px; width: 60px; height: 60px; background: #3b82f6; border: 1px solid #60a5fa; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3); z-index: 999; transition: all 0.3s; }
+.social-toggle:hover { transform: scale(1.1) translateY(-5px); box-shadow: 0 15px 30px rgba(59, 130, 246, 0.5); border-color: #93c5fd; }
+.social-inner { font-size: 26px; transition: all 0.3s; }
+.social-toggle:hover .social-inner { animation: bounce 0.8s infinite alternate; }
 
-.social-toggle:hover {
-  transform: scale(1.1) translateY(-5px);
-  box-shadow: 0 15px 30px rgba(59, 130, 246, 0.5);
-  border-color: #93c5fd;
-}
-
-.social-inner {
-  font-size: 26px;
-  transition: all 0.3s;
-}
-
-.social-toggle:hover .social-inner {
-  animation: bounce 0.8s infinite alternate;
-}
-
-/* =========================================
-   🆕 悬浮游戏厅音乐系统
-   ========================================= */
-.music-toggle {
-  position: fixed;
-  bottom: 30px;
-  right: 30px;
-  width: 60px;
-  height: 60px;
-  background: #1e293b;
-  border: 1px solid #334155;
-  border-radius: 50%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: pointer;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-  z-index: 999;
-  transition: all 0.3s;
-}
-
-.music-toggle:hover {
-  transform: scale(1.1) translateY(-5px);
-  box-shadow: 0 15px 30px rgba(232, 56, 98, 0.3);
-  border-color: #e83862;
-}
-
-.music-inner {
-  font-size: 26px;
-  transition: all 0.3s;
-}
-
-/* 播放时图标上下跳动 */
-.music-inner.is-playing {
-  animation: bounce 0.8s infinite alternate;
-}
-
-@keyframes bounce {
-  from { transform: translateY(0); }
-  to { transform: translateY(-6px); }
-}
-
-/* 播放时的红色呼吸灯外圈 */
-.pulse-ring {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  border: 2px solid #e83862;
-  animation: pulse 1.5s infinite;
-}
-
-@keyframes pulse {
-  0% { transform: scale(1); opacity: 0.8; }
-  100% { transform: scale(1.6); opacity: 0; }
-}
+/* 悬浮游戏厅音乐系统 */
+.music-toggle { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; background: #1e293b; border: 1px solid #334155; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; box-shadow: 0 10px 25px rgba(0,0,0,0.2); z-index: 999; transition: all 0.3s; }
+.music-toggle:hover { transform: scale(1.1) translateY(-5px); box-shadow: 0 15px 30px rgba(232, 56, 98, 0.3); border-color: #e83862; }
+.music-inner { font-size: 26px; transition: all 0.3s; }
+.music-inner.is-playing { animation: bounce 0.8s infinite alternate; }
+@keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-6px); } }
+.pulse-ring { position: absolute; inset: 0; border-radius: 50%; border: 2px solid #e83862; animation: pulse 1.5s infinite; }
+@keyframes pulse { 0% { transform: scale(1); opacity: 0.8; } 100% { transform: scale(1.6); opacity: 0; } }
 
 /* 手机端适配 */
 @media (max-width: 768px) {
@@ -327,7 +382,6 @@ onMounted(async () => {
   .history-row span::before { content: attr(data-label); color: #94a3b8; font-size: 13px; margin-right: 15px; }
   .history-row span[data-label="当せん結果"] { font-weight: bold; font-size: 15px; border-top: 1px dashed #e2e8f0; padding-top: 10px; margin-top: 5px; }
   
-  /* 🆕 手机端调整按钮位置，避免遮挡 */
   .social-toggle { bottom: 85px; right: 20px; width: 50px; height: 50px; }
   .social-inner { font-size: 22px; }
   .music-toggle { bottom: 20px; right: 20px; width: 50px; height: 50px; }

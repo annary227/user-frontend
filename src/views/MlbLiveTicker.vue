@@ -1,223 +1,290 @@
 <template>
-  <div class="mlb-ticker-wrapper" v-if="isVisible">
-    <div class="ticker-header">
-      <span class="live-dot"></span>
-      <span class="title">MLB LIVE</span>
+  <div class="mlb-room-container">
+    <!-- 返回按钮 -->
+    <button class="floating-back-btn" @click="$router.push('/')">
+      <span class="icon">‹</span> ロビーに戻る
+    </button>
+
+    <header class="room-header">
+      <div class="title">⚾ MLB リアルタイム予想</div>
+    </header>
+
+    <!-- 加载中 -->
+    <div v-if="loading" class="loading-state">
+      <div class="spinner"></div>
+      <p>データ取得中...</p>
     </div>
-    
-    <div class="ticker-body">
-      <div class="ticker-content" :class="{ 'is-scrolling': games.length > 0 }">
-        <div class="game-item" v-for="game in games" :key="game.gamePk">
-          <!-- 球队1 队徽/名字 -->
-          <div class="team away-team">
-            <span class="team-name">{{ game.teams.away.team.name }}</span>
-            <span class="score" :class="{ 'is-winning': game.teams.away.score > game.teams.home.score }">
-              {{ game.teams.away.score }}
-            </span>
+
+    <!-- 无比赛 -->
+    <div v-else-if="!mlbGame" class="empty-state">
+      <h2>本日の試合はありません</h2>
+      <p>また後でチェックしてください。</p>
+    </div>
+
+    <!-- 竞猜主面板 -->
+    <div v-else class="betting-panel">
+      
+      <!-- 全局 Toast 提示 -->
+      <Transition name="slide-down">
+        <div v-if="toast.show" class="global-toast" :class="toast.type">
+          {{ toast.msg }}
+        </div>
+      </Transition>
+
+      <!-- 比分板 -->
+      <div class="score-board">
+        <div class="status-bar">
+          <span class="live-tag" v-if="mlbGame.status === 'Live'">🔴 LIVE</span>
+          <span class="preview-tag" v-else>試合前</span>
+          <span class="inning-info" v-if="mlbGame.currentInning > 0">第 {{ mlbGame.currentInning }} 局</span>
+        </div>
+
+        <div class="match-teams">
+          <div class="team away">
+            <span class="name">{{ mlbGame.awayTeam }}</span>
+            <span class="score">{{ mlbGame.awayScore }}</span>
           </div>
-          
-          <!-- 比分中间状态 -->
-          <div class="game-status">
-            <span class="status-text">{{ game.status.detailedState }}</span>
-            <span class="inning" v-if="game.status.inning">{{ game.status.inning }}</span>
-          </div>
-          
-          <!-- 球队2 队徽/名字 -->
-          <div class="team home-team">
-            <span class="score" :class="{ 'is-winning': game.teams.home.score > game.teams.away.score }">
-              {{ game.teams.home.score }}
-            </span>
-            <span class="team-name">{{ game.teams.home.team.name }}</span>
+          <div class="vs">VS</div>
+          <div class="team home">
+            <span class="score">{{ mlbGame.homeScore }}</span>
+            <span class="name">{{ mlbGame.homeTeam }}</span>
           </div>
         </div>
       </div>
-      
-      <!-- 没有比赛时的兜底展示 -->
-      <div v-if="games.length === 0" class="no-games">
-        <span>本日の試合はありません (No games today)</span>
+
+      <!-- 赛前盘 -->
+      <div v-if="mlbGame.pregameOpen && mlbGame.status === 'Preview'" class="bet-section">
+        <h3>【試合前】勝敗予想 <span class="odds-tag">1.5x</span></h3>
+        <div class="btn-group">
+          <button class="bet-btn" @click="handleBet('pregame', 'away')">
+            {{ mlbGame.awayTeam }} 勝利
+          </button>
+          <button class="bet-btn" @click="handleBet('pregame', 'home')">
+            {{ mlbGame.homeTeam }} 勝利
+          </button>
+        </div>
       </div>
+
+      <!-- 单局盘 (带倒计时) -->
+      <div v-if="mlbGame.inningOpen" class="bet-section">
+        <div class="section-header">
+          <h3>【第 {{ mlbGame.currentInning + 1 }} 局】スコア予想</h3>
+          <span class="countdown">⏱ {{ formatTime(mlbGame.countdown) }}</span>
+        </div>
+        <div class="grid-options">
+          <button class="score-btn" @click="handleBet('inning', '0:0', 1.8)">0:0 <span>1.8x</span></button>
+          <button class="score-btn" @click="handleBet('inning', '1:0', 2.5)">1:0 <span>2.5x</span></button>
+          <button class="score-btn" @click="handleBet('inning', '0:1', 2.5)">0:1 <span>2.5x</span></button>
+          <button class="score-btn" @click="handleBet('inning', '2:0', 4.0)">2:0 <span>4.0x</span></button>
+          <button class="score-btn" @click="handleBet('inning', '0:2', 4.0)">0:2 <span>4.0x</span></button>
+          <button class="score-btn" @click="handleBet('inning', 'other', 10.0)">その他 <span>10x</span></button>
+        </div>
+      </div>
+
+      <!-- 封盘状态 -->
+      <div v-if="!mlbGame.pregameOpen && !mlbGame.inningOpen" class="closed-state">
+        <h3>🔒 現在、予想受付を停止しています</h3>
+        <p>試合の進行状況をお待ちください。</p>
+      </div>
+
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
+import request from '../api/request';
 
-const games = ref([]);
-const isVisible = ref(true); // 可以控制组件显示隐藏
-let pollTimer = null;
+const router = useRouter();
+const mlbGame = ref(null);
+const loading = ref(true);
 
-// 获取 MLB 实时数据
-const fetchLiveScores = async () => {
+let mlbPollTimer = null;
+let mlbCountdownTimer = null;
+
+const toast = ref({ show: false, msg: '', type: 'info' });
+const showToast = (msg, type = 'info') => {
+  toast.value = { show: true, msg, type };
+  setTimeout(() => { toast.value.show = false; }, 3000);
+};
+
+const formatTime = (sec) => {
+  if (sec <= 0) return '00:00';
+  const m = Math.floor(sec / 60).toString().padStart(2, '0');
+  const s = (sec % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+};
+
+const fetchMLBStatus = async () => {
   try {
-    const today = new Date().toISOString().split('T')[0];
-    
-    // 【关键点】这里直接请求 MLB 官方 API 会跨域。
-    // 实际项目中，建议将 URL 改为你的后端代理接口，例如 `/api/mlb/live?date=${today}`
-    // 这里为了演示，使用了公共的 CORS 代理（可能不稳定，仅供测试）
-    const targetUrl = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${today}&hydrate=linescore,team`;
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-    
-    const res = await fetch(proxyUrl);
-    const proxyData = await res.json();
-    
-    // 解析代理返回的字符串数据
-    const data = JSON.parse(proxyData.contents);
+    const res = await request.get('/mlb/current');
+    if (res.data.success) {
+      const prevOpen = mlbGame.value?.inningOpen;
+      mlbGame.value = res.data.data;
 
-    if (data && data.dates && data.dates[0] && data.dates[0].games) {
-      // 只提取今天所有比赛，并且过滤出正在直播(Live)或已结束(Final)的比赛
-      games.value = data.dates[0].games.map(g => ({
-        gamePk: g.gamePk,
-        teams: g.teams,
-        status: {
-          detailedState: g.status.detailedState,
-          inning: g.linescore ? g.linescore.currentInningOrdinal : ''
-        }
-      }));
+      if (mlbGame.value.inningOpen && !prevOpen) {
+        showToast('⚾ 第 ' + (mlbGame.value.currentInning + 1) + ' 局竞猜开启！', 'success');
+      }
     } else {
-      games.value = [];
+      mlbGame.value = null;
     }
-  } catch (error) {
-    console.error('获取 MLB 数据失败:', error);
+  } catch (err) {
+    console.error('获取 MLB 数据失败', err);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const handleBet = async (betType, selection, odds = 1.5) => {
+  const user = JSON.parse(localStorage.getItem('user'));
+  if (!user) return router.push('/login');
+
+  const amountStr = prompt(`【${betType === 'pregame' ? '胜负' : '单局比分'}】\n选择：${selection}\n赔率：${odds}x\n\n请输入下注金额 (最低 30,000):`, '30000');
+  if (!amountStr) return;
+  
+  const amount = Number(amountStr);
+  if (amount < 30000) {
+    showToast('最低下注 30,000 积分', 'error');
+    return;
+  }
+
+  try {
+    const res = await request.post('/mlb/bet', {
+      userId: user.id,
+      gamePk: mlbGame.value.gamePk,
+      betType,
+      targetInning: betType === 'inning' ? mlbGame.value.currentInning + 1 : null,
+      selection,
+      amount
+    });
+
+    if (res.data.success) {
+      showToast('下注成功！', 'success');
+      user.balance -= amount;
+      localStorage.setItem('user', JSON.stringify(user));
+    }
+  } catch (err) {
+    showToast(err.response?.data?.msg || '下注失败', 'error');
   }
 };
 
 onMounted(() => {
-  fetchLiveScores();
-  // 每 30 秒轮询一次实时数据
-  pollTimer = setInterval(fetchLiveScores, 30000);
+  fetchMLBStatus();
+  mlbPollTimer = setInterval(fetchMLBStatus, 30000);
+  
+  mlbCountdownTimer = setInterval(() => {
+    if (mlbGame.value && mlbGame.value.inningOpen && mlbGame.value.countdown > 0) {
+      mlbGame.value.countdown--;
+      if (mlbGame.value.countdown === 0) {
+        mlbGame.value.inningOpen = false;
+        showToast('🔒 下注已封盘', 'warning');
+      }
+    }
+  }, 1000);
 });
 
 onUnmounted(() => {
-  if (pollTimer) clearInterval(pollTimer);
+  if (mlbPollTimer) clearInterval(mlbPollTimer);
+  if (mlbCountdownTimer) clearInterval(mlbCountdownTimer);
 });
 </script>
 
 <style scoped>
-/* 赛博风直播滚动条 */
-.mlb-ticker-wrapper {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 90%;
-  max-width: 800px;
-  background: rgba(15, 23, 42, 0.9);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-  z-index: 999;
-}
-
-.ticker-header {
-  background: #ef4444;
+.mlb-room-container {
+  min-height: 100vh;
+  background: #0f172a;
   color: white;
-  padding: 10px 16px;
-  font-size: 12px;
-  font-weight: 900;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-}
-
-.live-dot {
-  width: 8px;
-  height: 8px;
-  background: white;
-  border-radius: 50%;
-  animation: pulse 1s infinite alternate;
-}
-
-@keyframes pulse {
-  0% { opacity: 1; box-shadow: 0 0 0 0 rgba(255,255,255,0.7); }
-  100% { opacity: 0.5; box-shadow: 0 0 0 6px rgba(255,255,255,0); }
-}
-
-.ticker-body {
-  flex: 1;
-  overflow: hidden;
-  position: relative;
-  padding: 10px 0;
-}
-
-.ticker-content {
-  display: flex;
-  gap: 20px;
-  padding-left: 20px;
-  width: max-content;
-}
-
-/* 如果有比赛，自动滚动 */
-.ticker-content.is-scrolling {
-  animation: marquee 30s linear infinite;
-}
-.ticker-content.is-scrolling:hover {
-  animation-play-state: paused; /* 鼠标悬浮暂停 */
-}
-
-@keyframes marquee {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-
-.game-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: #e2e8f0;
-  font-family: monospace;
-  font-size: 14px;
-}
-
-.team {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.team-name {
-  font-weight: bold;
-  color: #94a3b8;
-  max-width: 90px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.score {
-  color: #fde047;
-  font-size: 18px;
-  font-weight: 900;
-}
-.score.is-winning {
-  color: #4ade80;
-}
-
-.game-status {
-  background: rgba(255, 255, 255, 0.1);
-  padding: 4px 8px;
-  border-radius: 4px;
+  padding: 60px 20px 40px;
+  font-family: 'Noto Sans JP', sans-serif;
   display: flex;
   flex-direction: column;
   align-items: center;
-  font-size: 10px;
-  color: #cbd5e1;
-  min-width: 60px;
-}
-.inning {
-  color: #fbbf24;
-  font-weight: bold;
 }
 
-.no-games {
-  color: #64748b;
-  font-size: 13px;
-  padding: 0 20px;
-  white-space: nowrap;
+.floating-back-btn {
+  position: fixed; top: 20px; left: 20px; z-index: 999;
+  background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255,255,255,0.2);
+  padding: 8px 16px; border-radius: 20px; color: white; cursor: pointer;
 }
+
+.room-header {
+  margin-bottom: 30px;
+  text-align: center;
+}
+.room-header .title {
+  font-size: 24px; font-weight: 900; text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+}
+
+.loading-state, .empty-state {
+  margin-top: 100px; text-align: center; color: #94a3b8;
+}
+.spinner {
+  width: 40px; height: 40px; border: 4px solid #334155;
+  border-top-color: #3b82f6; border-radius: 50%;
+  animation: spin 1s linear infinite; margin: 0 auto 20px;
+}
+@keyframes spin { 100% { transform: rotate(360deg); } }
+
+.betting-panel {
+  width: 100%; max-width: 600px;
+  background: #1e293b; border-radius: 24px;
+  padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+  position: relative;
+}
+
+.score-board {
+  background: #0f172a; border-radius: 16px; padding: 20px;
+  margin-bottom: 24px; text-align: center;
+}
+.status-bar {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 15px; font-size: 13px; font-weight: bold;
+}
+.live-tag { background: #ef4444; padding: 4px 10px; border-radius: 10px; }
+.preview-tag { background: #64748b; padding: 4px 10px; border-radius: 10px; }
+.inning-info { color: #94a3b8; }
+
+.match-teams {
+  display: flex; justify-content: space-around; align-items: center;
+}
+.team { display: flex; flex-direction: column; gap: 8px; }
+.team .name { font-size: 18px; font-weight: bold; color: #e2e8f0; }
+.team .score { font-size: 42px; font-weight: 900; color: #fbbf24; font-family: monospace; }
+.vs { font-size: 20px; font-weight: 900; color: #475569; }
+
+.bet-section { margin-bottom: 24px; }
+.bet-section h3 { font-size: 16px; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; }
+.odds-tag { color: #ef4444; font-family: monospace; background: #450a0a; padding: 2px 8px; border-radius: 6px; }
+.countdown { color: #ef4444; background: #450a0a; padding: 4px 10px; border-radius: 8px; font-family: monospace; }
+
+.btn-group { display: flex; gap: 15px; }
+.bet-btn {
+  flex: 1; padding: 16px; border-radius: 12px; border: none;
+  background: #334155; color: white; font-size: 16px; font-weight: bold;
+  cursor: pointer; transition: all 0.2s;
+}
+.bet-btn:hover { background: #3b82f6; transform: translateY(-2px); }
+
+.grid-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.score-btn {
+  padding: 16px 10px; border-radius: 12px; border: none;
+  background: #334155; color: white; font-size: 16px; font-weight: bold;
+  cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center;
+}
+.score-btn:hover { background: #3b82f6; transform: translateY(-2px); }
+.score-btn span { font-size: 12px; color: #fbbf24; margin-top: 4px; }
+
+.closed-state { text-align: center; padding: 30px; background: #0f172a; border-radius: 12px; color: #64748b; }
+
+.global-toast {
+  position: absolute; top: -50px; left: 50%; transform: translateX(-50%);
+  padding: 10px 24px; border-radius: 20px; font-weight: 900; color: white;
+  white-space: nowrap; box-shadow: 0 5px 15px rgba(0,0,0,0.3); z-index: 100;
+}
+.global-toast.success { background: #10b981; }
+.global-toast.warning { background: #f59e0b; }
+.global-toast.error { background: #ef4444; }
+.slide-down-enter-active, .slide-down-leave-active { transition: all 0.3s ease; }
+.slide-down-enter-from, .slide-down-leave-to { transform: translate(-50%, -20px); opacity: 0; }
 </style>
