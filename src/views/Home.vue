@@ -79,26 +79,8 @@
       <!-- ================= 转盘积分游戏 文件夹容器结束 ================= -->
 
 
-      <!-- ================= 🆕 MLB 竞猜专属卡片 (独立放在外面) ================= -->
-      <div class="mlb-game-card is-disabled" @click="handleMlbClick">
-        <!-- 红色角标：已改为 準備中 -->
-        <div class="mlb-live-badge">
-          <span class="dot"></span> 準備中
-        </div>
-        
-        <div class="mlb-icon">⚾</div>
-        
-        <div class="mlb-info">
-          <div class="mlb-title-row">
-            <h4>MLB リアルタイム予想</h4>
-          </div>
-          <p class="mlb-desc">メジャーリーグのリアルタイムスコアで高配当を狙え！</p>
-          <div class="mlb-bottom-row">
-            <span class="mlb-price">最低 30,000 pt</span>
-            <button class="mlb-btn" disabled>準備中</button>
-          </div>
-        </div>
-      </div>
+      <!-- ================= 🆕 MLB 竞猜专属卡片组件 (已剥离) ================= -->
+      <MlbCard />
       <!-- ================= MLB 竞猜专属卡片结束 ================= -->
 
 
@@ -153,13 +135,6 @@
         <source src="/bgm.mp3" type="audio/mpeg" />
       </audio>
     </div>
-
-    <!-- 🆕 自定义日文提示框 (Toast) -->
-    <transition name="fade">
-      <div v-if="showToast" class="custom-toast">
-        🚧 この機能は現在準備中です。今しばらくお待ちください！
-      </div>
-    </transition>
   </div>
 </template>
 
@@ -169,11 +144,11 @@ import { useRouter } from 'vue-router';
 import request from '../api/request';
 import GameCard from '../components/GameCard.vue';
 import AppHeader from '../components/AppHeader.vue';
+import MlbCard from '../components/MlbCard.vue'; // 🆕 引入独立的棒球组件
 
 const router = useRouter();
 const records = ref([]);
 const userBalance = ref(0);
-const showToast = ref(false); 
 const isFolderOpen = ref(false); // 🆕 控制文件夹是否展开 (默认关闭)
 
 // 🆕 切换文件夹展开/收起
@@ -208,7 +183,7 @@ onUnmounted(() => {
 });
 
 // ==========================================
-// 数据逻辑
+// 数据逻辑 (完全保留原有的8个游戏数据)
 // ==========================================
 const games = ref([
   { title: '金魚すくい', desc: 'ポイを破らずに金魚を救え！', price: 200, maxPrize: '¥2,000,000', icon: '🐟', color: '#2ed573' },
@@ -225,13 +200,6 @@ const formatTime = (timeStr) => {
   if (!timeStr) return '';
   const date = new Date(timeStr);
   return date.toLocaleString('ja-JP', { hour12: false });
-};
-
-const handleMlbClick = () => {
-  showToast.value = true;
-  setTimeout(() => {
-    showToast.value = false;
-  }, 2000);
 };
 
 onMounted(async () => {
@@ -374,140 +342,6 @@ onMounted(async () => {
 /* 游戏列表网格 */
 .game-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 
-/* ================= 🆕 MLB 竞猜专属卡片样式 (独立在外) ================= */
-.mlb-game-card {
-  background: #0f172a;
-  border-radius: 16px;
-  padding: 20px;
-  display: flex;
-  gap: 15px;
-  position: relative;
-  cursor: pointer;
-  box-shadow: 0 10px 25px rgba(239, 68, 68, 0.15);
-  border: 2px solid #ef4444;
-  transition: all 0.3s ease;
-  overflow: hidden;
-  margin-bottom: 30px; 
-}
-
-.mlb-game-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 15px 35px rgba(239, 68, 68, 0.3);
-  border-color: #f87171;
-}
-
-/* 禁用状态 */
-.mlb-game-card.is-disabled {
-  cursor: not-allowed;
-  opacity: 0.75; 
-}
-
-.mlb-game-card.is-disabled:hover {
-  transform: none; 
-  box-shadow: 0 10px 25px rgba(239, 68, 68, 0.15); 
-  border-color: #ef4444;
-}
-
-/* 红色 角标 */
-.mlb-live-badge {
-  position: absolute;
-  top: 0;
-  right: 0;
-  background: #ef4444;
-  color: white;
-  padding: 4px 12px;
-  border-bottom-left-radius: 12px;
-  font-size: 12px;
-  font-weight: 900;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.mlb-live-badge .dot {
-  width: 6px;
-  height: 6px;
-  background: white;
-  border-radius: 50%;
-  animation: pulse-dot 1s infinite alternate;
-}
-@keyframes pulse-dot {
-  0% { opacity: 1; transform: scale(1); }
-  100% { opacity: 0.5; transform: scale(1.5); }
-}
-
-.mlb-icon {
-  width: 60px;
-  height: 60px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 32px;
-  flex-shrink: 0;
-}
-
-.mlb-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.mlb-title-row h4 {
-  margin: 0 0 5px;
-  color: #f8fafc;
-  font-size: 16px;
-  font-weight: bold;
-}
-
-.mlb-desc {
-  color: #94a3b8;
-  font-size: 12px;
-  margin: 0 0 15px;
-  line-height: 1.4;
-}
-
-.mlb-bottom-row {
-  margin-top: auto;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.mlb-price {
-  color: #fbbf24;
-  font-size: 14px;
-  font-weight: bold;
-}
-
-.mlb-btn {
-  background: #ef4444;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 13px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.mlb-game-card:hover .mlb-btn {
-  background: #dc2626;
-  box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
-}
-
-/* 禁用状态的按钮样式 */
-.mlb-btn:disabled {
-  background: #64748b; 
-  cursor: not-allowed;
-}
-
-.mlb-game-card.is-disabled:hover .mlb-btn {
-  background: #64748b; 
-  box-shadow: none; 
-}
-
 /* 底部历史记录 (桌面端) */
 .history-section { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #f0f0f0; }
 .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
@@ -535,37 +369,6 @@ onMounted(async () => {
 .pulse-ring { position: absolute; inset: 0; border-radius: 50%; border: 2px solid #e83862; animation: pulse 1.5s infinite; }
 @keyframes pulse { 0% { transform: scale(1); opacity: 0.8; } 100% { transform: scale(1.6); opacity: 0; } }
 
-/* 🆕 自定义日文提示框 (Toast) 样式 */
-.custom-toast {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(15, 23, 42, 0.95); 
-  color: #fff;
-  padding: 16px 24px;
-  border-radius: 12px;
-  font-size: 15px;
-  font-weight: bold;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  z-index: 9999;
-  text-align: center;
-  pointer-events: none; 
-  white-space: nowrap;
-}
-
-/* 提示框淡入淡出动画 */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease, transform 0.3s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-  transform: translate(-50%, -40%);
-}
-
 /* 手机端适配 */
 @media (max-width: 768px) {
   .main-content { padding: 12px; }
@@ -592,12 +395,5 @@ onMounted(async () => {
   .social-inner { font-size: 22px; }
   .music-toggle { bottom: 20px; right: 20px; width: 50px; height: 50px; }
   .music-inner { font-size: 22px; }
-  
-  .custom-toast {
-    font-size: 13px;
-    padding: 12px 18px;
-    width: 85%;
-    white-space: normal;
-  }
 }
 </style>
