@@ -1,4 +1,4 @@
-<!-- 请从这里开始全选复制，直到最底部的 </style> 结束 -->
+<!-- src/views/GachaRoom.vue -->
 <template>
   <div class="room-container" :class="`theme-${gameType}`">
     
@@ -442,13 +442,13 @@ const fetchMLBStatus = async () => {
       mlbGame.value = res.data.data;
 
       if (mlbGame.value.inningOpen && !prevOpen) {
-        showToast('⚾ 第 ' + (mlbGame.value.currentInning + 1) + ' 局竞猜开启！', 'success');
+        showToast('⚾ 第 ' + (mlbGame.value.currentInning + 1) + ' 局の予想が開始されました！', 'success');
       }
     } else {
       mlbGame.value = null;
     }
   } catch (err) {
-    console.error('获取 MLB 数据失败', err);
+    console.error('MLBデータの取得に失敗しました', err);
   }
 };
 
@@ -468,7 +468,6 @@ const handleBet = async (betType, selection, odds = 1.5) => {
     showToast('最低ベット額は 30,000 pt です', 'error');
     return;
   }
-  }
 
   try {
     const res = await request.post('/mlb/bet', {
@@ -481,14 +480,14 @@ const handleBet = async (betType, selection, odds = 1.5) => {
     });
 
     if (res.data.success) {
-      showToast('下注成功！', 'success');
+      showToast('ベットが完了しました！', 'success');
       currentBalance.value -= amount;
       const user = JSON.parse(localStorage.getItem('user'));
       user.balance = currentBalance.value;
       localStorage.setItem('user', JSON.stringify(user));
     }
   } catch (err) {
-    showToast(err.response?.data?.msg || '下注失败', 'error');
+    showToast(err.response?.data?.msg || 'ベットに失敗しました', 'error');
   }
 };
 
@@ -641,7 +640,7 @@ onMounted(async () => {
       mlbGame.value.countdown--;
       if (mlbGame.value.countdown === 0) {
         mlbGame.value.inningOpen = false;
-        showToast('🔒 第 ' + (mlbGame.value.currentInning + 1) + ' 局下注已封盘', 'warning');
+        showToast('🔒 第 ' + (mlbGame.value.currentInning + 1) + ' 局の受付が終了しました', 'warning');
       }
     }
   }, 1000);
