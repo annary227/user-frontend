@@ -5,14 +5,14 @@
     <AppHeader />
 
     <main class="main-content">
-      <!-- 渐变横幅 (增加奢华光影) -->
+      <!-- 🆕 渐变横幅 (全面升级为 GrandSlam 品牌) -->
       <div class="banner">
         <div class="banner-content">
-          <span class="highlight-badge">最高当せん金 1000万円！</span>
-          <h2>待ち時間なし！購入した瞬間に結果がわかる！</h2>
-          <p>選んで・買って・すぐ挑戦！スキップ機能で一括抽選も対応。</p>
+          <span class="highlight-badge">GrandSlam 開幕！</span>
+          <h2>リアルタイム野球予想で、一攫千金を狙え！</h2>
+          <p>プロのデータ分析に乗って、高配当を的中させよう！</p>
         </div>
-        <button class="banner-btn">今すぐチャレンジ ↓</button>
+        <button class="banner-btn" @click="$router.push('/mlb')">今すぐ挑戦 ↓</button>
         <div class="banner-glow"></div>
       </div>
 
@@ -38,8 +38,8 @@
                 </svg>
               </div>
               <div class="title-group">
-                <h3>ルーレット</h3>
-                <span class="sub-title">ルーレットポイントゲーム</span>
+                <h3>GrandSlam カジノ</h3>
+                <span class="sub-title">超人気プライズゲーム</span>
               </div>
             </div>
             <div class="header-right">
@@ -73,7 +73,7 @@
           <div class="mlb-bg-ray"></div>
           <div class="mlb-top">
             <div class="mlb-icon-box red-glow">
-              <!-- 🆕 手绘豪华棒球 SVG 图标 -->
+              <!-- 豪华棒球 SVG 图标 -->
               <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <circle cx="24" cy="24" r="22" fill="url(#ball-grad)" stroke="#fff" stroke-width="2"/>
                 <path d="M 10 10 C 20 20, 20 28, 10 38" stroke="#fff" stroke-width="2" stroke-linecap="round"/>

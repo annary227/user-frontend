@@ -18,10 +18,11 @@
     <!-- 原有的 Header 内容 -->
     <div class="top-header">
       <div class="logo-area" @click="$router.push('/')">
-        <div class="logo-icon">Q</div>
+        <!-- 🆕 品牌升级：将 Q 换成 G -->
+        <div class="logo-icon">G</div>
         <div class="logo-text">
-          <h1>クイックワン <span class="online-badge">ONLINE</span></h1>
-          <p>ネット専用いつでも秒で当たる宝くじ</p>
+          <h1>GrandSlam <span class="online-badge">LIVE</span></h1>
+          <p>リアルタイム野球予想・一撃必殺の高配当</p>
         </div>
       </div>
       
@@ -151,7 +152,7 @@ const handleCheckIn = async () => {
 };
 
 // ==========================================
-// 🆕 棒球比赛速报逻辑 (替换原来的假抽奖播报)
+// 🆕 棒球比赛速报逻辑
 // ==========================================
 const currentNews = ref({ id: 0, text: '⚾ まもなく新しい試合が発表されます。お楽しみに！', game_pk: null });
 let tickerTimer = null;

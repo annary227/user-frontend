@@ -1,5 +1,11 @@
 <template>
   <div class="login-layout">
+    <!-- 🆕 纯CSS绘制的高级日系棒球氛围背景 -->
+    <div class="baseball-bg">
+      <div class="stitch-line"></div>
+      <div class="stitch-line right"></div>
+    </div>
+    
     <!-- 背景光斑 -->
     <div class="glow-circle circle-1"></div>
     <div class="glow-circle circle-2"></div>
@@ -9,11 +15,12 @@
       <div class="form-section">
         <div class="login-card">
           <div class="mobile-logo">
-            <div class="logo-icon">Q</div>
+            <!-- 🆕 品牌升级：将 Q 换成 G -->
+            <div class="logo-icon">G</div>
           </div>
           
-          <h2 class="welcome-title">おかえりなさい</h2>
-          <p class="welcome-sub">アカウントにログインして取引を開始</p>
+          <h2 class="welcome-title">GrandSlam へようこそ</h2>
+          <p class="welcome-sub">アカウントにログインして、リアルタイム予想を始めよう</p>
 
           <div class="form-group">
             <label>ユーザー名 / メールアドレス</label>
@@ -60,7 +67,7 @@
             <span>⚡ 即時入出金</span>
           </div>
 
-          <!-- 🆕 底部合规链接（替换了原来的第三方登录） -->
+          <!-- 底部合规链接 -->
           <div class="legal-links">
             <a @click="$router.push('/legal/commerce')">特定商取引法に基づく表記</a>
           </div>
@@ -109,7 +116,6 @@ onMounted(() => {
 });
 
 const handleLogin = async () => {
-  // 🆕 修复了中文提示
   if (!username.value || !password.value) return ElMessage.warning('ユーザー名とパスワードを入力してください');
   
   isLoading.value = true;
@@ -129,7 +135,6 @@ const handleLogin = async () => {
       router.push('/');
     }
   } catch (error) {
-    // 🆕 修复了中文提示
     ElMessage.error(error.response?.data?.error || 'ログインに失敗しました。認証情報をご確認ください。');
   } finally {
     isLoading.value = false;
@@ -144,16 +149,59 @@ const handleLogin = async () => {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: #0b1120;
+  background: #060a12; /* 更深沉的极夜蓝 */
   font-family: 'Noto Sans JP', sans-serif;
   position: relative;
   overflow: hidden;
 }
 
-/* 背景动态光斑 */
-.glow-circle { position: absolute; border-radius: 50%; filter: blur(120px); opacity: 0.4; }
-.circle-1 { width: 600px; height: 600px; background: #e83862; top: -15%; left: -10%; }
-.circle-2 { width: 700px; height: 700px; background: #0ea5e9; bottom: -20%; right: -10%; }
+/* 🆕 纯 CSS 日系棒球氛围背景 (暗黑霓虹 + 缝线) */
+.baseball-bg {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(232, 56, 98, 0.05) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* 用伪元素画出棒球缝线的弧度 */
+.baseball-bg::before {
+  content: '';
+  position: absolute;
+  top: -10%;
+  left: -10%;
+  width: 120%;
+  height: 120%;
+  border: 2px dashed rgba(255, 255, 255, 0.03);
+  border-radius: 50%;
+  transform: rotate(-15deg);
+}
+
+.stitch-line {
+  position: absolute;
+  top: 20%;
+  left: 10%;
+  width: 300px;
+  height: 300px;
+  border-right: 4px dashed rgba(232, 56, 98, 0.15);
+  border-radius: 50%;
+  transform: rotate(45deg);
+}
+
+.stitch-line.right {
+  top: auto;
+  bottom: 10%;
+  left: auto;
+  right: 5%;
+  border-right: none;
+  border-left: 4px dashed rgba(14, 165, 233, 0.15);
+  transform: rotate(-45deg);
+}
+
+/* 背景动态光斑 (调整为更有日系赛博感的紫/蓝色) */
+.glow-circle { position: absolute; border-radius: 50%; filter: blur(120px); opacity: 0.5; z-index: 2; }
+.circle-1 { width: 600px; height: 600px; background: #be123c; top: -15%; left: -10%; }
+.circle-2 { width: 700px; height: 700px; background: #0284c7; bottom: -20%; right: -10%; }
 
 /* 核心包裹层 */
 .login-wrapper {
@@ -164,12 +212,12 @@ const handleLogin = async () => {
   align-items: center;
   width: 100%;
   max-width: 520px;
-  min-height: 600px; /* 适当缩短了一点高度因为去掉了社交登录 */
-  background: rgba(15, 23, 42, 0.7);
-  backdrop-filter: blur(20px);
+  min-height: 620px;
+  background: rgba(15, 23, 42, 0.6); /* 更透明的毛玻璃 */
+  backdrop-filter: blur(24px);
   border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.8), inset 0 0 0 1px rgba(255,255,255,0.05);
   overflow: hidden;
 }
 
@@ -189,17 +237,17 @@ const handleLogin = async () => {
 
 .mobile-logo { display: none; }
 
-.welcome-title { margin: 0 0 10px; font-size: 28px; color: white; font-weight: 900; }
+.welcome-title { margin: 0 0 10px; font-size: 26px; color: white; font-weight: 900; letter-spacing: 1px; }
 .welcome-sub { margin: 0 0 30px; font-size: 14px; color: #94a3b8; }
 
 /* 输入框 */
 .form-group { margin-bottom: 20px; }
 .form-group label { display: block; font-size: 13px; font-weight: bold; color: #cbd5e1; margin-bottom: 8px; }
 .input-wrapper {
-  display: flex; align-items: center; gap: 10px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex; align-items: center; gap: 10px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px; padding: 14px 16px; transition: 0.3s;
 }
-.input-wrapper:focus-within { border-color: #e83862; background: rgba(232, 56, 98, 0.05); box-shadow: 0 0 0 4px rgba(232, 56, 98, 0.1); }
+.input-wrapper:focus-within { border-color: #e83862; background: rgba(232, 56, 98, 0.05); box-shadow: 0 0 0 4px rgba(232, 56, 98, 0.15); }
 .input-wrapper .el-icon { color: #64748b; font-size: 18px; }
 .input-wrapper input { flex: 1; border: none; outline: none; background: transparent; font-size: 15px; color: white; }
 .input-wrapper input::placeholder { color: #475569; }
@@ -216,11 +264,11 @@ const handleLogin = async () => {
 .forgot-pwd:hover { text-decoration: underline; }
 
 .login-btn {
-  width: 100%; padding: 16px; background: linear-gradient(135deg, #e83862, #f43f5e);
+  width: 100%; padding: 16px; background: linear-gradient(135deg, #e83862, #be123c);
   color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 900;
-  cursor: pointer; transition: 0.3s; box-shadow: 0 8px 20px rgba(232, 56, 98, 0.4); letter-spacing: 1px;
+  cursor: pointer; transition: 0.3s; box-shadow: 0 8px 20px rgba(232, 56, 98, 0.3); letter-spacing: 2px;
 }
-.login-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 25px rgba(232, 56, 98, 0.6); }
+.login-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 25px rgba(232, 56, 98, 0.5); }
 .login-btn:disabled { background: #334155; color: #94a3b8; cursor: not-allowed; transform: none; box-shadow: none; }
 
 .register-link { margin-top: 25px; font-size: 14px; color: #94a3b8; text-align: center; }
@@ -230,14 +278,14 @@ const handleLogin = async () => {
 
 /* 信任标签 */
 .trust-badges { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 25px; }
-.trust-badges span { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 6px 12px; border-radius: 20px; font-size: 11px; color: #cbd5e1; }
+.trust-badges span { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 6px 12px; border-radius: 20px; font-size: 11px; color: #cbd5e1; }
 
-/* 🆕 底部合规链接 */
+/* 底部合规链接 */
 .legal-links { margin-top: 30px; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 20px; }
 .legal-links a { color: #64748b; font-size: 12px; cursor: pointer; text-decoration: none; transition: 0.2s; }
 .legal-links a:hover { color: #cbd5e1; text-decoration: underline; }
 
-/* ================= 🆕 忘记密码弹窗样式 ================= */
+/* ================= 忘记密码弹窗样式 ================= */
 .line-modal-overlay {
   position: fixed;
   inset: 0;
@@ -285,7 +333,13 @@ const handleLogin = async () => {
   .login-card { max-width: 100%; padding: 20px; }
   
   .mobile-logo { display: flex; justify-content: center; margin-bottom: 20px; }
-  .mobile-logo .logo-icon { width: 70px; height: 70px; font-size: 36px; border-radius: 16px; }
+  /* 🆕 手机端 Logo 也改成 G */
+  .mobile-logo .logo-icon { 
+    width: 70px; height: 70px; font-size: 36px; border-radius: 16px; 
+    background: linear-gradient(135deg, #e83862, #be123c); color: white;
+    display: flex; justify-content: center; align-items: center; font-weight: bold; font-family: serif;
+    box-shadow: 0 10px 20px rgba(232, 56, 98, 0.4);
+  }
   
   .welcome-title, .welcome-sub { text-align: center; }
 }

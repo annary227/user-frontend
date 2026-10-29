@@ -335,12 +335,13 @@
       </div>
     </Transition>
 
-    <!-- 结算凭证票根 -->
+    <!-- 结算凭证票根 (保留原有弹窗，仅改品牌名) -->
     <Transition name="ticket">
       <div v-if="result && showTicket" class="ticket-overlay">
         <div class="ticket-wrapper" :class="result.value > 0 ? 'win' : 'lose'">
           <div class="ticket-top">
-            <div class="brand">QUICK ONE OFFICIAL</div>
+            <!-- 🆕 品牌名替换 -->
+            <div class="brand">GRANDSLAM OFFICIAL</div>
             <div class="status">{{ result.value > 0 ? '当せん' : 'ハズレ' }}</div>
           </div>
           <div class="ticket-content">
@@ -440,7 +441,6 @@ const fetchMLBStatus = async () => {
       const prevOpen = mlbGame.value?.inningOpen;
       mlbGame.value = res.data.data;
 
-      // 如果之前没开，现在开了，弹提示
       if (mlbGame.value.inningOpen && !prevOpen) {
         showToast('⚾ 第 ' + (mlbGame.value.currentInning + 1) + ' 局竞猜开启！', 'success');
       }
@@ -456,15 +456,18 @@ const fetchMLBStatus = async () => {
 const handleBet = async (betType, selection, odds = 1.5) => {
   if (!userId.value) return;
   
-  // 直接弹窗输入下注金额（你可以替换成漂亮的 UI）
-  const amountStr = prompt(`【${betType === 'pregame' ? '胜负' : '单局比分'}】\n选择：${selection}\n赔率：${odds}x\n\n请输入下注金额 (最低 30,000):`, '30000');
+  const amountStr = prompt(
+    `【${betType === 'pregame' ? '勝敗予想' : 'イニングスコア'}】\n選択：${selection}\nオッズ：${odds}x\n\nベット額を入力してください (最低 30,000):`, 
+    '30000'
+  );
   
   if (!amountStr) return;
   const amount = Number(amountStr);
 
   if (amount < 30000) {
-    showToast('最低下注 30,000 积分', 'error');
+    showToast('最低ベット額は 30,000 pt です', 'error');
     return;
+  }
   }
 
   try {
@@ -479,7 +482,6 @@ const handleBet = async (betType, selection, odds = 1.5) => {
 
     if (res.data.success) {
       showToast('下注成功！', 'success');
-      // 更新余额
       currentBalance.value -= amount;
       const user = JSON.parse(localStorage.getItem('user'));
       user.balance = currentBalance.value;
@@ -553,6 +555,7 @@ const wheelStyle = computed(() => {
   };
 });
 
+// 🆕 只做了最轻量的兜底，原有逻辑不变
 const translateName = (name) => {
   if (!name) return 'ハズレ';
   if (name === '不中奖' || name === '未中奖' || name === '没中奖' || name === '谢谢参与') {
@@ -612,7 +615,6 @@ onMounted(async () => {
   userId.value = user.id;
   if (route.query.balance) currentBalance.value = Number(route.query.balance);
 
-  // 获取用户余额
   try {
     const infoRes = await request.get(`/user/info/${user.id}`);
     if (infoRes.data.success) {
@@ -631,11 +633,9 @@ onMounted(async () => {
     console.warn('ユーザー情報の取得に失敗しました', error);
   }
 
-  // 初始化 MLB 数据
   fetchMLBStatus();
-  mlbPollTimer = setInterval(fetchMLBStatus, 30000); // 每30秒拉取一次后端
+  mlbPollTimer = setInterval(fetchMLBStatus, 30000); 
   
-  // 前端本地倒计时器 (每秒减1)
   mlbCountdownTimer = setInterval(() => {
     if (mlbGame.value && mlbGame.value.inningOpen && mlbGame.value.countdown > 0) {
       mlbGame.value.countdown--;
