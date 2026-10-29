@@ -7,7 +7,6 @@
       </div>
       <div class="ticker-content">
         <Transition name="slide-up" mode="out-in">
-          <!-- 🆕 绑定点击事件，点击直达比赛下注页 -->
           <div class="news-item" :key="currentNews.id" @click="goToGame(currentNews.game_pk)" :class="{ 'clickable': currentNews.game_pk }">
             <span class="text">{{ currentNews.text }}</span>
           </div>
@@ -18,7 +17,6 @@
     <!-- 原有的 Header 内容 -->
     <div class="top-header">
       <div class="logo-area" @click="$router.push('/')">
-        <!-- 🆕 品牌升级：将 Q 换成 G -->
         <div class="logo-icon">G</div>
         <div class="logo-text">
           <h1>GrandSlam <span class="online-badge">LIVE</span></h1>
@@ -33,16 +31,8 @@
           <span class="balance-amount">¥{{ userBalance.toLocaleString() }}</span>
         </div>
 
-        <!-- 🆕 私聊大厅入口 (带红点提示，点击秒进聊天) -->
-        <button class="chat-btn" @click="$router.push('/social?openChat=true')">
-          <span class="chat-icon">💬</span> 
-          <span class="chat-text">メッセージ</span>
-          <!-- 未读消息红点 -->
-          <span v-if="unreadCount > 0" class="badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
-        </button>
-        
         <!-- 入金 和 出金 -->
-        <a href="https://lin.ee/OHAOimh" target="_blank" class="charge-btn deposit-btn" style="text-decoration: none;">入金</a>
+        <button class="charge-btn deposit-btn" @click="openDepositModal">入金</button>
         <button class="charge-btn withdraw-btn" @click="openWithdrawModal">出金</button>
 
         <!-- 签到按钮 -->
@@ -60,7 +50,34 @@
       </div>
     </div>
 
-    <!-- 纯原生出金弹窗 -->
+    <!-- ================= 🆕 纯净金融风：入金弹窗 ================= -->
+    <div v-if="depositVisible" class="fin-modal-overlay" @click.self="depositVisible = false">
+      <div class="fin-modal-card">
+        <div class="fin-header">
+          <h3>ご入金手続き</h3>
+          <p>ご希望の入金金額をご入力ください。</p>
+        </div>
+        
+        <div class="fin-input-group">
+          <span class="currency-symbol">¥</span>
+          <input 
+            type="number" 
+            v-model="depositAmount" 
+            placeholder="充金額を入力 (最低 1,000円〜)" 
+            class="fin-input"
+          />
+        </div>
+
+        <p class="fin-notice">※確認後、公式サポートに接続し、お支払い方法をご案内いたします。</p>
+
+        <div class="fin-actions">
+          <button class="fin-btn cancel" @click="depositVisible = false">キャンセル</button>
+          <button class="fin-btn confirm" @click="submitDeposit" :disabled="!isDepositValid">確認してサポートへ</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 出金弹窗 -->
     <div v-if="withdrawVisible" class="custom-modal-overlay" @click.self="withdrawVisible = false">
       <div class="custom-modal">
         <h3>出金申請</h3>
@@ -86,7 +103,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import request from '../api/request'; 
 import { ElMessage } from 'element-plus';
@@ -97,25 +114,7 @@ const username = ref('ゲスト');
 const userId = ref(null);
 
 // ==========================================
-// 🆕 未读消息红点逻辑
-// ==========================================
-const unreadCount = ref(0);
-let unreadTimer = null;
-
-const checkUnread = async () => {
-  const storedUser = localStorage.getItem('user');
-  if (!storedUser) return;
-  const user = JSON.parse(storedUser);
-  try {
-    const res = await request.get(`/user/chat/unread-count/${user.id}`);
-    if (res.data.success) {
-      unreadCount.value = res.data.count;
-    }
-  } catch (e) {}
-};
-
-// ==========================================
-// 🆕 签到逻辑 (改为完全依赖后端判断)
+// 🆕 签到逻辑
 // ==========================================
 const isCheckedIn = ref(false);
 
@@ -159,19 +158,16 @@ let tickerTimer = null;
 let currentIndex = 0;
 let tickerDataList = [];
 
-// 点击速报跳转逻辑
 const goToGame = (gamePk) => {
   if (!gamePk) return;
   router.push(`/mlb/detail/${gamePk}`);
 };
 
-// 获取真实比赛速报
 const fetchTickerData = async () => {
   try {
     const res = await request.get('/mlb/ticker');
     if (res.data.success && res.data.data.length > 0) {
       tickerDataList = res.data.data;
-      // 如果是从未加载过，初始化一条
       if (currentNews.value.id === 0) {
         currentNews.value = { ...tickerDataList[0], id: Date.now() };
       }
@@ -181,12 +177,48 @@ const fetchTickerData = async () => {
   }
 };
 
-// 轮播切换逻辑
 const rotateNews = () => {
   if (tickerDataList.length === 0) return;
   currentIndex = (currentIndex + 1) % tickerDataList.length;
   const nextNews = tickerDataList[currentIndex];
   currentNews.value = { ...nextNews, id: Date.now() };
+};
+
+// ==========================================
+// 🆕 入金弹窗逻辑 (金融版)
+// ==========================================
+const depositVisible = ref(false);
+const depositAmount = ref(null);
+
+const isDepositValid = computed(() => {
+  return depositAmount.value !== null && Number(depositAmount.value) >= 1000;
+});
+
+const openDepositModal = () => {
+  depositAmount.value = null;
+  depositVisible.value = true;
+};
+
+const submitDeposit = () => {
+  if (!isDepositValid.value) {
+    return ElMessage.warning('入金金額は最低 1,000円 からです。');
+  }
+
+  if (window.Tawk_API && window.Tawk_API.toggle) {
+    depositVisible.value = false;
+    window.Tawk_API.toggle();
+    
+    // 顺便在客服后台标记一下该用户的充值意向
+    if (window.Tawk_API.setAttributes) {
+      window.Tawk_API.setAttributes({
+        'want_deposit_amount': `¥${Number(depositAmount.value).toLocaleString()}`
+      }, function(error){});
+    }
+    
+    ElMessage.success(`¥${Number(depositAmount.value).toLocaleString()} の入金手続きを開始します。チャットにてお支払い方法をご案内します。`);
+  } else {
+    ElMessage.warning('サポートシステムを読み込み中です。少々お待ちください。');
+  }
 };
 
 // ==========================================
@@ -241,11 +273,8 @@ const submitWithdraw = async () => {
 // 生命周期管理
 // ==========================================
 onMounted(async () => {
-  // 🆕 初始化速报
   await fetchTickerData();
-  // 每 5 秒切换一条速报
   tickerTimer = setInterval(rotateNews, 5000);
-  // 每 60 秒去后端拉一次最新数据（更新倒计时）
   setInterval(fetchTickerData, 60000);
 
   const storedUser = localStorage.getItem('user');
@@ -260,9 +289,6 @@ onMounted(async () => {
   }
   
   checkCheckInStatus();
-
-  checkUnread();
-  unreadTimer = setInterval(checkUnread, 5000);
 
   try {
     const infoRes = await request.get(`/user/info/${user.id}`);
@@ -284,7 +310,6 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (tickerTimer) clearInterval(tickerTimer);
-  if (unreadTimer) clearInterval(unreadTimer); 
 });
 </script>
 
@@ -297,7 +322,6 @@ onUnmounted(() => {
 .ticker-content { flex: 1; padding-left: 20px; position: relative; height: 100%; display: flex; align-items: center; }
 .news-item { position: absolute; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
 
-/* 🆕 速报文字和可点击样式 */
 .news-item .text { color: #e2e8f0; letter-spacing: 0.5px; }
 .news-item.clickable { cursor: pointer; }
 .news-item.clickable:hover .text { color: #38bdf8; text-decoration: underline; }
@@ -317,28 +341,6 @@ onUnmounted(() => {
 .balance-label { font-size: 10px; color: #94a3b8; }
 .balance-amount { font-weight: 900; font-size: 16px; color: #38bdf8; font-family: monospace; }
 
-.chat-btn { position: relative; background: #3b82f6; color: white; border: none; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 5px; transition: 0.2s; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3); flex-shrink: 0; }
-.chat-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(59, 130, 246, 0.5); background: #2563eb; }
-.chat-icon { font-size: 16px; }
-.badge {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  background: #ef4444;
-  color: white;
-  font-size: 11px;
-  font-weight: bold;
-  padding: 2px 6px;
-  border-radius: 10px;
-  box-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
-  animation: pulse-red 1.5s infinite;
-}
-@keyframes pulse-red {
-  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-  70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
-  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-}
-
 .charge-btn { border: none; padding: 8px 20px; border-radius: 20px; font-weight: 900; cursor: pointer; transition: 0.2s; white-space: nowrap; font-size: 14px; }
 .deposit-btn { background: linear-gradient(180deg, #10b981, #059669); color: white; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3); }
 .withdraw-btn { background: linear-gradient(180deg, #ffcc00, #ffb300); color: #333; box-shadow: 0 4px 10px rgba(255, 204, 0, 0.3); }
@@ -351,6 +353,118 @@ onUnmounted(() => {
 .username:hover { color: #e83862; text-decoration: underline; }
 .profile-btn { background: #1e293b; color: #ffffff; border: none; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; box-shadow: 0 4px 10px rgba(30, 41, 59, 0.2); }
 .profile-btn:hover { background: #0f172a; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(30, 41, 59, 0.3); }
+
+/* ================= 🆕 纯净金融风：入金弹窗 ================= */
+.fin-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+.fin-modal-card {
+  background: #ffffff;
+  width: 90%;
+  max-width: 420px;
+  border-radius: 16px;
+  padding: 30px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+.fin-header {
+  text-align: center;
+  margin-bottom: 25px;
+}
+.fin-header h3 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 900;
+  color: #1e293b;
+}
+.fin-header p {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+}
+.fin-input-group {
+  display: flex;
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 15px;
+  transition: all 0.2s;
+}
+.fin-input-group:focus-within {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  background: #ffffff;
+}
+.currency-symbol {
+  font-size: 18px;
+  font-weight: 900;
+  color: #1e293b;
+  margin-right: 10px;
+}
+.fin-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  font-weight: bold;
+  color: #1e293b;
+  outline: none;
+}
+.fin-input::placeholder {
+  font-size: 14px;
+  font-weight: normal;
+  color: #94a3b8;
+}
+.fin-notice {
+  font-size: 12px;
+  color: #94a3b8;
+  margin: 0 0 25px;
+  line-height: 1.5;
+}
+.fin-actions {
+  display: flex;
+  gap: 12px;
+}
+.fin-btn {
+  flex: 1;
+  padding: 14px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+.fin-btn.cancel {
+  background: #f1f5f9;
+  color: #64748b;
+}
+.fin-btn.cancel:hover { background: #e2e8f0; }
+.fin-btn.confirm {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+.fin-btn.confirm:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(16, 185, 129, 0.4);
+}
+.fin-btn.confirm:disabled {
+  background: #cbd5e1;
+  color: #f8fafc;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* ================= 出金弹窗 (保留原样) ================= */
 .custom-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; z-index: 9999; }
 .custom-modal { background: #fff; width: 90%; max-width: 400px; border-radius: 16px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); text-align: center; }
 .custom-modal h3 { margin: 0 0 20px; font-size: 20px; font-weight: 900; color: #1e293b; }
@@ -373,10 +487,6 @@ onUnmounted(() => {
   .user-area { width: 100%; justify-content: space-between; gap: 8px; }
   .balance-box { padding: 6px 12px; flex: 1; justify-content: center; }
   .balance-amount { font-size: 15px; }
-  
-  .chat-text { display: none; }
-  .chat-btn { padding: 8px 12px; }
-  .badge { top: -4px; right: -4px; font-size: 10px; padding: 1px 5px; }
   
   .charge-btn { padding: 6px 12px; font-size: 13px; }
   .checkin-btn { padding: 6px 12px; font-size: 13px; }

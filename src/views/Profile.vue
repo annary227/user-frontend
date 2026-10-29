@@ -186,7 +186,7 @@
       </div>
     </Transition>
 
-    <!-- ================= 🆕 弹窗：棒球预测履历 ================= -->
+    <!-- ================= 弹窗：棒球预测履历 ================= -->
     <Transition name="modal">
       <div v-if="showMlbHistoryModal" class="modal-overlay">
         <div class="modal-card">
@@ -201,7 +201,6 @@
                   <p class="h-title">{{ record.title }}</p>
                   <p class="h-time">{{ formatTime(record.created_at) }}</p>
                 </div>
-                <!-- 🆕 金额显示：加入已取消的退款状态 -->
                 <span class="h-amount" :class="record.result === 'won' ? 'text-green' : (record.result === 'lost' ? 'text-red' : (record.result === 'canceled' ? 'text-gray' : 'text-orange'))">
                   <template v-if="record.result === 'won'">+ ¥{{ Math.floor(record.payout).toLocaleString() }}</template>
                   <template v-else-if="record.result === 'lost'">- ¥{{ record.amount.toLocaleString() }}</template>
@@ -223,7 +222,6 @@
                   </span>
                   <span style="color: #64748b;">
                     最終: 
-                    <!-- 🆕 状态显示：加入比赛取消的提示 -->
                     <strong v-if="record.result === 'canceled'" style="color: #94a3b8;">試合中止 (返金済み)</strong>
                     <strong v-else-if="record.result === 'pending' || !record.actual_score || record.actual_score === '-' || record.actual_score === '0:0'" style="color: #f59e0b;">結果待ち</strong>
                     <strong v-else style="color: #3b82f6;">{{ record.actual_score }}</strong>
@@ -239,7 +237,6 @@
                     </strong>
                   </span>
                   <span style="color: #64748b;">
-                    <!-- 🆕 状态显示：加入比赛取消的提示 -->
                     <template v-if="record.result === 'canceled'">
                       結果: <strong style="color: #94a3b8;">試合中止 (返金済み)</strong>
                     </template>
@@ -284,9 +281,9 @@
             <p><strong>🕒 営業時間:</strong> 10:00 - 19:00 (土日祝除く)</p>
             <p><strong>📧 メール:</strong> support@quickone.cc.cd</p>
           </div>
-          <a href="https://lin.ee/OHAOimh" target="_blank" class="line-btn">
-            <span class="line-icon">💬</span> 公式LINEで問い合わせる
-          </a>
+          <button @click="openChat" class="line-btn" style="width: 100%; border: none; cursor: pointer;">
+            <span class="line-icon">💬</span> オンラインサポートに問い合わせる
+          </button>
           <div class="modal-actions" style="margin-top: 15px;">
             <button class="confirm blue-btn" @click="showServiceModal = false">閉じる</button>
           </div>
@@ -335,6 +332,16 @@ const withdrawals = ref([]);
 // 新增记录容器
 const gameRecords = ref([]);
 const mlbRecords = ref([]);
+
+// 🆕 打开网页客服
+const openChat = () => {
+  if (window.Tawk_API && window.Tawk_API.toggle) {
+    window.Tawk_API.toggle();
+    showServiceModal.value = false;
+  } else {
+    ElMessage.warning('サポートシステムを読み込み中です。少々お待ちください。');
+  }
+};
 
 const fetchUserInfo = async () => {
   const storedUser = localStorage.getItem('user');

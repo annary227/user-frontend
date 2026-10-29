@@ -80,11 +80,12 @@
       <div v-if="showLineModal" class="line-modal-overlay" @click.self="showLineModal = false">
         <div class="line-modal-card">
           <h3>パスワード再設定</h3>
-          <p class="sub">パスワードをお忘れの場合は、公式LINEまでお問い合わせください。</p>
+          <p class="sub">パスワードをお忘れの場合は、オンラインサポートまでお問い合わせください。</p>
           
-          <a href="https://lin.ee/sV2XGu5" target="_blank" class="line-btn">
-            <span class="line-icon">💬</span> 公式LINEで問い合わせる
-          </a>
+          <!-- 🆕 触发网页客服 -->
+          <button @click="openChat" class="line-btn" style="width: 100%; border: none; cursor: pointer;">
+            <span class="line-icon">💬</span> オンラインサポートに問い合わせる
+          </button>
           
           <button class="close-modal-btn" @click="showLineModal = false">閉じる</button>
         </div>
@@ -114,6 +115,16 @@ onMounted(() => {
     password.value = '123456';
   }
 });
+
+// 🆕 打开网页客服
+const openChat = () => {
+  if (window.Tawk_API && window.Tawk_API.toggle) {
+    window.Tawk_API.toggle();
+    showLineModal.value = false;
+  } else {
+    ElMessage.warning('サポートシステムを読み込み中です。少々お待ちください。');
+  }
+};
 
 const handleLogin = async () => {
   if (!username.value || !password.value) return ElMessage.warning('ユーザー名とパスワードを入力してください');
