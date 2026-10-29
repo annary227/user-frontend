@@ -232,13 +232,13 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
-  align-items: stretch;
+  align-items: stretch; /* 强制等高 */
 }
 
 /* ---------------- 左侧：转盘文件夹 ---------------- */
 .luxury-folder {
-  background: rgba(30, 41, 59, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(145deg, #111827, #0b1120);
+  border: 1.5px solid #a855f7;
   border-radius: 20px;
   padding: 22px;
   backdrop-filter: blur(10px);
@@ -246,33 +246,67 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  position: relative;
+  overflow: hidden;
+  min-height: 220px; /* 强制最小高度，防止内容太少被压扁 */
+  box-shadow: 0 0 25px rgba(168, 85, 247, 0.1), inset 0 0 20px rgba(168, 85, 247, 0.05);
+  cursor: pointer;
 }
-.luxury-folder:hover { border-color: rgba(168, 85, 247, 0.5); box-shadow: 0 0 20px rgba(168, 85, 247, 0.15); }
+.luxury-folder:hover { 
+  transform: translateY(-5px);
+  box-shadow: 0 10px 40px rgba(168, 85, 247, 0.25), inset 0 0 20px rgba(168, 85, 247, 0.1); 
+}
 .luxury-folder.is-open { 
   grid-column: span 2; 
   justify-content: flex-start;
-  background: rgba(30, 41, 59, 0.8);
+  cursor: default;
+  transform: none;
 }
 
-.folder-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+/* 转盘卡片背面动态光晕 */
+.luxury-folder::before {
+  content: '';
+  position: absolute;
+  top: -50%; left: -50%; width: 200%; height: 200%;
+  background: conic-gradient(from 0deg at 50% 50%, rgba(168,85,247,0) 0deg, rgba(168,85,247,0.1) 180deg, rgba(168,85,247,0) 360deg);
+  animation: rotateRay 15s linear infinite;
+  pointer-events: none;
+}
+
+.folder-header { display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 2; }
 .header-left { display: flex; align-items: center; gap: 15px; }
 .icon-box {
-  width: 48px; height: 48px;
-  border-radius: 14px;
+  width: 54px; height: 54px;
+  border-radius: 16px;
   display: flex; justify-content: center; align-items: center;
 }
-.purple-glow { background: rgba(168, 85, 247, 0.15); box-shadow: inset 0 0 10px rgba(168, 85, 247, 0.2); }
-.roulette-icon { width: 32px; height: 32px; transition: transform 0.5s ease; }
-.roulette-icon.is-spinning { transform: rotate(180deg); }
-.title-group h3 { margin: 0; font-size: 18px; font-weight: 800; color: #f8fafc; }
-.title-group .sub-title { font-size: 12px; color: #94a3b8; }
+.purple-glow { 
+  background: rgba(168, 85, 247, 0.1); 
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.2); 
+}
+.roulette-icon { 
+  width: 40px; height: 40px; 
+  filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.8));
+  animation: spinSlow 10s linear infinite; 
+  transition: transform 0.5s ease; 
+}
+.luxury-folder:hover .roulette-icon.is-spinning { animation-duration: 2s; }
+
+@keyframes spinSlow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes rotateRay { 100% { transform: rotate(360deg); } }
+
+.title-group h3 { margin: 0; font-size: 20px; font-weight: 900; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+.title-group .sub-title { font-size: 13px; color: #c4b5fd; }
 
 .header-right { display: flex; align-items: center; gap: 12px; }
 .count-badge { background: rgba(255, 255, 255, 0.1); color: #cbd5e1; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; }
-.toggle-arrow { width: 22px; height: 22px; color: #cbd5e1; transition: transform 0.3s; }
+.toggle-arrow { width: 24px; height: 24px; color: #cbd5e1; transition: transform 0.3s; }
 .toggle-arrow.is-up { transform: rotate(180deg); }
 
-.folder-content { margin-top: 25px; padding-top: 20px; border-top: 1px dashed rgba(255, 255, 255, 0.1); width: 100%; }
+.folder-content { margin-top: 25px; padding-top: 20px; border-top: 1px dashed rgba(255, 255, 255, 0.1); width: 100%; position: relative; z-index: 2; }
 .game-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 
 /* ---------------- 右侧：MLB 豪华卡片 ---------------- */
@@ -287,6 +321,7 @@ onMounted(async () => {
   position: relative;
   overflow: hidden;
   cursor: pointer;
+  min-height: 220px; /* 与左侧高度一致 */
   box-shadow: 0 0 25px rgba(239, 68, 68, 0.1), inset 0 0 20px rgba(239, 68, 68, 0.05);
   transition: all 0.3s ease;
 }
@@ -301,7 +336,6 @@ onMounted(async () => {
   animation: rotateRay 15s linear infinite;
   pointer-events: none;
 }
-@keyframes rotateRay { 100% { transform: rotate(360deg); } }
 
 .mlb-top { display: flex; justify-content: space-between; align-items: flex-start; position: relative; z-index: 2; }
 .mlb-icon-box {
@@ -325,11 +359,11 @@ onMounted(async () => {
 }
 
 .mlb-info { margin: 20px 0; position: relative; z-index: 2; }
-.mlb-info h3 { margin: 0 0 8px; font-size: 18px; font-weight: 900; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
-.mlb-info p { margin: 0; font-size: 12px; color: #94a3b8; line-height: 1.5; }
+.mlb-info h3 { margin: 0 0 8px; font-size: 20px; font-weight: 900; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+.mlb-info p { margin: 0; font-size: 13px; color: #94a3b8; line-height: 1.5; }
 
 .mlb-footer { display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 2; }
-.price-text { color: #fbbf24; font-size: 14px; font-weight: 900; }
+.price-text { color: #fbbf24; font-size: 15px; font-weight: 900; }
 .action-btn {
   background: #ef4444;
   color: white;
@@ -362,6 +396,7 @@ onMounted(async () => {
   .game-entry-grid { grid-template-columns: 1fr; gap: 15px; }
   .luxury-folder.is-open { grid-column: span 1; }
   .game-grid { grid-template-columns: 1fr; }
+  .luxury-folder, .luxury-mlb-card { min-height: 180px; padding: 18px; }
   .social-toggle { bottom: 85px; right: 20px; width: 50px; height: 50px; }
   .music-toggle { bottom: 20px; right: 20px; width: 50px; height: 50px; }
 }
