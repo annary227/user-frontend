@@ -39,7 +39,7 @@
               </div>
               <div class="title-group">
                 <h3>ルーレット</h3>
-                <span class="sub-title">转盘积分游戏</span>
+                <span class="sub-title">ルーレットポイントゲーム</span>
               </div>
             </div>
             <div class="header-right">
