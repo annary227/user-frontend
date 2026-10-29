@@ -218,12 +218,12 @@
                   <span style="color: #64748b;">
                     予想: 
                     <strong style="color: #ef4444;">
-                      {{ record.bet_selection === 'home' ? '主隊勝利' : '客隊勝利' }}
+                      <!-- 🆕 修改这里：直接读取后端计算好的日文队伍名称 -->
+                      {{ record.selected_team_name || (record.bet_selection === 'home' ? '主隊勝利' : '客隊勝利') }}
                     </strong>
                   </span>
                   <span style="color: #64748b;">
                     最終: 
-                    <!-- 🆕 绝对护盾：只要没结果、或者比分是 0:0，统统按死显示“等待结果” -->
                     <strong v-if="record.result === 'pending' || !record.actual_score || record.actual_score === '-' || record.actual_score === '0:0'" style="color: #f59e0b;">結果待ち</strong>
                     <strong v-else style="color: #3b82f6;">{{ record.actual_score }}</strong>
                   </span>
