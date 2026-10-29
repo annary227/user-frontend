@@ -10,8 +10,14 @@
         <div class="balance-box">残高: {{ userBalance.toLocaleString() }} pt</div>
       </div>
 
+      <!-- 🆕 加载状态展示 -->
+      <div v-if="isLoading" class="loading-state">
+        <div class="spinner"></div>
+        <p>データを取得中...</p>
+      </div>
+
       <!-- 赛事列表区 -->
-      <div class="games-container" v-if="games.length > 0">
+      <div class="games-container" v-else-if="games.length > 0">
         <div 
           v-for="game in games" 
           :key="game.game_pk" 
@@ -48,6 +54,7 @@
         </div>
       </div>
 
+      <!-- 确实没有数据时的展示 -->
       <div v-else class="empty-state">
         <p style="font-size: 24px; margin-bottom: 10px;">🏟️</p>
         <p>本日の試合はありません。</p>
@@ -75,6 +82,7 @@ import AppHeader from '../components/AppHeader.vue';
 const router = useRouter();
 const games = ref([]);
 const userBalance = ref(0);
+const isLoading = ref(true); // 🆕 默认处于加载状态
 let pollTimer = null;
 
 // Toast 提示状态
@@ -100,22 +108,20 @@ const formatJST = (dateString) => {
 // 获取比赛列表
 const fetchGames = async () => {
   try {
-    // 请求后端接口，获取最新的比赛列表
     const res = await request.get('/mlb/current');
-    // 假设后端返回格式为 { success: true, data: [...] }
+    
     if (res.data && res.data.success) {
       games.value = res.data.data;
     } else if (Array.isArray(res.data)) {
       games.value = res.data;
     } else {
-      games.value = []; // 如果明确没有比赛，清空列表
+      games.value = []; 
     }
   } catch (error) {
     console.error("取得失敗", error);
-    // 🆕 去掉了假数据兜底，出错时保持现状或清空
-    if (games.value.length === 0) {
-        games.value = [];
-    }
+    games.value = []; // 出错直接清空，不展示旧数据
+  } finally {
+    isLoading.value = false; // 🆕 无论成功失败，请求结束都关闭加载状态
   }
 };
 
@@ -131,17 +137,19 @@ const fetchBalance = async () => {
 // 进入比赛房间
 const goToMatchRoom = (game) => {
   if (game.status === 'Final') {
-    showToast('この試合は終了しました。'); // 🆕 替换了 alert
+    showToast('この試合は終了しました。');
     return;
   }
-  // 跳转到房间详情页，带上比赛ID
   router.push(`/mlb/room/${game.game_pk}`);
 };
 
 onMounted(() => {
   fetchGames();
   fetchBalance();
-  pollTimer = setInterval(fetchGames, 30000); // 每30秒刷新列表
+  // 每 30 秒静默刷新列表，不触发 loading 动画，防止页面闪烁
+  pollTimer = setInterval(() => {
+    fetchGames();
+  }, 30000);
 });
 
 onUnmounted(() => {
@@ -163,6 +171,28 @@ onUnmounted(() => {
 .back-btn:hover { background: #1e293b; color: #f8fafc; }
 .room-header h2 { margin: 0; color: #ef4444; font-size: 22px; }
 .balance-box { background: #1e293b; padding: 8px 16px; border-radius: 20px; font-weight: bold; color: #fbbf24; border: 1px solid #334155; }
+
+/* 🆕 加载动画样式 */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 0;
+  color: #64748b;
+}
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(239, 68, 68, 0.2);
+  border-top-color: #ef4444;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 15px;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 
 .games-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 
