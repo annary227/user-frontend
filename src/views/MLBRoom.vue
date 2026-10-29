@@ -40,14 +40,14 @@
               <span class="team-label away-label">客</span>
               <div class="team-info">
                 <div class="team-badge-box">
-                  <!-- 使用组件内的状态控制，避免直接操作 DOM -->
+                  <!-- 🆕 优先尝试显示官方队徽 -->
                   <img 
-                    v-if="getTeamLogo(game.away_team) && !awayImgError" 
+                    v-if="getTeamLogo(game.away_team)" 
                     :src="getTeamLogo(game.away_team)" 
                     class="team-logo-img"
                     alt="logo"
-                    @error="awayImgError = true"
                   />
+                  <!-- 如果没有官方队徽，显示日文首字/英文首字母的渐变徽章 -->
                   <div 
                     v-else 
                     class="team-badge-fallback" 
@@ -68,11 +68,10 @@
               <div class="team-info">
                 <div class="team-badge-box">
                   <img 
-                    v-if="getTeamLogo(game.home_team) && !homeImgError" 
+                    v-if="getTeamLogo(game.home_team)" 
                     :src="getTeamLogo(game.home_team)" 
                     class="team-logo-img"
                     alt="logo"
-                    @error="homeImgError = true"
                   />
                   <div 
                     v-else 
@@ -126,10 +125,6 @@ const userBalance = ref(0);
 const isLoading = ref(true); 
 let pollTimer = null;
 
-// 🆕 用于记录图片加载是否失败
-const awayImgError = ref(false);
-const homeImgError = ref(false);
-
 // Toast 提示状态
 const toast = reactive({ show: false, msg: '' });
 const showToast = (msg) => {
@@ -144,6 +139,7 @@ const showToast = (msg) => {
 
 // 1. 英文队名 -> 官方队徽链接 (MLB 官方 CDN)
 const teamLogos = {
+  // 3A
   "Syracuse Mets": "https://www.mlbstatic.com/team-logos/552.svg",
   "Scranton/Wilkes-Barre RailRiders": "https://www.mlbstatic.com/team-logos/531.svg",
   "Toledo Mud Hens": "https://www.mlbstatic.com/team-logos/533.svg",
@@ -172,6 +168,7 @@ const teamLogos = {
   "Las Vegas Aviators": "https://www.mlbstatic.com/team-logos/243.svg",
   "Sugar Land Space Cowboys": "https://www.mlbstatic.com/team-logos/244.svg",
   "St. Paul Saints": "https://www.mlbstatic.com/team-logos/245.svg",
+  // 2A (部分)
   "Somerset Patriots": "https://www.mlbstatic.com/team-logos/1956.svg",
   "Reading Fightin Phils": "https://www.mlbstatic.com/team-logos/1961.svg",
   "Hartford Yard Goats": "https://www.mlbstatic.com/team-logos/1963.svg",
@@ -186,7 +183,7 @@ const teamLogos = {
   "Bowie Baysox": "https://www.mlbstatic.com/team-logos/1965.svg"
 };
 
-// 2. 日文队名 -> 英文队名 的反向映射
+// 2. 日文队名 -> 英文队名 的反向映射（兼容后端返回日文的情况）
 const jaToEnMap = {
   "ミルウォーキー・ブルワーズ": "Milwaukee Brewers",
   "タンパベイ・レイズ": "Tampa Bay Rays",
@@ -218,6 +215,7 @@ const jaToEnMap = {
   "アリゾナ・ダイヤモンドバックス": "Arizona Diamondbacks",
   "マイアミ・マーリンズ": "Miami Marlins",
   "ワシントン・ナショナルズ": "Washington Nationals",
+  // 3A
   "シラキュース・メッツ": "Syracuse Mets",
   "スクラントン・レイルライダース": "Scranton/Wilkes-Barre RailRiders",
   "トレド・マッドヘンズ": "Toledo Mud Hens",
@@ -251,7 +249,9 @@ const jaToEnMap = {
 // 3. 终极获取队徽函数（兼容日英双语）
 const getTeamLogo = (teamName) => {
   if (!teamName) return null;
+  // 先看看是不是日文，如果是，反查出对应的英文名
   const englishName = jaToEnMap[teamName] || teamName;
+  // 再去查官方队徽
   return teamLogos[englishName] || null;
 };
 
@@ -297,10 +297,6 @@ const fetchGames = async () => {
     } else {
       games.value = []; 
     }
-    // 🆕 每次刷新列表时重置图片错误状态
-    awayImgError.value = false;
-    homeImgError.value = false;
-    
   } catch (error) {
     console.error("取得失敗", error);
     games.value = []; 
