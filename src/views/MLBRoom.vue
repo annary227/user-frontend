@@ -40,14 +40,13 @@
               <span class="team-label away-label">ビジター</span>
               <div class="team-info">
                 <div class="team-badge-box">
-                  <!-- 🆕 优先尝试显示官方队徽 -->
+                  <!-- 🆕 只有验证通过的图片才会渲染 -->
                   <img 
-                    v-if="getTeamLogo(game.away_team)" 
-                    :src="getTeamLogo(game.away_team)" 
+                    v-if="game.awayLogo" 
+                    :src="game.awayLogo" 
                     class="team-logo-img"
                     alt="logo"
                   />
-                  <!-- 如果没有官方队徽，显示日文首字/英文首字母的渐变徽章 -->
                   <div 
                     v-else 
                     class="team-badge-fallback" 
@@ -67,9 +66,10 @@
               <span class="team-label home-label">ホーム</span>
               <div class="team-info">
                 <div class="team-badge-box">
+                  <!-- 🆕 只有验证通过的图片才会渲染 -->
                   <img 
-                    v-if="getTeamLogo(game.home_team)" 
-                    :src="getTeamLogo(game.home_team)" 
+                    v-if="game.homeLogo" 
+                    :src="game.homeLogo" 
                     class="team-logo-img"
                     alt="logo"
                   />
@@ -157,7 +157,8 @@ const teamLogos = {
   "Memphis Redbirds": "https://www.mlbstatic.com/team-logos/553.svg",
   "Iowa Cubs": "https://www.mlbstatic.com/team-logos/502.svg",
   "Oklahoma City Baseball Club": "https://www.mlbstatic.com/team-logos/238.svg",
-  "Sacramento River Cats": "https://www.mlbstatic.com/team-logos/257.svg",
+  // 🆕 替换失效的 257.svg
+  "Sacramento River Cats": "https://upload.wikimedia.org/wikipedia/en/thumb/8/8d/Sacramento_River_Cats_logo.svg/512px-Sacramento_River_Cats_logo.svg.png",
   "Round Rock Express": "https://www.mlbstatic.com/team-logos/235.svg",
   "Salt Lake Bees": "https://www.mlbstatic.com/team-logos/236.svg",
   "Tacoma Rainiers": "https://www.mlbstatic.com/team-logos/237.svg",
@@ -183,7 +184,7 @@ const teamLogos = {
   "Bowie Baysox": "https://www.mlbstatic.com/team-logos/1965.svg"
 };
 
-// 2. 日文队名 -> 英文队名 的反向映射（兼容后端返回日文的情况）
+// 2. 日文队名 -> 英文队名 的反向映射
 const jaToEnMap = {
   "ミルウォーキー・ブルワーズ": "Milwaukee Brewers",
   "タンパベイ・レイズ": "Tampa Bay Rays",
@@ -246,16 +247,14 @@ const jaToEnMap = {
   "セントポール・セインツ": "St. Paul Saints"
 };
 
-// 3. 终极获取队徽函数（兼容日英双语）
+// 3. 终极获取队徽函数
 const getTeamLogo = (teamName) => {
   if (!teamName) return null;
-  // 先看看是不是日文，如果是，反查出对应的英文名
   const englishName = jaToEnMap[teamName] || teamName;
-  // 再去查官方队徽
   return teamLogos[englishName] || null;
 };
 
-// 4. 兜底：提取首字母 (支持英文转大写，日文取首字)
+// 4. 兜底：提取首字母
 const getTeamInitial = (teamName) => {
   if (!teamName) return '?';
   const isEnglish = /^[A-Za-z]/.test(teamName);
@@ -271,6 +270,18 @@ const getTeamColor = (teamName) => {
   }
   const h = Math.abs(hash) % 360;
   return `linear-gradient(135deg, hsl(${h}, 80%, 50%), hsl(${h + 30}, 80%, 30%))`;
+};
+
+// 🆕 核心逻辑：在后台偷偷探测图片是否有效
+const validateLogo = (teamName) => {
+  return new Promise((resolve) => {
+    const url = getTeamLogo(teamName);
+    if (!url) return resolve(null); // 字典里没有，直接返回空
+    const img = new Image();
+    img.onload = () => resolve(url); // 图片有效，返回真实链接
+    img.onerror = () => resolve(null); // 图片404，返回空（前端自动渲染字母徽章）
+    img.src = url;
+  });
 };
 
 // 格式化日本时间函数
@@ -290,13 +301,20 @@ const fetchGames = async () => {
   try {
     const res = await request.get('/mlb/current');
     
+    let rawGames = [];
     if (res.data && res.data.success) {
-      games.value = res.data.data;
+      rawGames = res.data.data;
     } else if (Array.isArray(res.data)) {
-      games.value = res.data;
-    } else {
-      games.value = []; 
+      rawGames = res.data;
     }
+
+    // 🆕 在渲染前，并发验证主客队的图片是否有效，彻底杜绝裂图
+    games.value = await Promise.all(rawGames.map(async (g) => {
+      const awayLogo = await validateLogo(g.away_team);
+      const homeLogo = await validateLogo(g.home_team);
+      return { ...g, awayLogo, homeLogo };
+    }));
+
   } catch (error) {
     console.error("取得失敗", error);
     games.value = []; 
@@ -337,7 +355,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* 沿用之前的暗黑电竞风格 */
+/* 样式完全保留 */
 .mlb-room-layout {
   font-family: 'Noto Sans JP', 'Helvetica Neue', Arial, sans-serif;
   background: #0b1120;
@@ -351,7 +369,6 @@ onUnmounted(() => {
 .room-header h2 { margin: 0; color: #ef4444; font-size: 22px; }
 .balance-box { background: #1e293b; padding: 8px 16px; border-radius: 20px; font-weight: bold; color: #fbbf24; border: 1px solid #334155; }
 
-/* 加载动画样式 */
 .loading-state {
   display: flex;
   flex-direction: column;
@@ -374,7 +391,6 @@ onUnmounted(() => {
 }
 
 .games-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-
 .match-card { background: #1e293b; border-radius: 12px; border: 1px solid #334155; cursor: pointer; transition: all 0.2s; overflow: hidden; }
 .match-card:hover { transform: translateY(-5px); border-color: #ef4444; box-shadow: 0 10px 20px rgba(239,68,68,0.15); }
 
@@ -384,17 +400,13 @@ onUnmounted(() => {
 .live-dot { width: 8px; height: 8px; background: #ef4444; border-radius: 50%; animation: pulse-dot 1s infinite alternate; }
 @keyframes pulse-dot { 0% { opacity: 1; } 100% { opacity: 0.3; } }
 
-/* 队伍展示区排版 */
 .teams-display { padding: 15px; display: flex; flex-direction: column; align-items: center; gap: 10px; background: #0f172a; }
 .team-row { display: flex; align-items: center; width: 100%; gap: 10px; font-size: 15px; font-weight: bold; }
 .team-label { font-size: 11px; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; }
 .away-label { background: #3b82f6; color: white; }
 .home-label { background: #ef4444; color: white; }
 
-/* 队伍信息容器 (队徽 + 队名) */
 .team-info { display: flex; align-items: center; gap: 10px; flex: 1; }
-
-/* 队徽外框 */
 .team-badge-box {
   width: 34px; 
   height: 34px; 
@@ -406,14 +418,12 @@ onUnmounted(() => {
   align-items: center; 
   flex-shrink: 0;
 }
-/* 官方队徽图片 */
 .team-logo-img {
   width: 26px; 
   height: 26px; 
   object-fit: contain; 
   filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
 }
-/* 兜底：首字母渐变色徽章 */
 .team-badge-fallback {
   width: 100%; 
   height: 100%; 
@@ -436,7 +446,6 @@ onUnmounted(() => {
 
 .empty-state { text-align: center; padding: 50px; color: #64748b; background: #1e293b; border-radius: 12px; border: 1px dashed #334155; }
 
-/* Toast 提示样式 */
 .custom-toast {
   position: fixed; top: 30px; left: 50%; transform: translateX(-50%);
   padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: bold;
