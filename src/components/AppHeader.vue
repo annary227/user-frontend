@@ -3,15 +3,13 @@
     <!-- 顶部滚动播报条 -->
     <div class="ticker-banner">
       <div class="ticker-label">
-        <span class="dot"></span> 当せん速報
+        <span class="dot"></span> ⚾ 試合速報
       </div>
       <div class="ticker-content">
         <Transition name="slide-up" mode="out-in">
-          <div class="news-item" :key="currentNews.id">
-            <span class="time">{{ currentNews.time }}</span>
-            <span class="name">{{ currentNews.name }} さん</span> が 
-            <span class="game">{{ currentNews.game }}</span> で 
-            <span class="prize">{{ currentNews.prize }}</span> を獲得しました！
+          <!-- 🆕 绑定点击事件，点击直达比赛下注页 -->
+          <div class="news-item" :key="currentNews.id" @click="goToGame(currentNews.game_pk)" :class="{ 'clickable': currentNews.game_pk }">
+            <span class="text">{{ currentNews.text }}</span>
           </div>
         </Transition>
       </div>
@@ -127,7 +125,6 @@ const checkCheckInStatus = async () => {
   userId.value = user.id;
 
   try {
-    // 🆕 每次进页面都去请求后端，彻底防刷
     const res = await request.get(`/user/checkin-status/${user.id}`);
     if (res.data.success) {
       isCheckedIn.value = res.data.hasCheckedIn;
@@ -145,8 +142,6 @@ const handleCheckIn = async () => {
     
     if (res.data.success) {
       ElMessage.success(res.data.message || 'チェックイン成功！50円を獲得しました！');
-      
-      // 🆕 成功后不需要再存 localStorage 了，直接改状态即可
       isCheckedIn.value = true;
       userBalance.value += 50; 
     }
@@ -156,50 +151,41 @@ const handleCheckIn = async () => {
 };
 
 // ==========================================
-// 🆕 播报系统逻辑
+// 🆕 棒球比赛速报逻辑 (替换原来的假抽奖播报)
 // ==========================================
-const currentNews = ref({ id: 0, time: '14:03', name: 'ゲスト', game: 'ゲーム', prize: '10円' });
-let timer = null;
+const currentNews = ref({ id: 0, text: '⚾ まもなく新しい試合が発表されます。お楽しみに！', game_pk: null });
+let tickerTimer = null;
+let currentIndex = 0;
+let tickerDataList = [];
 
-const randomNames = ['タカシ', 'ユウキ', 'ミキ', 'サクラ', 'リョウ', 'アヤ', 'ケンタ', 'ユナ', 'ソウタ', 'ハルカ', 'ケビン', 'マイケル', 'ジョン', 'エミリ'];
-const gameNames = ['金魚すくい', 'ダーツチャレンジ', 'クレーンゲーム', 'ガチャポン', 'スクラッチ', 'ルーレット', '宝探し', 'スロット'];
-
-const prizeWeights = [
-  { name: '10円', weight: 40 },     
-  { name: '50円', weight: 25 },     
-  { name: '100円', weight: 15 },    
-  { name: '200円', weight: 8 },     
-  { name: '500円', weight: 5 },     
-  { name: '1,000円', weight: 3 },   
-  { name: '10,000円', weight: 1.5 }, 
-  { name: '100,000円', weight: 0.5 },
-  { name: '200万円', weight: 0.01 }, 
-  { name: '500万円', weight: 0.005 }
-];
-
-const getRandomPrize = () => {
-  const totalWeight = prizeWeights.reduce((sum, item) => sum + item.weight, 0);
-  let random = Math.random() * totalWeight;
-  for (let i = 0; i < prizeWeights.length; i++) {
-    if (random < prizeWeights[i].weight) {
-      return prizeWeights[i].name;
-    }
-    random -= prizeWeights[i].weight;
-  }
-  return prizeWeights[0].name;
+// 点击速报跳转逻辑
+const goToGame = (gamePk) => {
+  if (!gamePk) return;
+  router.push(`/mlb/detail/${gamePk}`);
 };
 
-const generateNews = () => {
-  const now = new Date();
-  const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-  
-  currentNews.value = {
-    id: Date.now(), 
-    time: timeStr,
-    name: randomNames[Math.floor(Math.random() * randomNames.length)],
-    game: gameNames[Math.floor(Math.random() * gameNames.length)],
-    prize: getRandomPrize()
-  };
+// 获取真实比赛速报
+const fetchTickerData = async () => {
+  try {
+    const res = await request.get('/mlb/ticker');
+    if (res.data.success && res.data.data.length > 0) {
+      tickerDataList = res.data.data;
+      // 如果是从未加载过，初始化一条
+      if (currentNews.value.id === 0) {
+        currentNews.value = { ...tickerDataList[0], id: Date.now() };
+      }
+    }
+  } catch (error) {
+    console.error('获取速报失败', error);
+  }
+};
+
+// 轮播切换逻辑
+const rotateNews = () => {
+  if (tickerDataList.length === 0) return;
+  currentIndex = (currentIndex + 1) % tickerDataList.length;
+  const nextNews = tickerDataList[currentIndex];
+  currentNews.value = { ...nextNews, id: Date.now() };
 };
 
 // ==========================================
@@ -254,8 +240,12 @@ const submitWithdraw = async () => {
 // 生命周期管理
 // ==========================================
 onMounted(async () => {
-  generateNews();
-  timer = setInterval(generateNews, 3500);
+  // 🆕 初始化速报
+  await fetchTickerData();
+  // 每 5 秒切换一条速报
+  tickerTimer = setInterval(rotateNews, 5000);
+  // 每 60 秒去后端拉一次最新数据（更新倒计时）
+  setInterval(fetchTickerData, 60000);
 
   const storedUser = localStorage.getItem('user');
   if (!storedUser) return;
@@ -268,10 +258,8 @@ onMounted(async () => {
     userBalance.value = user.balance;
   }
   
-  // 🆕 获取真实的签到状态
   checkCheckInStatus();
 
-  // 🆕 启动未读消息轮询
   checkUnread();
   unreadTimer = setInterval(checkUnread, 5000);
 
@@ -294,7 +282,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
-  if (timer) clearInterval(timer);
+  if (tickerTimer) clearInterval(tickerTimer);
   if (unreadTimer) clearInterval(unreadTimer); 
 });
 </script>
@@ -307,10 +295,12 @@ onUnmounted(() => {
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 .ticker-content { flex: 1; padding-left: 20px; position: relative; height: 100%; display: flex; align-items: center; }
 .news-item { position: absolute; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
-.news-item .time { color: #64748b; font-size: 12px; }
-.news-item .name { color: #38bdf8; font-weight: bold; }
-.news-item .game { color: #cbd5e1; }
-.news-item .prize { color: #fde047; font-weight: bold; font-size: 14px; }
+
+/* 🆕 速报文字和可点击样式 */
+.news-item .text { color: #e2e8f0; letter-spacing: 0.5px; }
+.news-item.clickable { cursor: pointer; }
+.news-item.clickable:hover .text { color: #38bdf8; text-decoration: underline; }
+
 .slide-up-enter-active, .slide-up-leave-active { transition: all 0.5s ease; }
 .slide-up-enter-from { opacity: 0; transform: translateY(20px); }
 .slide-up-leave-to { opacity: 0; transform: translateY(-20px); }
@@ -375,7 +365,6 @@ onUnmounted(() => {
   .ticker-label { padding: 0 10px; font-size: 12px; clip-path: none; }
   .ticker-content { padding-left: 10px; font-size: 12px; }
   .news-item { gap: 5px; }
-  .news-item .prize { font-size: 13px; }
   .top-header { padding: 10px 15px; flex-direction: column; gap: 12px; }
   .logo-area { width: 100%; justify-content: center; }
   .logo-text p { display: none; }
