@@ -146,18 +146,19 @@ const userBalance = ref(0);
 const liveMessages = ref([]);
 let pollTimer = null;
 
-// 🆕 最常规的整场比分选项 (注意：格式是 客队分数:主队分数)
+// 🆕 修复：校正了客主队比分顺序
+// key 是存入数据库的值 (客队:主队)，label 是前端显示的文字
 const scoreOptions = ref([
-  { key: '1:0', label: '0 - 1 (主勝)', odds: 3.0 }, // 客0 主1
-  { key: '0:1', label: '1 - 0 (客勝)', odds: 3.0 }, // 客1 主0
-  { key: '2:0', label: '0 - 2 (主勝)', odds: 4.5 },
-  { key: '0:2', label: '2 - 0 (客勝)', odds: 4.5 },
-  { key: '2:1', label: '1 - 2 (主勝)', odds: 4.0 },
-  { key: '1:2', label: '2 - 1 (客勝)', odds: 4.0 },
-  { key: '3:1', label: '1 - 3 (主勝)', odds: 6.0 },
-  { key: '1:3', label: '3 - 1 (客勝)', odds: 6.0 },
-  { key: '3:2', label: '2 - 3 (主勝)', odds: 5.5 },
-  { key: '2:3', label: '3 - 2 (客勝)', odds: 5.5 },
+  { key: '0:1', label: '0 - 1 (主勝)', odds: 3.0 }, // 客0 主1
+  { key: '1:0', label: '1 - 0 (客勝)', odds: 3.0 }, // 客1 主0
+  { key: '0:2', label: '0 - 2 (主勝)', odds: 4.5 },
+  { key: '2:0', label: '2 - 0 (客勝)', odds: 4.5 },
+  { key: '1:2', label: '1 - 2 (主勝)', odds: 4.0 },
+  { key: '2:1', label: '2 - 1 (客勝)', odds: 4.0 },
+  { key: '1:3', label: '1 - 3 (主勝)', odds: 6.0 },
+  { key: '3:1', label: '3 - 1 (客勝)', odds: 6.0 },
+  { key: '2:3', label: '2 - 3 (主勝)', odds: 5.5 },
+  { key: '3:2', label: '3 - 2 (客勝)', odds: 5.5 },
   { key: 'other', label: 'その他 (其他比分)', odds: 4.0 }
 ]);
 
@@ -254,7 +255,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 </script>
 
 <style scoped>
-/* ---------------- 样式全量保留，仅新增比分网格样式 ---------------- */
+/* ---------------- 样式全量保留 ---------------- */
 .mlb-match-detail { font-family: 'Noto Sans JP', sans-serif; background: #0b1120; min-height: 100vh; color: #f8fafc; }
 .main-content { max-width: 800px; margin: 0 auto; padding: 20px; }
 
@@ -295,13 +296,12 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 .away-btn .odds { color: #3b82f6; font-size: 20px; }
 .home-btn .odds { color: #ef4444; font-size: 20px; }
 
-/* 🆕 最终比分网格 */
+/* 最终比分网格 */
 .score-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .score-btn { background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 15px 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: all 0.2s; color: white; }
 .score-btn:hover { background: #334155; border-color: #ef4444; transform: translateY(-2px); }
 .score-label { font-weight: bold; font-size: 15px; color: #e2e8f0; }
 .score-odds { font-size: 13px; font-weight: bold; color: #fbbf24; background: rgba(251, 191, 36, 0.1); padding: 2px 8px; border-radius: 6px; }
-/* 🆕 其他比分按钮专属样式 */
 .other-btn { border-color: #64748b; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); }
 .other-btn:hover { border-color: #3b82f6; }
 
