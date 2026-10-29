@@ -37,7 +37,7 @@
           <div class="teams-display">
             <!-- 客队 -->
             <div class="team-row">
-              <span class="team-label away-label">客</span>
+              <span class="team-label away-label">ビジター</span>
               <div class="team-info">
                 <div class="team-badge-box">
                   <!-- 🆕 优先尝试显示官方队徽 -->
@@ -64,7 +64,7 @@
 
             <!-- 主队 -->
             <div class="team-row">
-              <span class="team-label home-label">主</span>
+              <span class="team-label home-label">ホーム</span>
               <div class="team-info">
                 <div class="team-badge-box">
                   <img 
