@@ -36,11 +36,9 @@
         <div class="menu-item" @click="showWithdrawHistoryModal = true">
           <span>出金履歴</span><span class="arrow">›</span>
         </div>
-        <!-- 游戏记录入口 -->
         <div class="menu-item" @click="showGameHistoryModal = true">
           <span>ゲーム購入履歴</span><span class="arrow">›</span>
         </div>
-        <!-- 棒球记录入口 -->
         <div class="menu-item" @click="showMlbHistoryModal = true">
           <span>MLB ベッティング履歴</span><span class="arrow">›</span>
         </div>
@@ -203,9 +201,11 @@
                   <p class="h-title">{{ record.title }}</p>
                   <p class="h-time">{{ formatTime(record.created_at) }}</p>
                 </div>
-                <span class="h-amount" :class="record.result === 'won' ? 'text-green' : (record.result === 'lost' ? 'text-red' : 'text-orange')">
+                <!-- 🆕 金额显示：加入已取消的退款状态 -->
+                <span class="h-amount" :class="record.result === 'won' ? 'text-green' : (record.result === 'lost' ? 'text-red' : (record.result === 'canceled' ? 'text-gray' : 'text-orange'))">
                   <template v-if="record.result === 'won'">+ ¥{{ Math.floor(record.payout).toLocaleString() }}</template>
                   <template v-else-if="record.result === 'lost'">- ¥{{ record.amount.toLocaleString() }}</template>
+                  <template v-else-if="record.result === 'canceled'">返金 ¥{{ record.amount.toLocaleString() }}</template>
                   <template v-else>結果待ち</template>
                 </span>
               </div>
@@ -218,13 +218,14 @@
                   <span style="color: #64748b;">
                     予想: 
                     <strong style="color: #ef4444;">
-                      <!-- 🆕 修改这里：直接读取后端计算好的日文队伍名称 -->
                       {{ record.selected_team_name || (record.bet_selection === 'home' ? '主隊勝利' : '客隊勝利') }}
                     </strong>
                   </span>
                   <span style="color: #64748b;">
                     最終: 
-                    <strong v-if="record.result === 'pending' || !record.actual_score || record.actual_score === '-' || record.actual_score === '0:0'" style="color: #f59e0b;">結果待ち</strong>
+                    <!-- 🆕 状态显示：加入比赛取消的提示 -->
+                    <strong v-if="record.result === 'canceled'" style="color: #94a3b8;">試合中止 (返金済み)</strong>
+                    <strong v-else-if="record.result === 'pending' || !record.actual_score || record.actual_score === '-' || record.actual_score === '0:0'" style="color: #f59e0b;">結果待ち</strong>
                     <strong v-else style="color: #3b82f6;">{{ record.actual_score }}</strong>
                   </span>
                 </template>
@@ -238,7 +239,11 @@
                     </strong>
                   </span>
                   <span style="color: #64748b;">
-                    <template v-if="record.result === 'pending' || !record.actual_score || record.actual_score === '-' || record.actual_score === '0:0'">
+                    <!-- 🆕 状态显示：加入比赛取消的提示 -->
+                    <template v-if="record.result === 'canceled'">
+                      結果: <strong style="color: #94a3b8;">試合中止 (返金済み)</strong>
+                    </template>
+                    <template v-else-if="record.result === 'pending' || !record.actual_score || record.actual_score === '-' || record.actual_score === '0:0'">
                       結果: <strong style="color: #f59e0b;">結果待ち</strong>
                     </template>
                     <template v-else>
