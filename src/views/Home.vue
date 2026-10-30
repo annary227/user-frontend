@@ -103,12 +103,7 @@
       </div>
     </main>
 
-    <!-- 悬浮私聊大厅按钮 -->
-    <div class="social-toggle" @click="$router.push('/social')">
-      <div class="social-inner">💬</div>
-    </div>
-
-    <!-- 悬浮音乐开关 -->
+    <!-- 🆕 悬浮音乐开关 (已挪到左下角，避免和客服图标打架) -->
     <div class="music-toggle" @click="toggleMusic">
       <div class="music-inner" :class="{ 'is-playing': isPlaying }">
         {{ isPlaying ? '🔊' : '🔇' }}
@@ -381,11 +376,29 @@ onMounted(async () => {
 }
 
 /* ---------------- 悬浮按钮 ---------------- */
-.social-toggle { position: fixed; bottom: 105px; right: 30px; width: 60px; height: 60px; background: #3b82f6; border: 1px solid #60a5fa; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3); z-index: 999; transition: all 0.3s; }
-.social-toggle:hover { transform: scale(1.1) translateY(-5px); box-shadow: 0 15px 30px rgba(59, 130, 246, 0.5); border-color: #93c5fd; }
-.social-inner { font-size: 26px; transition: all 0.3s; }
-.music-toggle { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; background: #1e293b; border: 1px solid #334155; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; box-shadow: 0 10px 25px rgba(0,0,0,0.2); z-index: 999; transition: all 0.3s; }
-.music-toggle:hover { transform: scale(1.1) translateY(-5px); box-shadow: 0 15px 30px rgba(232, 56, 98, 0.3); border-color: #e83862; }
+/* 🆕 音乐开关：已挪到左下角，避免和 tawk.to 右下角重叠 */
+.music-toggle { 
+  position: fixed; 
+  bottom: 30px; 
+  left: 30px; 
+  width: 60px; 
+  height: 60px; 
+  background: #1e293b; 
+  border: 1px solid #334155; 
+  border-radius: 50%; 
+  display: flex; 
+  justify-content: center; 
+  align-items: center; 
+  cursor: pointer; 
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2); 
+  z-index: 999; 
+  transition: all 0.3s; 
+}
+.music-toggle:hover { 
+  transform: scale(1.1) translateY(-5px); 
+  box-shadow: 0 15px 30px rgba(232, 56, 98, 0.3); 
+  border-color: #e83862; 
+}
 .music-inner { font-size: 26px; transition: all 0.3s; }
 
 /* ---------------- 手机端适配 ---------------- */
@@ -397,7 +410,6 @@ onMounted(async () => {
   .luxury-folder.is-open { grid-column: span 1; }
   .game-grid { grid-template-columns: 1fr; }
   .luxury-folder, .luxury-mlb-card { min-height: 180px; padding: 18px; }
-  .social-toggle { bottom: 85px; right: 20px; width: 50px; height: 50px; }
-  .music-toggle { bottom: 20px; right: 20px; width: 50px; height: 50px; }
+  .music-toggle { bottom: 20px; left: 20px; width: 50px; height: 50px; }
 }
 </style>
