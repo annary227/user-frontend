@@ -225,7 +225,7 @@
           <div class="info-screen">
             <p class="desc">{{ gameDesc }}</p>
             
-            <!-- 🆕 全新跑马灯 -->
+            <!-- 🆕 黑金影院级跑马灯 -->
             <div class="marquee-board" v-if="marqueePrizes.length > 0">
               <div class="marquee-scroll">
                 <div 
@@ -238,11 +238,14 @@
                     'is-lose': currentMarqueeIndex === index && !isDrawing && result && result.value === 0
                   }"
                 >
-                  <span class="name">{{ translateName(prize.name) }}</span>
-                  <span class="divider" v-if="prize.value > 0"></span>
-                  <span class="value" v-if="prize.value > 0">¥{{ prize.value.toLocaleString() }}</span>
+                  <span class="marquee-prefix" v-if="prize.value > 0">¥</span>
+                  <span class="marquee-text">{{ prize.value === 0 ? 'ハズレ' : formatPrize(prize.value) }}</span>
                 </div>
               </div>
+              
+              <!-- 两侧的黑金渐变遮罩，营造空间感 -->
+              <div class="marquee-fade left"></div>
+              <div class="marquee-fade right"></div>
             </div>
 
             <div class="balance-display" style="margin-top: 15px;">
@@ -1007,54 +1010,111 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .ticket-leave-to { opacity: 0; }
 @keyframes ticketDrop { 0% { transform: translateY(-50px) scale(0.9); opacity: 0; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
 
-/* 🆕 优化后的跑马灯样式 */
+/* 🆕 黑金影院级跑马灯 */
 .marquee-board { 
   width: 100%; 
-  margin-top: 15px; 
-  padding: 10px; 
-  background: rgba(0, 0, 0, 0.3); 
-  border-radius: 12px; 
-  border: 1px solid rgba(255, 255, 255, 0.1); 
+  margin-top: 20px; 
+  padding: 16px 0; 
+  background: linear-gradient(180deg, #050505 0%, #111111 50%, #050505 100%);
+  border-radius: 4px; 
+  border-top: 1px solid rgba(255, 215, 0, 0.15); 
+  border-bottom: 1px solid rgba(255, 215, 0, 0.15);
+  box-shadow: inset 0 10px 20px rgba(0, 0, 0, 0.8), inset 0 -10px 20px rgba(0, 0, 0, 0.8);
   overflow: hidden; 
   box-sizing: border-box; 
+  position: relative;
 }
+
 .marquee-scroll { 
   display: flex; 
   flex-wrap: nowrap; 
-  gap: 8px; 
+  gap: 40px; 
   overflow-x: auto; 
-  padding-bottom: 5px; 
+  padding: 0 30px; 
   scrollbar-width: none;
+  align-items: baseline; 
 }
 .marquee-scroll::-webkit-scrollbar { display: none; }
+
 .marquee-item { 
   flex-shrink: 0; 
   display: flex;
-  align-items: center;
-  background: #1e293b; 
-  color: #cbd5e1; 
-  padding: 6px 12px; 
-  border-radius: 20px; 
-  font-size: 12px; 
-  font-weight: bold; 
-  transition: all 0.2s; 
-  border: 2px solid transparent; 
+  align-items: baseline;
+  gap: 2px;
+  transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+  opacity: 0.25; 
+  filter: grayscale(100%);
 }
-.marquee-item .name { color: #94a3b8; font-size: 11px; }
-.marquee-item .divider { width: 1px; height: 10px; background: #475569; margin: 0 6px; }
-.marquee-item .value { color: #fbbf24; font-family: monospace; font-size: 13px; }
-.marquee-item.is-active { background: #e83862; color: white; transform: scale(1.05); box-shadow: 0 0 15px rgba(232, 56, 98, 0.6); z-index: 10; }
-.marquee-item.is-active .name { color: #fce4e8; }
-.marquee-item.is-active .divider { background: rgba(255,255,255,0.3); }
-.marquee-item.is-active .value { color: white; }
-.marquee-item.is-active.is-win { background: linear-gradient(135deg, #fde047, #eab308); border-color: #fff; box-shadow: 0 0 20px rgba(253, 224, 71, 0.8); animation: win-pulse 1.5s infinite alternate; }
-.marquee-item.is-active.is-win .name { color: #854d0e; }
-.marquee-item.is-active.is-win .divider { background: #ca8a04; }
-.marquee-item.is-active.is-win .value { color: #b45309; }
-.marquee-item.is-active.is-lose { background: #475569; color: white; border-color: #cbd5e1; }
-.marquee-item.is-active.is-lose .name { color: #cbd5e1; }
-.marquee-item.is-active.is-lose .value { color: white; }
-@keyframes win-pulse { 0% { transform: scale(1.05); } 100% { transform: scale(1.1); } }
+.marquee-item .marquee-prefix {
+  font-size: 10px;
+  color: #888;
+  font-family: 'Helvetica Neue', sans-serif;
+}
+.marquee-item .marquee-text {
+  color: #aaaaaa; 
+  font-size: 15px; 
+  font-weight: 500; 
+  font-family: 'Helvetica Neue', 'Noto Sans JP', serif;
+  letter-spacing: 2px;
+}
+
+.marquee-item.is-active { 
+  opacity: 1; 
+  filter: grayscale(0%);
+  transform: translateY(-4px) scale(1.1);
+}
+.marquee-item.is-active .marquee-prefix {
+  color: #fbbf24;
+  text-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
+}
+.marquee-item.is-active .marquee-text {
+  color: #ffffff;
+  font-weight: 900;
+  text-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.8),
+    0 0 10px rgba(251, 191, 36, 0.6),
+    0 0 20px rgba(251, 191, 36, 0.3);
+  animation: cinema-pulse 2s infinite alternate;
+}
+
+.marquee-item.is-active.is-win .marquee-text {
+  color: #fef08a;
+  text-shadow: 
+    0 0 15px #fde047,
+    0 0 30px #eab308,
+    0 0 50px #ca8a04;
+  font-size: 20px;
+  letter-spacing: 3px;
+}
+
+.marquee-item.is-active.is-lose .marquee-text {
+  color: #64748b;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+  animation: none;
+  font-weight: 500;
+}
+
+@keyframes cinema-pulse {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-2px); }
+}
+
+.marquee-fade {
+  position: absolute;
+  top: 0;
+  width: 60px;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+}
+.marquee-fade.left {
+  left: 0;
+  background: linear-gradient(to right, #050505 0%, transparent 100%);
+}
+.marquee-fade.right {
+  right: 0;
+  background: linear-gradient(to left, #050505 0%, transparent 100%);
+}
 
 @media (max-width: 768px) {
   .floating-back-btn { top: 50px; left: 15px; padding: 6px 12px; font-size: 13px; }
