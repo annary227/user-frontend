@@ -23,8 +23,9 @@
         </div>
       </div>
 
-      <!-- 2. 出金按钮 -->
-      <div class="quick-actions">
+      <!-- 2. 快捷操作按钮 -->
+      <div class="quick-actions" style="display: flex; gap: 12px;">
+        <button class="action-btn deposit-btn" @click="openDepositModal">入金を申請する</button>
         <button class="action-btn primary" @click="handleWithdrawClick">出金を申請する</button>
       </div>
 
@@ -62,6 +63,25 @@
         </div>
       </div>
     </main>
+
+    <!-- ================= 🆕 弹窗：入金申请 ================= -->
+    <Transition name="modal">
+      <div v-if="showDepositRequestModal" class="modal-overlay">
+        <div class="modal-card">
+          <h3>ご入金手続き</h3>
+          <p class="sub">ご希望の入金金額をご入力ください。</p>
+          <div class="form-group">
+            <input v-model.number="depositAmount" type="number" placeholder="" />
+          </div>
+          <div class="modal-actions">
+            <button class="cancel" @click="showDepositRequestModal = false">キャンセル</button>
+            <button class="confirm blue-btn" :disabled="isDepositing" @click="submitDeposit">
+              {{ isDepositing ? '送信中...' : '確認してサポートへ' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
 
     <!-- ================= 弹窗：两步认证 ================= -->
     <Transition name="modal">
@@ -108,7 +128,7 @@
         <div class="modal-card">
           <h3>出金申請</h3>
           <div class="form-group">
-            <input v-model.number="withdrawAmount" type="number" placeholder="出金金額を入力してください" />
+            <input v-model.number="withdrawAmount" type="number" placeholder="" />
           </div>
           <div class="modal-actions">
             <button class="cancel" @click="showWithdrawModal = false">キャンセル</button>
@@ -118,7 +138,7 @@
       </div>
     </Transition>
 
-    <!-- ================= 弹窗：入金履历 ================= -->
+    <!-- ================= 弹窗：入金履历 (包含审核状态) ================= -->
     <Transition name="modal">
       <div v-if="showDepositModal" class="modal-overlay">
         <div class="modal-card">
@@ -127,10 +147,16 @@
             <div v-if="deposits.length === 0" class="empty">履歴はありません</div>
             <div v-for="item in deposits" :key="item.id" class="history-item">
               <div>
-                <p class="h-title">入金</p>
+                <p class="h-title">入金申請</p>
                 <p class="h-time">{{ formatTime(item.created_at) }}</p>
               </div>
-              <span class="h-amount text-green">+ ¥{{ item.amount.toLocaleString() }}</span>
+              <div style="text-align: right;">
+                <span class="h-amount" :class="item.status === 1 ? 'text-green' : 'text-gray'">
+                  {{ item.status === 1 ? '+ ' : '' }} ¥{{ item.amount.toLocaleString() }}
+                </span>
+                <!-- 🆕 状态显示 -->
+                <p class="h-status" :class="getStatusClass(item.status)">{{ getStatusText(item.status) }}</p>
+              </div>
             </div>
           </div>
           <button class="confirm blue-btn full-btn" @click="showDepositModal = false">閉じる</button>
@@ -314,7 +340,12 @@ const showWithdrawHistoryModal = ref(false);
 const showPasswordModal = ref(false);
 const showServiceModal = ref(false);
 
-// 新增记录弹窗
+// 🆕 入金申请弹窗控制
+const showDepositRequestModal = ref(false);
+const depositAmount = ref(null);
+const isDepositing = ref(false);
+
+// 记录弹窗
 const showGameHistoryModal = ref(false);
 const showMlbHistoryModal = ref(false);
 
@@ -329,11 +360,11 @@ const newPassword = ref('');
 const deposits = ref([]);
 const withdrawals = ref([]);
 
-// 新增记录容器
+// 记录容器
 const gameRecords = ref([]);
 const mlbRecords = ref([]);
 
-// 🆕 打开网页客服
+// 打开网页客服
 const openChat = () => {
   if (window.Tawk_API && window.Tawk_API.toggle) {
     window.Tawk_API.toggle();
@@ -365,6 +396,7 @@ const fetchHistory = async () => {
   const user = JSON.parse(localStorage.getItem('user'));
   if (!user) return;
   try {
+    // 🆕 注意：如果后端分开了审核列表和已完成列表，这里可能还需要过滤，或者直接由后端返回包含状态的列表
     const dep = await request.get(`/user/deposits/${user.id}`);
     if (dep.data.success) deposits.value = dep.data.records;
     const wit = await request.get(`/user/withdrawals/${user.id}`);
@@ -376,6 +408,52 @@ const fetchHistory = async () => {
       mlbRecords.value = rec.data.mlbRecords || [];
     }
   } catch (e) { console.error(e); }
+};
+
+// 🆕 打开入金申请弹窗
+const openDepositModal = () => {
+  depositAmount.value = null;
+  showDepositRequestModal.value = true;
+};
+
+// 🆕 提交入金申请
+const submitDeposit = async () => {
+  if (!depositAmount.value || depositAmount.value < 1000) {
+    return ElMessage.warning('希望の入金金額をご入力ください（最低 1,000円から）');
+  }
+
+  isDepositing.value = true;
+  try {
+    // 1. 向你的后端提交入金申请
+    const res = await request.post(`/user/deposit/apply`, {
+      userId: userInfo.value.id,
+      amount: depositAmount.value
+    });
+
+    if (res.data.success) {
+      ElMessage.success(`¥${depositAmount.value.toLocaleString()} の入金申請を承りました。現在「審査待ち」です。`);
+      showDepositRequestModal.value = false;
+      
+      // 2. 唤起客服
+      if (window.Tawk_API && window.Tawk_API.toggle) {
+        window.Tawk_API.toggle();
+        if (window.Tawk_API.setAttributes) {
+          window.Tawk_API.setAttributes({
+            'deposit_status': '審査待ち',
+            'want_deposit_amount': `¥${depositAmount.value.toLocaleString()}`,
+            'user_id': userInfo.value.id
+          }, function(error){});
+        }
+      }
+      
+      // 3. 刷新入金记录
+      fetchHistory();
+    }
+  } catch (error) {
+    ElMessage.error(error.response?.data?.error || '入金申請に失敗しました。時間をおいて再度お試しください。');
+  } finally {
+    isDepositing.value = false;
+  }
 };
 
 const startKyc = () => {
@@ -416,12 +494,12 @@ const submitKycAll = async () => {
 };
 
 const submitWithdraw = async () => {
-  if (!withdrawAmount.value || withdrawAmount.value < 100) return ElMessage.warning('最低出金金額は 100円 です。');
+  if (!withdrawAmount.value || withdrawAmount.value < 10000) return ElMessage.warning('恐れ入りますが、出金金額は10,000円以上でご指定ください。');
   isWithdrawing.value = true;
   try {
     const res = await request.post(`/user/withdraw/${userInfo.value.id}`, { amount: withdrawAmount.value });
     if (res.data.success) {
-      ElMessage.success('出金申請を受け付けました。');
+      ElMessage.success('出金申請を承りました。現在「審査中」です。');
       showWithdrawModal.value = false;
       fetchUserInfo();
       fetchHistory();
@@ -458,8 +536,11 @@ const formatTime = (timeStr) => {
   const d = new Date(timeStr);
   return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 };
+
+// 🆕 状态文本及颜色映射
 const getStatusText = (status) => {
-  if (status === 0) return '審査中';
+  // 0 待审核, 1 已通过, 2 已拒绝 (对应后端的 status 字段，注意后端给你的具体数值)
+  if (status === 0) return '審査待ち'; // 如果是中文字段，请改为 審査中
   if (status === 1) return '完了';
   return '却下';
 };
@@ -492,9 +573,13 @@ onMounted(() => {
 .banner-balance .label { font-size: 12px; color: #94a3b8; display: block; margin-bottom: 5px; }
 .banner-balance .amount { font-size: 34px; font-weight: 900; font-family: monospace; color: #38bdf8; }
 .quick-actions { margin-bottom: 25px; }
-.action-btn { width: 100%; padding: 16px; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; border: none; transition: 0.2s; }
+
+/* 🆕 按钮样式调整 */
+.action-btn { flex: 1; padding: 16px; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; border: none; transition: 0.2s; }
 .action-btn.primary { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
+.action-btn.deposit-btn { background: linear-gradient(135deg, #10b981, #059669); color: white; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
 .action-btn:active { transform: scale(0.96); }
+
 .menu-list { background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; }
 .menu-item { display: flex; justify-content: space-between; align-items: center; padding: 18px 20px; font-size: 15px; font-weight: 500; color: #334155; cursor: pointer; border-bottom: 1px solid #f1f5f9; transition: 0.2s; }
 .menu-item:last-child { border-bottom: none; }

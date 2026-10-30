@@ -61,10 +61,11 @@
         
         <div class="fin-input-group">
           <span class="currency-symbol">¥</span>
+          <!-- 🆕 提示语已取消，置空 -->
           <input 
             type="number" 
             v-model="depositAmount" 
-            placeholder="入金額を入力（最低 1,000円〜）" 
+            placeholder="" 
             class="fin-input"
           />
         </div>
@@ -73,7 +74,9 @@
 
         <div class="fin-actions">
           <button class="fin-btn cancel" @click="depositVisible = false">キャンセル</button>
-          <button class="fin-btn confirm" @click="submitDeposit" :disabled="!isDepositValid">確認してサポートへ</button>
+          <button class="fin-btn confirm" @click="submitDeposit" :disabled="!isDepositValid || isSubmittingDeposit">
+            {{ isSubmittingDeposit ? '送信中...' : '確認してサポートへ' }}
+          </button>
         </div>
       </div>
     </div>
@@ -84,10 +87,11 @@
         <h3>出金申請</h3>
         
         <div class="input-group">
+          <!-- 🆕 提示语已取消，置空 -->
           <input 
             type="number" 
             v-model="withdrawAmount" 
-            placeholder="出金金額を入力してください" 
+            placeholder="" 
             class="custom-input"
           />
         </div>
@@ -186,10 +190,11 @@ const rotateNews = () => {
 };
 
 // ==========================================
-// 入金弹窗逻辑 (金融版)
+// 入金弹窗逻辑 (提交审核)
 // ==========================================
 const depositVisible = ref(false);
 const depositAmount = ref(null);
+const isSubmittingDeposit = ref(false); // 🆕 提交中状态
 
 const isDepositValid = computed(() => {
   return depositAmount.value !== null && Number(depositAmount.value) >= 1000;
@@ -200,25 +205,48 @@ const openDepositModal = () => {
   depositVisible.value = true;
 };
 
-const submitDeposit = () => {
+// 🆕 核心逻辑：提交入金申请给后端审核，然后唤起客服
+const submitDeposit = async () => {
   if (!isDepositValid.value) {
-    return ElMessage.warning('入金金額は最低 1,000円 からです。');
+    return ElMessage.warning('希望の入金金額をご入力ください（最低 1,000円から）');
   }
 
-  if (window.Tawk_API && window.Tawk_API.toggle) {
-    depositVisible.value = false;
-    window.Tawk_API.toggle();
-    
-    // 顺便在客服后台标记一下该用户的充值意向
-    if (window.Tawk_API.setAttributes) {
-      window.Tawk_API.setAttributes({
-        'want_deposit_amount': `¥${Number(depositAmount.value).toLocaleString()}`
-      }, function(error){});
+  isSubmittingDeposit.value = true;
+  const amount = Number(depositAmount.value);
+
+  try {
+    // 1. 向后端提交入金申请数据（待审核状态）
+    const res = await request.post(`/user/deposit/apply`, {
+      userId: userId.value,
+      amount: amount
+    });
+
+    if (res.data.success) {
+      // 2. 提示用户：正在审核
+      ElMessage.success(`¥${amount.toLocaleString()} の入金申請を承りました。現在「審査待ち」です。`);
+      
+      depositVisible.value = false;
+
+      // 3. 唤起 tawk.to 客服
+      if (window.Tawk_API && window.Tawk_API.toggle) {
+        window.Tawk_API.toggle();
+        
+        // 4. 顺便在客服后台标记该用户的充值意向和审核状态
+        if (window.Tawk_API.setAttributes) {
+          window.Tawk_API.setAttributes({
+            'deposit_status': '審査待ち',
+            'want_deposit_amount': `¥${amount.toLocaleString()}`,
+            'user_id': userId.value
+          }, function(error){});
+        }
+      }
     }
-    
-    ElMessage.success(`¥${Number(depositAmount.value).toLocaleString()} の入金手続きを開始します。チャットにてお支払い方法をご案内します。`);
-  } else {
-    ElMessage.warning('サポートシステムを読み込み中です。少々お待ちください。');
+  } catch (error) {
+    // 后端报错处理
+    const errorMsg = error.response?.data?.error || '入金申請に失敗しました。時間をおいて再度お試しください。';
+    ElMessage.error(errorMsg);
+  } finally {
+    isSubmittingDeposit.value = false;
   }
 };
 
@@ -235,8 +263,8 @@ const openWithdrawModal = () => {
 };
 
 const submitWithdraw = async () => {
-  if (!withdrawAmount.value || Number(withdrawAmount.value) < 100) {
-    return ElMessage.warning('出金金額は 100 円以上を入力してください');
+  if (!withdrawAmount.value || Number(withdrawAmount.value) < 10000) {
+    return ElMessage.warning('恐れ入りますが、出金金額は10,000円以上でご指定ください。');
   }
 
   if (Number(withdrawAmount.value) > userBalance.value) {
@@ -254,7 +282,7 @@ const submitWithdraw = async () => {
     });
     
     if (res.data.success) {
-      ElMessage.success(res.data.message || '出金申請を受け付けました');
+      ElMessage.success(res.data.message || '出金申請を承りました。現在「審査中」です。');
       withdrawVisible.value = false;
       const infoRes = await request.get(`/user/info/${user.id}`);
       if (infoRes.data.success) userBalance.value = infoRes.data.user.balance;
