@@ -225,7 +225,7 @@
           <div class="info-screen">
             <p class="desc">{{ gameDesc }}</p>
             
-            <!-- 跑马灯 -->
+            <!-- 🆕 全新跑马灯 -->
             <div class="marquee-board" v-if="marqueePrizes.length > 0">
               <div class="marquee-scroll">
                 <div 
@@ -239,6 +239,7 @@
                   }"
                 >
                   <span class="name">{{ translateName(prize.name) }}</span>
+                  <span class="divider" v-if="prize.value > 0"></span>
                   <span class="value" v-if="prize.value > 0">¥{{ prize.value.toLocaleString() }}</span>
                 </div>
               </div>
@@ -340,7 +341,6 @@
       <div v-if="result && showTicket" class="ticket-overlay">
         <div class="ticket-wrapper" :class="result.value > 0 ? 'win' : 'lose'">
           <div class="ticket-top">
-            <!-- 🆕 品牌名替换 -->
             <div class="brand">GRANDSLAM OFFICIAL</div>
             <div class="status">{{ result.value > 0 ? '当せん' : 'ハズレ' }}</div>
           </div>
@@ -554,7 +554,6 @@ const wheelStyle = computed(() => {
   };
 });
 
-// 🆕 只做了最轻量的兜底，原有逻辑不变
 const translateName = (name) => {
   if (!name) return 'ハズレ';
   if (name === '不中奖' || name === '未中奖' || name === '没中奖' || name === '谢谢参与') {
@@ -622,12 +621,18 @@ onMounted(async () => {
       localStorage.setItem('user', JSON.stringify(user));
     }
     
-    const poolRes = await request.get(`/admin/probability?gameName=${gameName}`);
-    if (poolRes.data.success && poolRes.data.probability) {
-      marqueePrizes.value = poolRes.data.probability
-        .filter(p => p.probability > 0)
-        .sort((a, b) => b.value - a.value); 
-    }
+    // 🆕 纯前端写死跑马灯数据，避免后台概率 0 不显示
+    marqueePrizes.value = [
+      { name: '1000万', value: 10000000 },
+      { name: '100万', value: 1000000 },
+      { name: '50万', value: 500000 },
+      { name: '10万', value: 100000 },
+      { name: '5万', value: 50000 },
+      { name: '1万', value: 10000 },
+      { name: '5000', value: 5000 },
+      { name: '1000', value: 1000 }
+    ];
+    
   } catch (error) {
     console.warn('ユーザー情報の取得に失敗しました', error);
   }
@@ -1002,15 +1007,54 @@ const closeResult = () => { result.value = null; showTicket.value = false; };
 .ticket-leave-to { opacity: 0; }
 @keyframes ticketDrop { 0% { transform: translateY(-50px) scale(0.9); opacity: 0; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
 
-.marquee-board { width: 100%; margin-top: 15px; padding: 10px; background: rgba(0, 0, 0, 0.3); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); overflow: hidden; box-sizing: border-box; }
-.marquee-scroll { display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto; padding-bottom: 5px; }
-.marquee-scroll::-webkit-scrollbar { height: 4px; }
-.marquee-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-.marquee-item { flex-shrink: 0; background: #1e293b; color: #94a3b8; padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: bold; font-family: monospace; transition: all 0.1s; border: 2px solid transparent; }
-.marquee-item.is-active { background: #e83862; color: white; transform: scale(1.1); box-shadow: 0 0 15px rgba(232, 56, 98, 0.8); z-index: 10; }
-.marquee-item.is-active.is-win { background: linear-gradient(135deg, #fde047, #eab308); color: #b45309; border-color: #fff; box-shadow: 0 0 20px rgba(253, 224, 71, 1); animation: win-pulse 1.5s infinite alternate; }
-.marquee-item.is-active.is-lose { background: #64748b; color: white; border-color: #cbd5e1; }
-@keyframes win-pulse { 0% { transform: scale(1.1); } 100% { transform: scale(1.15); } }
+/* 🆕 优化后的跑马灯样式 */
+.marquee-board { 
+  width: 100%; 
+  margin-top: 15px; 
+  padding: 10px; 
+  background: rgba(0, 0, 0, 0.3); 
+  border-radius: 12px; 
+  border: 1px solid rgba(255, 255, 255, 0.1); 
+  overflow: hidden; 
+  box-sizing: border-box; 
+}
+.marquee-scroll { 
+  display: flex; 
+  flex-wrap: nowrap; 
+  gap: 8px; 
+  overflow-x: auto; 
+  padding-bottom: 5px; 
+  scrollbar-width: none;
+}
+.marquee-scroll::-webkit-scrollbar { display: none; }
+.marquee-item { 
+  flex-shrink: 0; 
+  display: flex;
+  align-items: center;
+  background: #1e293b; 
+  color: #cbd5e1; 
+  padding: 6px 12px; 
+  border-radius: 20px; 
+  font-size: 12px; 
+  font-weight: bold; 
+  transition: all 0.2s; 
+  border: 2px solid transparent; 
+}
+.marquee-item .name { color: #94a3b8; font-size: 11px; }
+.marquee-item .divider { width: 1px; height: 10px; background: #475569; margin: 0 6px; }
+.marquee-item .value { color: #fbbf24; font-family: monospace; font-size: 13px; }
+.marquee-item.is-active { background: #e83862; color: white; transform: scale(1.05); box-shadow: 0 0 15px rgba(232, 56, 98, 0.6); z-index: 10; }
+.marquee-item.is-active .name { color: #fce4e8; }
+.marquee-item.is-active .divider { background: rgba(255,255,255,0.3); }
+.marquee-item.is-active .value { color: white; }
+.marquee-item.is-active.is-win { background: linear-gradient(135deg, #fde047, #eab308); border-color: #fff; box-shadow: 0 0 20px rgba(253, 224, 71, 0.8); animation: win-pulse 1.5s infinite alternate; }
+.marquee-item.is-active.is-win .name { color: #854d0e; }
+.marquee-item.is-active.is-win .divider { background: #ca8a04; }
+.marquee-item.is-active.is-win .value { color: #b45309; }
+.marquee-item.is-active.is-lose { background: #475569; color: white; border-color: #cbd5e1; }
+.marquee-item.is-active.is-lose .name { color: #cbd5e1; }
+.marquee-item.is-active.is-lose .value { color: white; }
+@keyframes win-pulse { 0% { transform: scale(1.05); } 100% { transform: scale(1.1); } }
 
 @media (max-width: 768px) {
   .floating-back-btn { top: 50px; left: 15px; padding: 6px 12px; font-size: 13px; }
