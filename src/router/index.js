@@ -12,8 +12,10 @@ import CommerceDisclosure from '../views/CommerceDisclosure.vue';
 import SocialChat from '../views/SocialChat.vue';
 // 🆕 引入 MLB 竞猜页面
 import MLBRoom from '../views/MLBRoom.vue'; 
-// 🆕 引入 MLB 比赛房间详情页面（请确保您之后创建了这个文件）
+// 🆕 引入 MLB 比赛房间详情页面
 import MlbMatchDetail from '../views/MlbMatchDetail.vue'; 
+// 🆕 引入代理中心页面 (请确保你在 views 文件夹下建了这个文件)
+import Agent from '../views/Agent.vue'; 
 
 const router = createRouter({
     history: createWebHistory(),
@@ -31,7 +33,9 @@ const router = createRouter({
         // 🆕 添加 MLB 竞猜大厅路由
         { path: '/mlb', component: MLBRoom },
         // 🆕 添加 MLB 比赛房间详情路由
-        { path: '/mlb/room/:id', component: MlbMatchDetail } 
+        { path: '/mlb/room/:id', component: MlbMatchDetail },
+        // 🆕 添加代理中心路由 (必须登录才能看)
+        { path: '/agent', component: Agent }
     ]
 });
 
@@ -40,8 +44,6 @@ router.beforeEach((to, from, next) => {
     const user = localStorage.getItem('user');
     
     // 定义不需要登录就能访问的“白名单”页面
-    // 🆕 把 '/mlb' 加进去，允许游客查看比分
-    // 🆕 判断 'to.path.startsWith('/mlb')' 可以兼容包括房间详情页 /mlb/room/123 在内的所有 MLB 页面
     const whiteList = ['/login', '/register', '/legal/commerce', '/mlb'];
     
     // 检查是否是白名单路径，或者是否以 /mlb 开头（包含房间详情页）
@@ -55,7 +57,7 @@ router.beforeEach((to, from, next) => {
             next();
         }
     } else {
-        // 如果去的是需要权限的页面，但没登录，强制去登录页
+        // 如果去的是需要权限的页面（比如 /agent 或 /profile），但没登录，强制去登录页
         if (!user) {
             next('/login'); 
         } else {
