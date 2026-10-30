@@ -1,3 +1,4 @@
+<!-- src/components/AppHeader.vue -->
 <template>
   <header class="top-header-wrapper">
     <!-- 顶部滚动播报条 -->
@@ -63,7 +64,7 @@
           <input 
             type="number" 
             v-model="depositAmount" 
-            placeholder="充金額を入力 (最低 1,000円〜)" 
+            placeholder="入金額を入力（最低 1,000円〜）" 
             class="fin-input"
           />
         </div>
@@ -114,7 +115,7 @@ const username = ref('ゲスト');
 const userId = ref(null);
 
 // ==========================================
-// 🆕 签到逻辑
+// 签到逻辑
 // ==========================================
 const isCheckedIn = ref(false);
 
@@ -130,7 +131,7 @@ const checkCheckInStatus = async () => {
       isCheckedIn.value = res.data.hasCheckedIn;
     }
   } catch (error) {
-    console.error("获取签到状态失败", error);
+    console.error("チェックインステータスの取得に失敗しました", error);
   }
 };
 
@@ -151,7 +152,7 @@ const handleCheckIn = async () => {
 };
 
 // ==========================================
-// 🆕 棒球比赛速报逻辑
+// 棒球比赛速报逻辑
 // ==========================================
 const currentNews = ref({ id: 0, text: '⚾ まもなく新しい試合が発表されます。お楽しみに！', game_pk: null });
 let tickerTimer = null;
@@ -173,7 +174,7 @@ const fetchTickerData = async () => {
       }
     }
   } catch (error) {
-    console.error('获取速报失败', error);
+    console.error('速報データの取得に失敗しました', error);
   }
 };
 
@@ -185,7 +186,7 @@ const rotateNews = () => {
 };
 
 // ==========================================
-// 🆕 入金弹窗逻辑 (金融版)
+// 入金弹窗逻辑 (金融版)
 // ==========================================
 const depositVisible = ref(false);
 const depositAmount = ref(null);
@@ -222,7 +223,7 @@ const submitDeposit = () => {
 };
 
 // ==========================================
-// 🆕 出金弹窗逻辑
+// 出金弹窗逻辑
 // ==========================================
 const withdrawVisible = ref(false);
 const withdrawAmount = ref(null);
@@ -260,6 +261,7 @@ const submitWithdraw = async () => {
     }
   } catch (error) {
     let errorMsg = error.response?.data?.error || '出金申請に失敗しました';
+    // 兼容后端可能返回的中文报错，进行前端日文替换
     if (errorMsg.includes('残高') || errorMsg.includes('余额')) {
       errorMsg = '残高が不足しています';
     }
@@ -304,7 +306,7 @@ onMounted(async () => {
       }
     }
   } catch (error) {
-    console.error("获取余额失败", error);
+    console.error("残高の取得に失敗しました", error);
   }
 });
 
