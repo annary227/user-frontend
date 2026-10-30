@@ -31,6 +31,10 @@
 
       <!-- 3. 菜单列表 -->
       <div class="menu-list">
+        <!-- 👑 代理专属入口 -->
+        <div class="menu-item" v-if="userInfo.is_agent === 1" @click="$router.push('/agent')">
+          <span style="color: #fbbf24; font-weight: bold;">👑 代理パートナーセンター</span><span class="arrow">›</span>
+        </div>
         <div class="menu-item" @click="showDepositModal = true">
           <span>入金履歴</span><span class="arrow">›</span>
         </div>
