@@ -23,7 +23,7 @@
 
         <div class="status">
           <span v-if="game.status === 'Live'" class="live-badge">
-            <span class="dot"></span> 試合中
+            <span class="dot"></span> 試合中 ({{ game.inning_half === 'Top' ? '表' : '裏' }} 第{{ game.current_inning }}回)
           </span>
           <span v-else-if="game.status === 'Final'" style="color: #ef4444; font-weight: bold;">試合終了</span>
           <span v-else>試合前</span>
@@ -34,21 +34,21 @@
         </div>
       </div>
 
-      <!-- 2. 实况文字播报区 -->
+      <!-- 2. 实况文字播报区 (🆕 动态读取后端 live_text) -->
       <div class="live-commentary">
         <div class="commentary-header">
           <h3>📻 実況テキスト速報</h3>
           <span class="live-pulse" v-if="game.status === 'Live'">LIVE</span>
         </div>
         <div class="commentary-box">
-          <div v-for="(msg, index) in liveMessages" :key="index" class="msg-item">
-            <span class="time">{{ msg.time }}</span>
-            <span class="text" :class="{ 'highlight': msg.highlight }">{{ msg.text }}</span>
+          <div class="msg-item">
+            <!-- 如果后端有 live_text 就显示，没有就显示默认提示 -->
+            <span class="text highlight">{{ game.live_text || '試合進行中...' }}</span>
           </div>
         </div>
       </div>
 
-      <!-- 3. 🆕 整场胜负预测盘口 (仅赛前) -->
+      <!-- 3. 整场胜负预测盘口 (仅赛前) -->
       <div class="betting-board pregame-board" v-if="game.status === 'Preview'">
         <div class="board-header">
           <h3>🏆 勝敗予想</h3>
@@ -66,7 +66,7 @@
         </div>
       </div>
 
-      <!-- 4. 🆕 最终比分预测盘口 (整场) -->
+      <!-- 4. 最终比分预测盘口 (整场) -->
       <div class="betting-board" v-if="game.status === 'Preview'">
         <div class="board-header">
           <h3>🎯 最終スコア予想</h3>
@@ -143,14 +143,12 @@ const gameId = route.params.id;
 
 const game = ref(null);
 const userBalance = ref(0);
-const liveMessages = ref([]);
 let pollTimer = null;
 
-// 🆕 修复：校正了客主队比分顺序
-// key 是存入数据库的值 (客队:主队)，label 是前端显示的文字
+// 比分盘口配置
 const scoreOptions = ref([
-  { key: '0:1', label: '0 - 1 (主勝)', odds: 3.0 }, // 客0 主1
-  { key: '1:0', label: '1 - 0 (客勝)', odds: 3.0 }, // 客1 主0
+  { key: '0:1', label: '0 - 1 (主勝)', odds: 3.0 },
+  { key: '1:0', label: '1 - 0 (客勝)', odds: 3.0 },
   { key: '0:2', label: '0 - 2 (主勝)', odds: 4.5 },
   { key: '2:0', label: '2 - 0 (客勝)', odds: 4.5 },
   { key: '1:2', label: '1 - 2 (主勝)', odds: 4.0 },
@@ -191,7 +189,6 @@ const fetchGameDetail = async () => {
     const res = await request.get(`/mlb/detail/${gameId}`);
     if (res.data.success) {
       game.value = res.data.game;
-      if (res.data.commentary) liveMessages.value = res.data.commentary;
     }
   } catch (error) { console.error("詳細取得失敗", error); }
 };
@@ -249,7 +246,7 @@ const confirmBet = async () => {
 onMounted(() => {
   fetchGameDetail();
   fetchBalance();
-  pollTimer = setInterval(fetchGameDetail, 15000);
+  pollTimer = setInterval(fetchGameDetail, 15000); // 15秒轮询一次实况
 });
 onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 </script>
