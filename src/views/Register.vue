@@ -64,8 +64,8 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed, onMounted } from 'vue';
+import { useRouter, useRoute } from 'vue-router'; // 🆕 引入 useRoute
 import request from '../api/request';
 import { ElMessage } from 'element-plus';
 import { User, Lock } from '@element-plus/icons-vue';
@@ -74,8 +74,18 @@ const username = ref('');
 const password = ref('');
 const confirmPassword = ref('');
 const isLoading = ref(false);
-const showSuccessModal = ref(false); // 🆕 控制成功弹窗
+const showSuccessModal = ref(false); 
 const router = useRouter();
+const route = useRoute(); // 🆕 获取路由实例
+
+// 🆕 偷偷截获 URL 中的 ref 参数 (代理ID)
+const inviterId = ref(null);
+
+onMounted(() => {
+  if (route.query.ref) {
+    inviterId.value = route.query.ref;
+  }
+});
 
 // 实时计算两次密码是否不一致
 const passwordMismatch = computed(() => {
@@ -100,13 +110,14 @@ const register = async () => {
 
   isLoading.value = true;
   try {
+    // 🆕 把 inviterId 一起传给后端
     const res = await request.post('/user/register', { 
       username: username.value, 
-      password: password.value 
+      password: password.value,
+      inviterId: inviterId.value 
     });
     
     if (res.data.success) {
-      // 🆕 注册成功后，不再直接跳转，而是打开成功弹窗
       showSuccessModal.value = true;
     }
   } catch (error) {
@@ -117,7 +128,6 @@ const register = async () => {
   }
 };
 
-// 🆕 点击弹窗按钮后，再去登录页
 const goToLogin = () => {
   showSuccessModal.value = false;
   router.push('/login');
